@@ -5,7 +5,7 @@ import prisma from '../db';
 const router = Router();
 
 // POST /log – create a new daily log
-router.post('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.post('/log', authenticateToken, async (req: AuthenticatedRequest, res) => {
   const { focusScore, notes, sleepHours, hrv, strain, dietSummary, screenTime } = req.body;
 
   try {
@@ -21,6 +21,7 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
         screenTime,
       },
     });
+    console.log('Received log:', req.body);
     res.status(201).json(log);
   } catch {
     res.status(500).json({ error: 'Failed to create log' });
@@ -28,7 +29,7 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
 });
 
 // GET /logs – get all logs for current user
-router.get('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.get('/log', authenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
     const logs = await prisma.dailyLog.findMany({
       where: { userId: req.userId },

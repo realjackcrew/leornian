@@ -6,10 +6,10 @@ import logRoutes from './routes/log';
 dotenv.config();
 
 const app = express();
-app.use(cors({ origin: 'http://localhost:3000' }));
+app.use(cors({ origin: 'http://localhost:5173' }));
 app.use(express.json());
-app.use('/auth', authRoutes); //double check 
-app.use('/logs', logRoutes);
+app.use('/api', authRoutes); //double check original /auth and /logs
+app.use('/api', logRoutes);
 const PORT = process.env.PORT || 4000;
 
 
@@ -21,7 +21,3 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-//   console.error('Global error handler caught:', err.stack);
-//   res.status(500).json({ error: 'Unhandled server error' });
-// });

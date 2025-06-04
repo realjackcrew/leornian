@@ -35,7 +35,7 @@ export default function Dashboard() {
             // setLogs(res.data);
         } catch (error) {
             console.error('Error submitting log:', error);
-            alert('Error submitting log');
+            alert('Error submitting log hi');
         }
     };
 

@@ -1,13 +1,12 @@
 import axios from 'axios';
-
-const BASE = 'http://localhost:4000';
+import { API_BASE_URL } from '../config';
 
 export const getLogs = (token) =>
-  axios.get(`${BASE}/api/logs`, {
+  axios.get(`${API_BASE_URL}/api/log`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
 export const createLog = (token, data) =>
-  axios.post(`${BASE}/api/log`, data, {
+  axios.post(`${API_BASE_URL}/api/log`, data, {
     headers: { Authorization: `Bearer ${token}` },
   });
