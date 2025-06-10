@@ -1,76 +1,173 @@
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { getLogs, createLog } from '../api/log';
+import { getLogs } from '../api/log';
+import { useNavigate } from 'react-router-dom';
+import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function Dashboard() {
-    const { token, logout } = useContext(AuthContext);
-    const [focus, setFocus] = useState('');
-    const [sleep, setSleep] = useState('');
-    const [hrv, setHrv] = useState('');
-    const [strain, setStrain] = useState('');
-    const [screen, setScreen] = useState('');
-    const [diet, setDiet] = useState('');
-    const [note, setNote] = useState('');
+    const { token } = useContext(AuthContext);
+    const navigate = useNavigate();
     const [logs, setLogs] = useState([]);
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [currentMonth, setCurrentMonth] = useState(new Date());
 
     useEffect(() => {
         if (!token) return;
         getLogs(token).then(res => setLogs(res.data));
     }, [token]);
 
-    const handleSubmit = async () => {
-        try {
-        await createLog(token, {
-            focusScore: focus,
-            sleepHours: sleep,
-            hrv,
-            strain,
-            screenTime: screen,
-            dietSummary: diet,
-            notes: note
-          });
-            alert('Log submitted successfully');
-            // setNote('');
-            // const res = await getLogs(token);
-            // setLogs(res.data);
-        } catch (error) {
-            console.error('Error submitting log:', error);
-            alert('Error submitting log hi');
+    const getDaysInMonth = (date) => {
+        return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+    };
+
+    const getFirstDayOfMonth = (date) => {
+        return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+    };
+
+    const formatDate = (date) => {
+        return date.toISOString().split('T')[0];
+    };
+
+    const getLogForDate = (date) => {
+        return logs.find(log => formatDate(new Date(log.createdAt)) === formatDate(date));
+    };
+
+    const renderCalendar = () => {
+        const daysInMonth = getDaysInMonth(currentMonth);
+        const firstDay = getFirstDayOfMonth(currentMonth);
+        const days = [];
+
+        // Add empty cells for days before the first day of the month
+        for (let i = 0; i < firstDay; i++) {
+            days.push(<div key={`empty-${i}`} className="h-24 border border-gray-100"></div>);
         }
+
+        // Add cells for each day of the month
+        for (let day = 1; day <= daysInMonth; day++) {
+            const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+            const log = getLogForDate(date);
+            const isSelected = selectedDate && formatDate(selectedDate) === formatDate(date);
+
+            days.push(
+                <div
+                    key={day}
+                    onClick={() => setSelectedDate(date)}
+                    className={`h-24 border border-gray-100 p-2 cursor-pointer transition-colors ${
+                        isSelected ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'
+                    }`}
+                >
+                    <div className="text-sm text-gray-600">{day}</div>
+                    {log && (
+                        <div className="mt-1">
+                            <div className="text-xs text-blue-600">Focus: {log.focusScore}/10</div>
+                            <div className="text-xs text-green-600">Sleep: {log.sleepHours}h</div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        return days;
+    };
+
+    const changeMonth = (delta) => {
+        setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + delta, 1));
     };
 
     if (!token) return <p className="text-center mt-10">Please log in.</p>;
 
-    function test() {
-        console.log('Submitting log:', { focus, sleep, hrv, strain, screen, diet, note });
-    }
-
     return (
-        <div className="max-w-2xl mx-auto p-6">
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold">Dashboard</h2>
-                <button onClick={logout} className="text-red-500">Logout</button>
+        <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
+            <div className="max-w-4xl mx-auto p-6">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-light text-gray-900">Your Wellness Calendar</h2>
+                        <div className="flex items-center space-x-2">
+                            <button
+                                onClick={() => changeMonth(-1)}
+                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                <ChevronLeft className="h-5 w-5 text-gray-600" />
+                            </button>
+                            <span className="text-gray-700">
+                                {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                            </span>
+                            <button
+                                onClick={() => changeMonth(1)}
+                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                <ChevronRight className="h-5 w-5 text-gray-600" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {logs.length === 0 ? (
+                        <div className="text-center py-12">
+                            <p className="text-gray-600 mb-2">Your wellness journey begins here</p>
+                            <p className="text-gray-500">Start tracking your daily progress to see your growth</p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-7 gap-px bg-gray-100 rounded-lg overflow-hidden mb-6">
+                                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                                    <div key={day} className="bg-gray-50 p-2 text-center text-sm font-medium text-gray-600">
+                                        {day}
+                                    </div>
+                                ))}
+                                {renderCalendar()}
+                            </div>
+
+                            {selectedDate && getLogForDate(selectedDate) && (
+                                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                                    <h3 className="text-lg font-medium text-gray-900 mb-4">
+                                        {selectedDate.toLocaleDateString('default', { weekday: 'long', month: 'long', day: 'numeric' })}
+                                    </h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <p className="text-sm text-gray-600">Focus Score</p>
+                                            <p className="text-lg font-medium">{getLogForDate(selectedDate).focusScore}/10</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-gray-600">Sleep</p>
+                                            <p className="text-lg font-medium">{getLogForDate(selectedDate).sleepHours}h</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-gray-600">HRV</p>
+                                            <p className="text-lg font-medium">{getLogForDate(selectedDate).hrv}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-gray-600">Strain</p>
+                                            <p className="text-lg font-medium">{getLogForDate(selectedDate).strain}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-gray-600">Screen Time</p>
+                                            <p className="text-lg font-medium">{getLogForDate(selectedDate).screenTime}min</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-gray-600">Diet</p>
+                                            <p className="text-lg font-medium">{getLogForDate(selectedDate).dietSummary}</p>
+                                        </div>
+                                    </div>
+                                    {getLogForDate(selectedDate).notes && (
+                                        <div className="mt-4">
+                                            <p className="text-sm text-gray-600">Notes</p>
+                                            <p className="text-gray-900">{getLogForDate(selectedDate).notes}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 mb-4">
-                <input className="border p-2" type="number" placeholder="Focus Score (1–10)" value={focus} onChange={e => setFocus(+e.target.value)} />
-                <input className="border p-2" type="number" placeholder="Sleep Hours" value={sleep} onChange={e => setSleep(+e.target.value)} />
-                <input className="border p-2" type="number" placeholder="HRV" value={hrv} onChange={e => setHrv(+e.target.value)} />
-                <input className="border p-2" type="number" placeholder="Strain" value={strain} onChange={e => setStrain(+e.target.value)} />
-                <input className="border p-2" type="number" placeholder="Screen Time (min)" value={screen} onChange={e => setScreen(+e.target.value)} />
-                <input className="border p-2" placeholder="Diet Summary" value={diet} onChange={e => setDiet(e.target.value)} />
-                <textarea className="col-span-2 border p-2" placeholder="Notes..." value={note} onChange={e => setNote(e.target.value)} />
-                <button className="col-span-2 bg-blue-600 text-white px-4 py-2 rounded" onClick={handleSubmit}>Log Entry</button>
-            </div>
-            <ul className="space-y-2">
-                {logs.map(log => (
-                    <li key={log.id} className="p-3 border rounded text-sm space-y-1">
-                        <p><strong>Focus:</strong> {log.focusScore} | <strong>Sleep:</strong> {log.sleepHours}h | <strong>HRV:</strong> {log.hrv}</p>
-                        <p><strong>Strain:</strong> {log.strain} | <strong>Screen:</strong> {log.screenTime}min | <strong>Diet:</strong> {log.dietSummary}</p>
-                        <p><strong>Notes:</strong> {log.notes}</p>
-                        <p className="text-gray-500">{new Date(log.createdAt).toLocaleString()}</p>
-                    </li>
-                ))}
-            </ul>
+
+            {/* Floating Action Button */}
+            <button
+                onClick={() => navigate('/log')}
+                className="fixed bottom-6 right-6 w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full shadow-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all flex items-center justify-center"
+            >
+                <Plus className="h-6 w-6" />
+            </button>
         </div>
     );
 }
