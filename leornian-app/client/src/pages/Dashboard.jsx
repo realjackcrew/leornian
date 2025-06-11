@@ -2,7 +2,7 @@ import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { getLogs } from '../api/log';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ChevronLeft, ChevronRight, Activity, Moon, Heart, Clock, Apple, BookOpen, Brain, Coffee } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Activity, Moon, Heart, Clock, Apple, BookOpen, Brain, Coffee, Check } from 'lucide-react';
 
 export default function Dashboard() {
     const { token, firstName } = useContext(AuthContext);
@@ -20,50 +20,40 @@ export default function Dashboard() {
             .finally(() => setIsLoading(false));
     }, [token]);
 
-    // Helper function to extract data from both legacy and new format
     const extractLogData = (log) => {
-        if (log.healthData) {
-            // New comprehensive format
-            const categories = log.healthData.categories;
-            const extracted = {
-                notes: log.healthData.notes || log.notes,
-                format: 'comprehensive'
-            };
-            
-            // Extract key metrics from categories
-            if (categories.sleep) {
-                extracted.sleepHours = categories.sleep.dataPoints.sleepHours?.value;
-                extracted.sleepQuality = categories.sleep.dataPoints.sleepQuality?.value;
-            }
-            if (categories.mentalHealth) {
-                extracted.focusScore = categories.mentalHealth.dataPoints.focusScore?.value;
-                extracted.moodRating = categories.mentalHealth.dataPoints.moodRating?.value;
-                extracted.anxietyLevel = categories.mentalHealth.dataPoints.anxietyLevel?.value;
-                extracted.energyLevel = categories.mentalHealth.dataPoints.energyLevel?.value;
-            }
-            if (categories.physicalHealth) {
-                extracted.hrv = categories.physicalHealth.dataPoints.hrv?.value;
-                extracted.exerciseMinutes = categories.physicalHealth.dataPoints.exerciseMinutes?.value;
-                extracted.steps = categories.physicalHealth.dataPoints.steps?.value;
-            }
-            if (categories.lifestyle) {
-                extracted.screenTime = categories.lifestyle.dataPoints.screenTime?.value;
-                extracted.stressLevel = categories.lifestyle.dataPoints.stressLevel?.value;
-                extracted.productivityScore = categories.lifestyle.dataPoints.productivityScore?.value;
-            }
-            if (categories.nutrition) {
-                extracted.waterIntake = categories.nutrition.dataPoints.waterIntake?.value;
-                extracted.vegetables = categories.nutrition.dataPoints.vegetables?.value;
-            }
-            
-            return extracted;
-        } else {
-            // Legacy format
-            return {
-                ...log,
-                format: 'legacy'
-            };
+        const categories = log.healthData.categories;
+        const extracted = {
+            notes: log.healthData.notes || log.notes,
+            format: 'comprehensive'
+        };
+        
+        // Extract key metrics from categories
+        if (categories.sleep) {
+            extracted.sleepHours = categories.sleep.dataPoints.sleepHours?.value;
+            extracted.sleepQuality = categories.sleep.dataPoints.sleepQuality?.value;
         }
+        if (categories.mentalHealth) {
+            extracted.focusScore = categories.mentalHealth.dataPoints.focusScore?.value;
+            extracted.moodRating = categories.mentalHealth.dataPoints.moodRating?.value;
+            extracted.anxietyLevel = categories.mentalHealth.dataPoints.anxietyLevel?.value;
+            extracted.energyLevel = categories.mentalHealth.dataPoints.energyLevel?.value;
+        }
+        if (categories.physicalHealth) {
+            extracted.hrv = categories.physicalHealth.dataPoints.hrv?.value;
+            extracted.exerciseMinutes = categories.physicalHealth.dataPoints.exerciseMinutes?.value;
+            extracted.steps = categories.physicalHealth.dataPoints.steps?.value;
+        }
+        if (categories.lifestyle) {
+            extracted.screenTime = categories.lifestyle.dataPoints.screenTime?.value;
+            extracted.stressLevel = categories.lifestyle.dataPoints.stressLevel?.value;
+            extracted.productivityScore = categories.lifestyle.dataPoints.productivityScore?.value;
+        }
+        if (categories.nutrition) {
+            extracted.waterIntake = categories.nutrition.dataPoints.waterIntake?.value;
+            extracted.vegetables = categories.nutrition.dataPoints.vegetables?.value;
+        }
+        
+        return extracted;
     };
 
     const getDaysInMonth = (date) => {
@@ -83,31 +73,18 @@ export default function Dashboard() {
         return log ? extractLogData(log) : null;
     };
 
-    const getMonthlyStats = () => {
-        const currentMonthLogs = logs.filter(log => {
-            const logDate = new Date(log.createdAt);
-            return logDate.getMonth() === currentMonth.getMonth() && 
-                   logDate.getFullYear() === currentMonth.getFullYear();
-        });
-
-        if (currentMonthLogs.length === 0) return null;
-
-        const avgFocus = currentMonthLogs.reduce((acc, log) => acc + log.focusScore, 0) / currentMonthLogs.length;
-        const avgSleep = currentMonthLogs.reduce((acc, log) => acc + log.sleepHours, 0) / currentMonthLogs.length;
-        const avgHRV = currentMonthLogs.reduce((acc, log) => acc + log.hrv, 0) / currentMonthLogs.length;
-
-        return {
-            avgFocus: avgFocus.toFixed(1),
-            avgSleep: avgSleep.toFixed(1),
-            avgHRV: Math.round(avgHRV),
-            entries: currentMonthLogs.length
-        };
+    const getFirstLogDate = () => {
+        if (logs.length === 0) return null;
+        const sortedLogs = [...logs].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        return new Date(sortedLogs[0].createdAt);
     };
 
     const renderCalendar = () => {
         const daysInMonth = getDaysInMonth(currentMonth);
         const firstDay = getFirstDayOfMonth(currentMonth);
         const days = [];
+        const firstLogDate = getFirstLogDate();
+        const today = new Date();
 
         // Add empty cells for days before the first day of the month
         for (let i = 0; i < firstDay; i++) {
@@ -119,44 +96,29 @@ export default function Dashboard() {
             const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
             const logData = getLogForDate(date);
             const isSelected = selectedDate && formatDate(selectedDate) === formatDate(date);
-            const isToday = formatDate(new Date()) === formatDate(date);
+            const isToday = formatDate(today) === formatDate(date);
+
+            // Determine background color based on log status
+            let bgColor = 'hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-800/50'; // default
+            
+            if (logData) {
+                // Day has a log - green
+                bgColor = 'bg-green-100 dark:bg-green-800/30 hover:bg-green-200 dark:hover:bg-green-700';
+            } else if (firstLogDate && date >= firstLogDate && date <= today) {
+                // Day is between first log date and today (inclusive) but has no log - red
+                bgColor = 'bg-red-100 dark:bg-red-800/30 hover:bg-red-200 dark:hover:bg-red-700';
+            }
+
 
             days.push(
                 <div
                     key={day}
                     onClick={() => setSelectedDate(date)}
-                    className={`h-28 border border-gray-100 dark:border-gray-600 p-2 cursor-pointer transition-all ${
-                        isSelected 
-                            ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 shadow-sm' 
-                            : isToday 
-                                ? 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600' 
-                                : 'hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-800/50'
-                    }`}
+                    className={`h-28 border border-gray-100 dark:border-gray-600 p-2 cursor-pointer transition-all ${bgColor}`}
                 >
                     <div className={`text-sm ${isToday ? 'font-medium text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-300'}`}>
                         {day}
                     </div>
-                    {logData && (
-                        <div className="mt-1 space-y-1">
-                            {logData.focusScore && (
-                                <div className="flex items-center text-xs text-blue-600 dark:text-blue-400">
-                                    <Activity className="h-3 w-3 mr-1" />
-                                    {logData.focusScore}/10
-                                </div>
-                            )}
-                            {logData.sleepHours && (
-                                <div className="flex items-center text-xs text-green-600 dark:text-green-400">
-                                    <Moon className="h-3 w-3 mr-1" />
-                                    {logData.sleepHours}h
-                                </div>
-                            )}
-                            {logData.format === 'comprehensive' && (
-                                <div className="text-xs text-purple-600 dark:text-purple-400">
-                                    ●
-                                </div>
-                            )}
-                        </div>
-                    )}
                 </div>
             );
         }
@@ -170,8 +132,6 @@ export default function Dashboard() {
 
     if (!token) return <p className="text-center mt-10 text-gray-900 dark:text-white">Please log in.</p>;
 
-    const monthlyStats = getMonthlyStats();
-
     return (
         <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 pt-16">
             <div className="max-w-4xl mx-auto p-6">
@@ -181,39 +141,6 @@ export default function Dashboard() {
                     </h2>
                     <p className="text-gray-600 dark:text-gray-300">Track your wellness journey and see your progress</p>
                 </div>
-
-                {monthlyStats && (
-                    <div className="grid grid-cols-4 gap-4 mb-6">
-                        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
-                            <div className="flex items-center justify-between mb-2">
-                                <Activity className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                                <span className="text-sm text-gray-500 dark:text-gray-400">Avg Focus</span>
-                            </div>
-                            <p className="text-2xl font-light text-gray-900 dark:text-white">{monthlyStats.avgFocus}</p>
-                        </div>
-                        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
-                            <div className="flex items-center justify-between mb-2">
-                                <Moon className="h-5 w-5 text-green-600 dark:text-green-400" />
-                                <span className="text-sm text-gray-500 dark:text-gray-400">Avg Sleep</span>
-                            </div>
-                            <p className="text-2xl font-light text-gray-900 dark:text-white">{monthlyStats.avgSleep}h</p>
-                        </div>
-                        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
-                            <div className="flex items-center justify-between mb-2">
-                                <Heart className="h-5 w-5 text-red-600 dark:text-red-400" />
-                                <span className="text-sm text-gray-500 dark:text-gray-400">Avg HRV</span>
-                            </div>
-                            <p className="text-2xl font-light text-gray-900 dark:text-white">{monthlyStats.avgHRV}</p>
-                        </div>
-                        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
-                            <div className="flex items-center justify-between mb-2">
-                                <BookOpen className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                                <span className="text-sm text-gray-500 dark:text-gray-400">Entries</span>
-                            </div>
-                            <p className="text-2xl font-light text-gray-900 dark:text-white">{monthlyStats.entries}</p>
-                        </div>
-                    </div>
-                )}
 
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
                     <div className="flex justify-between items-center mb-6">
