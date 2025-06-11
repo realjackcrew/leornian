@@ -6,24 +6,40 @@ const router = Router();
 
 // POST /log – create a new daily log
 router.post('/log', authenticateToken, async (req: AuthenticatedRequest, res) => {
-  const { focusScore, notes, sleepHours, hrv, strain, dietSummary, screenTime } = req.body;
+  const { focusScore, notes, sleepHours, hrv, strain, dietSummary, screenTime, healthData } = req.body;
 
   try {
-    const log = await prisma.dailyLog.create({
-      data: {
-        userId: req.userId!,
-        focusScore,
-        notes,
-        sleepHours,
-        hrv,
-        strain,
-        dietSummary,
-        screenTime,
-      },
-    });
-    console.log('Received log:', req.body);
-    res.status(201).json(log);
-  } catch {
+    // Check if this is comprehensive health data or legacy format
+    if (healthData) {
+      // New comprehensive format
+      const log = await prisma.dailyLog.create({
+        data: {
+          userId: req.userId!,
+          healthData: healthData,
+          notes: healthData.notes || notes, // Extract notes from healthData if available
+        } as any,
+      });
+      console.log('Received comprehensive health log:', req.body);
+      res.status(201).json(log);
+    } else {
+      // Legacy format for backward compatibility
+      const log = await prisma.dailyLog.create({
+        data: {
+          userId: req.userId!,
+          focusScore,
+          notes,
+          sleepHours,
+          hrv,
+          strain,
+          dietSummary,
+          screenTime,
+        },
+      });
+      console.log('Received legacy log:', req.body);
+      res.status(201).json(log);
+    }
+  } catch (error) {
+    console.error('Failed to create log:', error);
     res.status(500).json({ error: 'Failed to create log' });
   }
 });
@@ -36,8 +52,53 @@ router.get('/log', authenticateToken, async (req: AuthenticatedRequest, res) => 
       orderBy: { createdAt: 'desc' },
     });
     res.json(logs);
-  } catch {
+  } catch (error) {
+    console.error('Failed to fetch logs:', error);
     res.status(500).json({ error: 'Failed to fetch logs' });
+  }
+});
+
+// PUT /log/:id – update an existing log
+router.put('/log/:id', authenticateToken, async (req: AuthenticatedRequest, res) => {
+  const { id } = req.params;
+  const { focusScore, notes, sleepHours, hrv, strain, dietSummary, screenTime, healthData } = req.body;
+
+  try {
+    // Verify log belongs to user
+    const existingLog = await prisma.dailyLog.findFirst({
+      where: { id, userId: req.userId },
+    });
+
+    if (!existingLog) {
+      res.status(404).json({ error: 'Log not found' });
+      return;
+    }
+
+    // Update with comprehensive or legacy data
+    const updateData: any = {};
+
+    if (healthData) {
+      updateData.healthData = healthData;
+      updateData.notes = healthData.notes || notes;
+    } else {
+      updateData.focusScore = focusScore;
+      updateData.notes = notes;
+      updateData.sleepHours = sleepHours;
+      updateData.hrv = hrv;
+      updateData.strain = strain;
+      updateData.dietSummary = dietSummary;
+      updateData.screenTime = screenTime;
+    }
+
+    const log = await prisma.dailyLog.update({
+      where: { id },
+      data: updateData,
+    });
+
+    res.json(log);
+  } catch (error) {
+    console.error('Failed to update log:', error);
+    res.status(500).json({ error: 'Failed to update log' });
   }
 });
 

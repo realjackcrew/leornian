@@ -1,22 +1,21 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
-// import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import Dashboard from './pages/Dashboard';
 import Log from './pages/Log';
-// import Chat from './pages/Chat';  
+import { AuthContext } from './context/AuthContext';
+import { useContext } from 'react';
 
 
 export default function App() {
-  // const handleLogout = () => {
-  //   localStorage.removeItem('token');
-  //   navigate('/login');
-  // }
+  const { token, firstName, logout } = useContext(AuthContext);
+  const user = token ? { firstName: firstName } : null;
+
   return (
     <BrowserRouter>
-      <Navbar />
+      <Navbar user={user} onLogout={logout} />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<LoginPage />} />

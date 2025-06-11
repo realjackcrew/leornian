@@ -1,5 +1,59 @@
 @import "tailwindcss";
 
+/* Dark mode override styles since Tailwind v4 dark: classes aren't working */
+.dark {
+  color-scheme: dark;
+}
+
+/* Global dark mode styles */
+.dark body {
+  background-color: #111827;
+  color: #f9fafb;
+}
+
+/* Background colors */
+.dark .bg-white { background-color: #1f2937 !important; }
+.dark .bg-gray-50 { background-color: #374151 !important; }
+.dark .bg-gray-100 { background-color: #4b5563 !important; }
+.dark .bg-gray-200 { background-color: #6b7280 !important; }
+.dark .bg-blue-100 { background-color: #1e3a8a !important; }
+.dark .bg-green-100 { background-color: #14532d !important; }
+.dark .bg-red-100 { background-color: #7f1d1d !important; }
+.dark .bg-purple-100 { background-color: #581c87 !important; }
+
+/* Navbar specific background colors with opacity */
+.dark [class*="bg-white/"] { 
+  background-color: rgba(31, 41, 55, 0.95) !important; 
+}
+.dark [class*="bg-gray-900/"] { 
+  background-color: rgba(31, 41, 55, 0.95) !important; 
+}
+
+/* Text colors */
+.dark .text-gray-800 { color: #f9fafb !important; }
+.dark .text-gray-900 { color: #ffffff !important; }
+.dark .text-gray-600 { color: #d1d5db !important; }
+.dark .text-gray-700 { color: #e5e7eb !important; }
+.dark .text-blue-900 { color: #dbeafe !important; }
+.dark .text-green-900 { color: #dcfce7 !important; }
+.dark .text-red-900 { color: #fecaca !important; }
+.dark .text-purple-900 { color: #e9d5ff !important; }
+
+/* Border colors */
+.dark .border-gray-200 { border-color: #4b5563 !important; }
+.dark .border-gray-300 { border-color: #6b7280 !important; }
+
+/* Test classes */
+.dark .dark-test-blue {
+  background-color: #1e3a8a !important;
+  color: #dbeafe !important;
+}
+
+.dark .dark-test-green {
+  background-color: #14532d !important;
+  color: #dcfce7 !important;
+}
+
 @keyframes marquee {
     0% { transform: translateX(0); }
     100% { transform: translateX(-50%); }

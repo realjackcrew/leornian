@@ -30,9 +30,9 @@ const logos = [
 
 export default function LogoMarquee() {
   return (
-    <div className="bg-white py-16 overflow-hidden">
+    <div className="bg-white dark:bg-gray-900 py-16 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4">
-        <h2 className="text-2xl font-semibold text-gray-800 text-center mb-12">
+        <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 text-center mb-12">
           Companies I think are cool
         </h2>
         <div className="relative w-full overflow-hidden">

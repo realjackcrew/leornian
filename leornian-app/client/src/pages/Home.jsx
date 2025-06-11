@@ -5,11 +5,10 @@ import imageSource from '../assets/boatmonet.png';
 import LogoMarquee from '../components/LogoScroll';
 
 export default function Home() {
-  const { token, userName } = useContext(AuthContext);
+  const { token, firstName } = useContext(AuthContext);
 
   return (
     <div className="min-h-screen w-full">
-      {/* Hero Section with Video Background */}
       <div className="relative w-full h-screen">
         <img
           src={imageSource}
@@ -35,21 +34,21 @@ export default function Home() {
       </div>
 
       {/* Content Section */}
-      <div className="bg-white dark:bg-[#2c333a] text-gray-800 dark:text-[#eef3f7] py-20 px-4">
+      <div className="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 py-20 px-4">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl font-bold mb-8 text-center">Features</h2>
+          <h2 className="text-3xl font-bold mb-8 text-center text-gray-900 dark:text-white">Features</h2>
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-gray-50 p-6 rounded-lg shadow-sm">
-              <h3 className="text-xl font-semibold mb-4">Track Your Progress</h3>
-              <p className="text-gray-600">Monitor your wellness journey with detailed analytics and insights.</p>
+            <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+              <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Track Your Progress</h3>
+              <p className="text-gray-600 dark:text-gray-300">Monitor your wellness journey with detailed analytics and insights.</p>
             </div>
-            <div className="bg-gray-50 p-6 rounded-lg shadow-sm">
-              <h3 className="text-xl font-semibold mb-4">Smart Insights</h3>
-              <p className="text-gray-600">Get personalized recommendations based on your data.</p>
+            <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+              <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Smart Insights</h3>
+              <p className="text-gray-600 dark:text-gray-300">Get personalized recommendations based on your data.</p>
             </div>
-            <div className="bg-gray-50 p-6 rounded-lg shadow-sm">
-              <h3 className="text-xl font-semibold mb-4">Community Support</h3>
-              <p className="text-gray-600">Connect with others on similar wellness journeys.</p>
+            <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+              <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Community Support</h3>
+              <p className="text-gray-600 dark:text-gray-300">Connect with others on similar wellness journeys.</p>
             </div>
           </div>
         </div>
@@ -63,28 +62,28 @@ export default function Home() {
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h4 className="text-lg font-semibold text-gray-800 mb-4">Navigation</h4>
+              <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Navigation</h4>
               <ul className="space-y-2">
-                <li><Link to="/" className="hover:text-blue-600 transition-colors">Home</Link></li>
-                <li><Link to="/pages/Chat" className="hover:text-blue-600 transition-colors">Chat</Link></li>
-                <li><Link to="/pages/Dashboard" className="hover:text-blue-600 transition-colors">Dashboard</Link></li>
-                <li><Link to="/pages/Settings" className="hover:text-blue-600 transition-colors">Settings</Link></li>
+                <li><Link to="/" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Home</Link></li>
+                <li><Link to="/pages/Chat" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Chat</Link></li>
+                <li><Link to="/pages/Dashboard" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Dashboard</Link></li>
+                <li><Link to="/pages/Settings" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Settings</Link></li>
               </ul>
             </div>
             <div className="col-span-2">
-              <h4 className="text-lg font-semibold text-gray-800 mb-4">About Leornian</h4>
-              <p className="text-gray-600">
+              <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">About Leornian</h4>
+              <p className="text-gray-600 dark:text-gray-400">
                 Your personal wellness companion, helping you track and improve your health journey.
               </p>
             </div>
             <div>
-              <h4 className="text-lg font-semibold text-gray-800 mb-4">Contact</h4>
-              <p className="text-gray-600">
-                Have questions? Reach out to us at support@leornian.com
+              <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Contact</h4>
+              <p className="text-gray-600 dark:text-gray-400">
+                Have questions? Reach out to us at jack@jackcrew.net
               </p>
             </div>
           </div>
-          <div className="mt-8 pt-8 border-t border-gray-200 text-center">
+          <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700 text-center">
             <p>&copy; {new Date().getFullYear()} Leornian. All rights reserved.</p>
           </div>
         </div>

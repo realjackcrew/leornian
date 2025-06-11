@@ -1,6 +1,24 @@
 export default {
     darkMode: 'class',
     content: ['./index.html', './src/**/*.{js,jsx}'],
+    safelist: [
+      'dark:bg-gray-900',
+      'dark:bg-gray-800', 
+      'dark:bg-gray-700',
+      'dark:text-white',
+      'dark:text-gray-200',
+      'dark:text-gray-300',
+      'dark:border-gray-700',
+      'dark:border-gray-600',
+      'dark:bg-blue-900',
+      'dark:bg-green-900',
+      'dark:bg-red-900',
+      'dark:bg-purple-900',
+      'dark:text-blue-100',
+      'dark:text-green-100',
+      'dark:text-red-100',
+      'dark:text-purple-100',
+    ],
     theme: {
       extend: {
         colors: {
