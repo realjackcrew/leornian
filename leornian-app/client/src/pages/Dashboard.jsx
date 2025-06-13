@@ -3,13 +3,14 @@ import { AuthContext } from '../context/AuthContext';
 import { getLogs } from '../api/log';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ChevronLeft, ChevronRight, Activity, Moon, Heart, Clock, Apple, BookOpen, Brain, Coffee, Check } from 'lucide-react';
+import { formatDateToCentral, toCentralTime, getCurrentCentralDate, isSameDayInCentral } from '../utils/dateUtils';
 
 export default function Dashboard() {
     const { token, firstName } = useContext(AuthContext);
     const navigate = useNavigate();
     const [logs, setLogs] = useState([]);
-    const [selectedDate, setSelectedDate] = useState(new Date());
-    const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState(getCurrentCentralDate());
+    const [currentMonth, setCurrentMonth] = useState(getCurrentCentralDate());
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -64,19 +65,15 @@ export default function Dashboard() {
         return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
     };
 
-    const formatDate = (date) => {
-        return date.toISOString().split('T')[0];
-    };
-
     const getLogForDate = (date) => {
-        const log = logs.find(log => formatDate(new Date(log.createdAt)) === formatDate(date));
+        const log = logs.find(log => isSameDayInCentral(new Date(log.createdAt), date));
         return log ? extractLogData(log) : null;
     };
 
     const getFirstLogDate = () => {
         if (logs.length === 0) return null;
         const sortedLogs = [...logs].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-        return new Date(sortedLogs[0].createdAt);
+        return toCentralTime(new Date(sortedLogs[0].createdAt));
     };
 
     const renderCalendar = () => {
@@ -84,7 +81,7 @@ export default function Dashboard() {
         const firstDay = getFirstDayOfMonth(currentMonth);
         const days = [];
         const firstLogDate = getFirstLogDate();
-        const today = new Date();
+        const today = getCurrentCentralDate();
 
         // Add empty cells for days before the first day of the month
         for (let i = 0; i < firstDay; i++) {
@@ -95,8 +92,8 @@ export default function Dashboard() {
         for (let day = 1; day <= daysInMonth; day++) {
             const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
             const logData = getLogForDate(date);
-            const isSelected = selectedDate && formatDate(selectedDate) === formatDate(date);
-            const isToday = formatDate(today) === formatDate(date);
+            const isSelected = selectedDate && isSameDayInCentral(selectedDate, date);
+            const isToday = isSameDayInCentral(today, date);
 
             // Determine background color based on log status
             let bgColor = 'hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-800/50'; // default
@@ -108,7 +105,6 @@ export default function Dashboard() {
                 // Day is between first log date and today (inclusive) but has no log - red
                 bgColor = 'bg-red-100 dark:bg-red-800/30 hover:bg-red-200 dark:hover:bg-red-700';
             }
-
 
             days.push(
                 <div

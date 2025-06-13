@@ -15,7 +15,10 @@ router.post('/log', authenticateToken, async (req: AuthenticatedRequest, res) =>
       const log = await prisma.dailyLog.create({
         data: {
           userId: req.userId!,
-          healthData: healthData,
+          healthData: {
+            ...healthData,
+            timezone: healthData.timezone || 'America/Chicago' // Default to Central time if not specified
+          },
           notes: healthData.notes || notes, // Extract notes from healthData if available
         } as any,
       });
@@ -33,6 +36,9 @@ router.post('/log', authenticateToken, async (req: AuthenticatedRequest, res) =>
           strain,
           dietSummary,
           screenTime,
+          healthData: {
+            timezone: 'America/Chicago' // Add timezone for legacy entries
+          }
         },
       });
       console.log('Received legacy log:', req.body);
@@ -78,7 +84,10 @@ router.put('/log/:id', authenticateToken, async (req: AuthenticatedRequest, res)
     const updateData: any = {};
 
     if (healthData) {
-      updateData.healthData = healthData;
+      updateData.healthData = {
+        ...healthData,
+        timezone: healthData.timezone || 'America/Chicago' // Default to Central time if not specified
+      };
       updateData.notes = healthData.notes || notes;
     } else {
       updateData.focusScore = focusScore;
@@ -88,6 +97,9 @@ router.put('/log/:id', authenticateToken, async (req: AuthenticatedRequest, res)
       updateData.strain = strain;
       updateData.dietSummary = dietSummary;
       updateData.screenTime = screenTime;
+      updateData.healthData = {
+        timezone: 'America/Chicago' // Add timezone for legacy entries
+      };
     }
 
     const log = await prisma.dailyLog.update({
