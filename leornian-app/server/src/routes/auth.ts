@@ -28,7 +28,9 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       const user = await prisma.user.create({ 
         data: { 
           email, 
-          password: hashed
+          password: hashed,
+          firstName,
+          lastName
         } 
       });
   
@@ -60,7 +62,9 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       token, 
       user: { 
         id: user.id,  
-        email: user.email
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName
       } 
     });
   });
