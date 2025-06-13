@@ -40,18 +40,40 @@ export default function Log() {
   );
 
   // Input component for numeric values
-  const NumericInput = ({ value, onChange, label, min, max, step }) => (
+  const NumericInput = ({ value, onChange, label, min, max, step }) => {
+    const [localValue, setLocalValue] = useState(value?.toString() || '');
+
+    // Update local value when prop value changes
+    useEffect(() => {
+      setLocalValue(value?.toString() || '');
+    }, [value]);
+
+    const handleBlur = () => {
+      const numericValue = localValue === '' ? 0 : Number(localValue);
+      onChange(numericValue);
+    };
+
+    return (
+      <div className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-gray-800 last:border-0">
+        <span className="text-gray-900 dark:text-white font-medium">{label}</span>
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={localValue}
+          onChange={(e) => setLocalValue(e.target.value)}
+          onBlur={handleBlur}
+          className="remove-arrow w-24 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-white"
+        />
+      </div>
+    );
+  };
+
+  const TimeInput = ({ value, onChange, label }) => (
     <div className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-gray-800 last:border-0">
       <span className="text-gray-900 dark:text-white font-medium">{label}</span>
-      <input
-        type="number"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="remove-arrow w-24 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-white"
-      />
+      <input type="time" value={value} onChange={(e) => onChange(e.target.value)} className="w-30 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-white" />
     </div>
   );
 
@@ -157,7 +179,7 @@ export default function Log() {
                 }`}
               >
                 <Save className="h-4 w-4" />
-                <span>{isLoading ? 'Saving...' : 'Save Complete Health Log'}</span>
+                <span>{isLoading ? 'Saving...' : 'Save Log'}</span>
               </button>
             </div>
           ) : (
@@ -169,6 +191,12 @@ export default function Log() {
                 <div key={key}>
                   {def.type === 'boolean' ? (
                     <Toggle
+                      value={values[selectedCategory][key]}
+                      onChange={(value) => updateValue(selectedCategory, key, value)}
+                      label={def.label}
+                    />
+                  ) : def.type === 'time' ? (
+                    <TimeInput
                       value={values[selectedCategory][key]}
                       onChange={(value) => updateValue(selectedCategory, key, value)}
                       label={def.label}
