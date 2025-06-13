@@ -133,13 +133,12 @@ export default function Dashboard() {
     if (!token) return <p className="text-center mt-10 text-gray-900 dark:text-white">Please log in.</p>;
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 pt-16">
+        <div className="min-h-screen bg-white dark:bg-gray-900 pt-16">
             <div className="max-w-4xl mx-auto p-6">
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border-transparent p-5 mb-6">
                     <h2 className="text-2xl font-light text-gray-900 dark:text-white mb-2">
-                        Welcome back{firstName ? `, ${firstName}` : ''}
+                        Welcome back!
                     </h2>
-                    <p className="text-gray-600 dark:text-gray-300">Track your wellness journey and see your progress</p>
                 </div>
 
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
@@ -191,8 +190,8 @@ export default function Dashboard() {
                                 ))}
                                 {renderCalendar()}
                             </div>
-
-                            {selectedDate && getLogForDate(selectedDate) && (
+                                
+                            {/* {selectedDate && getLogForDate(selectedDate) && (
                                 <div className="mt-6 p-6 bg-gray-50 dark:bg-gray-700 rounded-lg">
                                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                                         {selectedDate.toLocaleDateString('default', { weekday: 'long', month: 'long', day: 'numeric' })}
@@ -251,7 +250,7 @@ export default function Dashboard() {
                                         </div>
                                     )}
                                 </div>
-                            )}
+                            )} */}
                         </>
                     )}
                 </div>
