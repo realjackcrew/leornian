@@ -187,19 +187,12 @@ export default function Dashboard() {
                                 {renderCalendar()}
                             </div>
                                 
-                            {/* {selectedDate && getLogForDate(selectedDate) && (
+                            {selectedDate && getLogForDate(selectedDate) && (
                                 <div className="mt-6 p-6 bg-gray-50 dark:bg-gray-700 rounded-lg">
                                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                                         {selectedDate.toLocaleDateString('default', { weekday: 'long', month: 'long', day: 'numeric' })}
                                     </h3>
                                     <div className="grid grid-cols-2 gap-6">
-                                        <div className="flex items-center space-x-3">
-                                            <Activity className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                                            <div>
-                                                <p className="text-sm text-gray-600 dark:text-gray-300">Focus Score</p>
-                                                <p className="text-lg font-medium text-gray-900 dark:text-white">{getLogForDate(selectedDate).focusScore}/10</p>
-                                            </div>
-                                        </div>
                                         <div className="flex items-center space-x-3">
                                             <Moon className="h-5 w-5 text-green-600 dark:text-green-400" />
                                             <div>
@@ -246,7 +239,7 @@ export default function Dashboard() {
                                         </div>
                                     )}
                                 </div>
-                            )} */}
+                            )}
                         </>
                     )}
                 </div>
