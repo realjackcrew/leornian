@@ -25,7 +25,7 @@ const Chat = () => {
   return (
     <div className="flex flex-col h-screen bg-gray-100 dark:bg-gray-900">
       <div className="flex-grow p-6 overflow-auto">
-        <div className="flex flex-col gap-4">
+        <div className="max-w-4xl mx-auto flex flex-col gap-4">
           {messages.map((message, index) => (
             <div
               key={index}
@@ -37,7 +37,7 @@ const Chat = () => {
                 className={`max-w-xs lg:max-w-md p-3 rounded-lg ${
                   message.sender === 'user'
                     ? 'bg-blue-500 text-white'
-                    : 'bg-gray-300 dark:bg-gray-700 text-gray-900 dark:text-white'
+                    : 'text-gray-900 dark:text-white'
                 }`}
               >
                 {message.text}
