@@ -2,7 +2,7 @@ import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { getLogs } from '../api/log';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ChevronLeft, ChevronRight, Activity, Moon, Heart, Clock, Apple, BookOpen, Brain, Coffee, Check } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Activity, Moon, Heart, Clock, Apple, BookOpen, Brain, Coffee, Check, Pencil } from 'lucide-react';
 import { formatDateToCentral, toCentralTime, getCurrentCentralDate, isSameDayInCentral } from '../utils/dateUtils';
 
 export default function Dashboard() {
@@ -24,7 +24,7 @@ export default function Dashboard() {
     const extractLogData = (log) => {
         const values = log.healthData.values;
         const extracted = {
-            notes: log.healthData.notes || log.notes,
+            notes: log.healthData.notes,
             format: 'comprehensive'
         };
         
@@ -101,8 +101,8 @@ export default function Dashboard() {
             if (logData) {
                 // Day has a log - green
                 bgColor = 'bg-green-100 dark:bg-green-800/30 hover:bg-green-200 dark:hover:bg-green-700';
-            } else if (firstLogDate && date >= firstLogDate && date <= today) {
-                // Day is between first log date and today (inclusive) but has no log - red
+            } else if (firstLogDate && date >= firstLogDate && date < today) {
+                // Day is between first log date and today (exclusive) but has no log - red
                 bgColor = 'bg-red-100 dark:bg-red-800/30 hover:bg-red-200 dark:hover:bg-red-700';
             }
 
@@ -186,60 +186,6 @@ export default function Dashboard() {
                                 ))}
                                 {renderCalendar()}
                             </div>
-                                
-                            {selectedDate && getLogForDate(selectedDate) && (
-                                <div className="mt-6 p-6 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                                        {selectedDate.toLocaleDateString('default', { weekday: 'long', month: 'long', day: 'numeric' })}
-                                    </h3>
-                                    <div className="grid grid-cols-2 gap-6">
-                                        <div className="flex items-center space-x-3">
-                                            <Moon className="h-5 w-5 text-green-600 dark:text-green-400" />
-                                            <div>
-                                                <p className="text-sm text-gray-600 dark:text-gray-300">Sleep</p>
-                                                <p className="text-lg font-medium text-gray-900 dark:text-white">{getLogForDate(selectedDate).sleepHours}h</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center space-x-3">
-                                            <Heart className="h-5 w-5 text-red-600 dark:text-red-400" />
-                                            <div>
-                                                <p className="text-sm text-gray-600 dark:text-gray-300">HRV</p>
-                                                <p className="text-lg font-medium text-gray-900 dark:text-white">{getLogForDate(selectedDate).hrv}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center space-x-3">
-                                            <Activity className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                                            <div>
-                                                <p className="text-sm text-gray-600 dark:text-gray-300">Strain</p>
-                                                <p className="text-lg font-medium text-gray-900 dark:text-white">{getLogForDate(selectedDate).strain}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center space-x-3">
-                                            <Clock className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                                            <div>
-                                                <p className="text-sm text-gray-600 dark:text-gray-300">Screen Time</p>
-                                                <p className="text-lg font-medium text-gray-900 dark:text-white">{getLogForDate(selectedDate).screenTime}min</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center space-x-3">
-                                            <Apple className="h-5 w-5 text-green-600 dark:text-green-400" />
-                                            <div>
-                                                <p className="text-sm text-gray-600 dark:text-gray-300">Diet</p>
-                                                <p className="text-lg font-medium text-gray-900 dark:text-white">{getLogForDate(selectedDate).dietSummary}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {getLogForDate(selectedDate).notes && (
-                                        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-600">
-                                            <div className="flex items-center space-x-3 mb-2">
-                                                <BookOpen className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-                                                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Notes</p>
-                                            </div>
-                                            <p className="text-gray-900 dark:text-white">{getLogForDate(selectedDate).notes}</p>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
                         </>
                     )}
                 </div>
@@ -250,7 +196,7 @@ export default function Dashboard() {
                 onClick={() => navigate('/log')}
                 className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full shadow-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all flex items-center justify-center"
             >
-                <Plus className="h-6 w-6" />
+                {selectedDate && getLogForDate(selectedDate) ? (<Pencil className="h-6 w-6" />) : (<Plus className="h-6 w-6" />)}
             </button>
         </div>
     );

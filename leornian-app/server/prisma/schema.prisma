@@ -25,15 +25,6 @@ model User {
 model DailyLog {
   id          String   @id @default(cuid())
   userId      String
-  // Legacy fields for backward compatibility
-  focusScore  Int?
-  notes       String?
-  sleepHours  Float?
-  hrv         Int?
-  strain      Int?
-  dietSummary String?
-  screenTime  Int?
-  // New comprehensive health data structure
   healthData  Json?    // Stores the complete health logging data as JSON
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
