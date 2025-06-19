@@ -1,19 +1,17 @@
-// dateUtils.js
+import { utcToZonedTime, zonedTimeToUtc, format } from 'date-fns-tz';
+
 const CHICAGO = 'America/Chicago';
 
-/* Convert any JS Date to a new Date that represents the same *wall time*
-   in Chicago. */
-export const toCentralTime = (date) =>
-  new Date(date.toLocaleString('en-US', { timeZone: CHICAGO }));
+// Convert any JS Date to a Date object in the Chicago timezone
+export const toCentralTime = (date) => utcToZonedTime(date, CHICAGO);
 
-/* Convert a Chicago wall-time Date back to UTC */
-export const toUTC = (date) =>
-  new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
+// Convert a Date that is assumed to be Chicago wall time into UTC
+export const toUTC = (date) => zonedTimeToUtc(date, CHICAGO);
 
 export const formatDateToCentral = (date) =>
-  toCentralTime(date).toISOString().split('T')[0];
+  format(utcToZonedTime(date, CHICAGO), 'yyyy-MM-dd', { timeZone: CHICAGO });
 
-export const getCurrentCentralDate = () => toCentralTime(new Date());
+export const getCurrentCentralDate = () => utcToZonedTime(new Date(), CHICAGO);
 
 export const isSameDayInCentral = (a, b) =>
   formatDateToCentral(a) === formatDateToCentral(b);

@@ -1,20 +1,16 @@
 import { Router } from 'express';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import prisma from '../db';
+import { zonedTimeToUtc } from 'date-fns-tz';
 
 const router = Router();
 
-// Helper function to create a date in Chicago timezone
+const CHICAGO = 'America/Chicago';
+
+// Convert a date string and time string in Chicago time to a UTC Date
 function createChicagoDate(dateString: string, timeString: string): Date {
-  // Create date in Chicago timezone by adjusting for UTC offset
   const dateTimeString = `${dateString}T${timeString}`;
-  const date = new Date(dateTimeString);
-  
-  // Get Chicago timezone offset (UTC-5 or UTC-6 depending on DST)
-  const chicagoOffset = date.getTimezoneOffset() + (5 * 60); // Chicago is UTC-5
-  date.setMinutes(date.getMinutes() + chicagoOffset);
-  
-  return date;
+  return zonedTimeToUtc(dateTimeString, CHICAGO);
 }
 
 // POST /log – create a new daily log
@@ -22,11 +18,12 @@ router.post('/log', authenticateToken, async (req: AuthenticatedRequest, res) =>
   const { healthData, date } = req.body;
 
   try {
-    // If a specific date is provided, save it at noon UTC on that date
-    // This ensures the log is always saved on the correct Central date
-    // regardless of when the request is made
-    const createdAt = date ? new Date(date + 'T17:00:00.000Z') : new Date();
-    // 17:00 UTC = 12:00 Central (UTC-5)
+    // If a specific date is provided, save it in the middle of that day in
+    // the Chicago timezone. This avoids DST issues while ensuring the log is
+    // associated with the correct calendar date.
+    const createdAt = date
+      ? zonedTimeToUtc(`${date}T12:00:00`, CHICAGO)
+      : new Date();
     
     // Check if this is comprehensive health data or legacy format
     const log = await prisma.dailyLog.create({
@@ -69,7 +66,7 @@ router.get('/log/date/:date', authenticateToken, async (req: AuthenticatedReques
   console.log('User ID:', req.userId);
 
   try {
-    // Create start and end dates for the Chicago timezone day
+    // Create start and end dates for the day in the Chicago timezone
     const startDate = createChicagoDate(date, '00:00:00');
     const endDate = createChicagoDate(date, '23:59:59.999');
 

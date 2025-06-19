@@ -4,7 +4,7 @@ import { createLog, updateLog, getLogByDate } from '../api/log';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Check, X } from 'lucide-react';
 import { dataPointDefinitions, getDefaultValues, getCategoryNames } from '../components/Datapoints';
-import { toUTC, getCurrentCentralDate, formatDateToCentral, isSameDayInCentral } from '../utils/dateUtils';
+import { getCurrentCentralDate, formatDateToCentral, isSameDayInCentral } from '../utils/dateUtils';
 
 export default function Log() {
   const { token } = useContext(AuthContext);
