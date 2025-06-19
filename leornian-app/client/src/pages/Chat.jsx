@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const Chat = () => {
+export default function Chat() {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]);
 
@@ -87,6 +87,4 @@ const Chat = () => {
       </div>
     </div>
   );
-};
-
-export default Chat;
+}
