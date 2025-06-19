@@ -32,6 +32,11 @@ app.use('/api', authRoutes); //double check original /auth and /logs
 app.use('/api', logRoutes);
 const PORT = process.env.PORT || 4000;
 
+// Add a catch-all route for unmatched API routes
+app.use('/api/*', (req, res) => {
+  console.log('Unmatched API route:', req.method, req.originalUrl);
+  res.status(404).json({ error: 'API route not found' });
+});
 
 app.get('/', (_req, res) => {
     res.send('Leornian API is running.');

@@ -193,7 +193,7 @@ export default function Dashboard() {
 
             {/* Floating Action Button */}
             <button
-                onClick={() => navigate('/log')}
+                onClick={() => navigate(`/log${selectedDate ? `?date=${formatDateToCentral(selectedDate)}` : ''}`)}
                 className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full shadow-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all flex items-center justify-center"
             >
                 {selectedDate && getLogForDate(selectedDate) ? (<Pencil className="h-6 w-6" />) : (<Plus className="h-6 w-6" />)}

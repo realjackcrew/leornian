@@ -6,6 +6,14 @@ export const getLogs = (token) =>
     headers: { Authorization: `Bearer ${token}` },
   });
 
+export const getLogByDate = (token, date) => {
+  const url = `${API_BASE_URL}/api/log/date/${date}`;
+  console.log('Calling getLogByDate with URL:', url);
+  return axios.get(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+};
+
 export const createLog = (token, data) =>
   axios.post(`${API_BASE_URL}/api/log`, data, {
     headers: { Authorization: `Bearer ${token}` },

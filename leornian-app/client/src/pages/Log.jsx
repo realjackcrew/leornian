@@ -1,18 +1,102 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { createLog, updateLog } from '../api/log';
-import { useNavigate } from 'react-router-dom';
+import { createLog, updateLog, getLogByDate } from '../api/log';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Check, X } from 'lucide-react';
 import { dataPointDefinitions, getDefaultValues, getCategoryNames } from '../components/Datapoints';
-import { toUTC } from '../utils/dateUtils';
+import { toUTC, getCurrentCentralDate, formatDateToCentral, isSameDayInCentral } from '../utils/dateUtils';
 
 export default function Log() {
   const { token } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState('sleep');
-  const [values, setValues] = useState(getDefaultValues());
+  const [values, setValues] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const [notes, setNotes] = useState('');
+  const [selectedDate, setSelectedDate] = useState(getCurrentCentralDate());
+  const [existingLogId, setExistingLogId] = useState(null);
+  const [isFutureDate, setIsFutureDate] = useState(false);
+
+  // Get date from URL parameter or default to current date
+  useEffect(() => {
+    const dateParam = searchParams.get('date');
+    if (dateParam) {
+      const [y, m, d] = dateParam.split('-').map(Number);
+      const parsedDate = new Date(y, m - 1, d);
+      setSelectedDate(parsedDate);
+      console.log('Selected date:', parsedDate);
+      
+      // Check if it's a future date
+      const today = getCurrentCentralDate();
+      if (parsedDate > today) {
+        setIsFutureDate(true);
+        setIsLoadingData(false);
+        return;
+      }
+    }
+  }, [searchParams]);
+
+  // Load existing log data for the selected date
+  useEffect(() => {
+    if (!token || isFutureDate) return;
+    
+    const loadExistingLog = async () => {
+      setIsLoadingData(true);
+      try {
+        const dateString = formatDateToCentral(selectedDate);
+        const response = await getLogByDate(token, dateString);
+        
+        if (response.data) {
+          const logData = response.data;
+          setExistingLogId(logData.id);
+          setNotes(logData.healthData.notes || '');
+          
+          // Load existing values from the log
+          const existingValues = getDefaultValues();
+          
+          if (logData.healthData.values) {
+            Object.entries(logData.healthData.values).forEach(([category, dataPoints]) => {
+              if (existingValues[category]) {
+                Object.entries(dataPoints).forEach(([key, value]) => {
+                  if (existingValues[category][key] !== undefined) {
+                    existingValues[category][key] = value;
+                  }
+                });
+              }
+            });
+          }
+          setValues(existingValues);
+        } else {
+          // No existing log found, use default values
+          setValues(getDefaultValues());
+        }
+      } catch (error) {
+        // No existing log found, which is fine
+        if (error.response && error.response.status === 404) {
+          setValues(getDefaultValues());
+        } else {
+          console.error('Error loading existing log:', error);
+          setValues(getDefaultValues());
+        }
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    loadExistingLog();
+  }, [token, selectedDate, isFutureDate]);
+
+  // Format date for display
+  const formatDisplayDate = (date) => {
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
 
   // Toggle component for boolean values
   const Toggle = ({ value, onChange, label }) => (
@@ -88,7 +172,7 @@ export default function Log() {
   };
 
   const handleSave = async () => {
-    if (!token) return;
+    if (!token || isFutureDate) return;
     
     setIsLoading(true);
     try {
@@ -107,7 +191,18 @@ export default function Log() {
         timezone: 'America/Chicago' // Add timezone information
       };
       
-      await createLog(token, { healthData });
+      if (existingLogId) {
+        // Update existing log
+        await updateLog(token, existingLogId, { healthData });
+      } else {
+        // Create new log with specific date
+        const logData = {
+          healthData,
+          date: formatDateToCentral(selectedDate)
+        };
+        await createLog(token, logData);
+      }
+      
       navigate('/dashboard');
     } catch (error) {
       console.error('Error saving health log:', error);
@@ -118,6 +213,29 @@ export default function Log() {
   };
 
   if (!token) return <p className="text-center mt-10 text-gray-900 dark:text-white">Please log in.</p>;
+
+  if (isFutureDate) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center mb-8 pt-24">
+            <button 
+              onClick={() => navigate('/dashboard')}
+              className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5 mr-2" />
+              Back to Dashboard
+            </button>
+            <h1 className="text-3xl font-light text-gray-900 dark:text-white flex-1 text-center">Daily Log</h1>
+          </div>
+          <div className="text-center py-12">
+            <p className="text-gray-600 dark:text-gray-300 mb-2">Cannot log for future dates</p>
+            <p className="text-gray-500 dark:text-gray-400">You can only log entries for today or past dates</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -130,7 +248,10 @@ export default function Log() {
             <ArrowLeft className="h-5 w-5 mr-2" />
             Back to Dashboard
           </button>
-          <h1 className="text-3xl font-light text-gray-900 dark:text-white flex-1 text-center">Daily Log</h1>
+          <div className="flex-1 text-center">
+            <h1 className="text-3xl font-light text-gray-900 dark:text-white">Daily Log</h1>
+            <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">{formatDisplayDate(selectedDate)}</p>
+          </div>
         </div>
 
         {/* Category Navigation */}
@@ -162,7 +283,12 @@ export default function Log() {
 
         {/* Content Area */}
         <div className=" rounded-xl p-6">
-          {selectedCategory === 'notes' ? (
+          {isLoadingData || values === null ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
+              <p className="mt-4 text-gray-600 dark:text-gray-300">Loading log data...</p>
+            </div>
+          ) : selectedCategory === 'notes' ? (
             <div>
               <textarea
                 value={notes}
