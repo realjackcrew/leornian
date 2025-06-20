@@ -4,7 +4,7 @@ import { createLog, updateLog, getLogByDate } from '../api/log';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Check, X } from 'lucide-react';
 import { dataPointDefinitions, getDefaultValues, getCategoryNames } from '../components/Datapoints';
-import { getCurrentCentralDate, formatDateToCentral, isSameDayInCentral } from '../utils/dateUtils';
+import { getCurrentCentralDate, formatDateAsCentral, isSameDayInCentral } from '../utils/dateUtils';
 
 export default function Log() {
   const { token } = useContext(AuthContext);
@@ -15,7 +15,7 @@ export default function Log() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [notes, setNotes] = useState('');
-  const [selectedDate, setSelectedDate] = useState(getCurrentCentralDate());
+  const [selectedDate, setSelectedDate] = useState(null);
   const [existingLogId, setExistingLogId] = useState(null);
   const [isFutureDate, setIsFutureDate] = useState(false);
 
@@ -23,10 +23,11 @@ export default function Log() {
   useEffect(() => {
     const dateParam = searchParams.get('date');
     if (dateParam) {
-      const [y, m, d] = dateParam.split('-').map(Number);
-      const parsedDate = new Date(y, m - 1, d);
+      // Parse the date string (YYYY-MM-DD format) into a Date object
+      const [year, month, day] = dateParam.split('-').map(Number);
+      const parsedDate = new Date(year, month - 1, day); // month is 0-indexed
       setSelectedDate(parsedDate);
-      console.log('Selected date:', parsedDate);
+      console.log('Selected date from URL:', parsedDate);
       
       // Check if it's a future date
       const today = getCurrentCentralDate();
@@ -35,17 +36,22 @@ export default function Log() {
         setIsLoadingData(false);
         return;
       }
+    } else {
+      // No date parameter, default to today
+      const today = getCurrentCentralDate();
+      setSelectedDate(today);
+      console.log('No date parameter, defaulting to today:', today);
     }
   }, [searchParams]);
 
   // Load existing log data for the selected date
   useEffect(() => {
-    if (!token || isFutureDate) return;
+    if (!token || !selectedDate || isFutureDate) return;
     
     const loadExistingLog = async () => {
       setIsLoadingData(true);
       try {
-        const dateString = formatDateToCentral(selectedDate);
+        const dateString = formatDateAsCentral(selectedDate);
         const response = await getLogByDate(token, dateString);
         
         if (response.data) {
@@ -172,7 +178,7 @@ export default function Log() {
   };
 
   const handleSave = async () => {
-    if (!token || isFutureDate) return;
+    if (!token || !selectedDate || isFutureDate) return;
     
     setIsLoading(true);
     try {
@@ -198,7 +204,7 @@ export default function Log() {
         // Create new log with specific date
         const logData = {
           healthData,
-          date: formatDateToCentral(selectedDate)
+          date: formatDateAsCentral(selectedDate)
         };
         await createLog(token, logData);
       }
@@ -213,6 +219,19 @@ export default function Log() {
   };
 
   if (!token) return <p className="text-center mt-10 text-gray-900 dark:text-white">Please log in.</p>;
+
+  if (!selectedDate) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
+            <p className="mt-4 text-gray-600 dark:text-gray-300">Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isFutureDate) {
     return (

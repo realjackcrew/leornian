@@ -1,45 +1,36 @@
 import { Router } from 'express';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import prisma from '../db';
-import { zonedTimeToUtc } from 'date-fns-tz';
 
 const router = Router();
 
-const CHICAGO = 'America/Chicago';
-
-// Convert a date string and time string in Chicago time to a UTC Date
-function createChicagoDate(dateString: string, timeString: string): Date {
-  const dateTimeString = `${dateString}T${timeString}`;
-  return zonedTimeToUtc(dateTimeString, CHICAGO);
-}
-
 // POST /log – create a new daily log
 router.post('/log', authenticateToken, async (req: AuthenticatedRequest, res) => {
-  const { healthData, date } = req.body;
+  const { healthData, date } = req.body; // date is expected in YYYY-MM-DD format
 
   try {
-    // If a specific date is provided, save it in the middle of that day in
-    // the Chicago timezone. This avoids DST issues while ensuring the log is
-    // associated with the correct calendar date.
-    const createdAt = date
-      ? zonedTimeToUtc(`${date}T12:00:00`, CHICAGO)
-      : new Date();
-    
-    // Check if this is comprehensive health data or legacy format
+    // If no date is provided, generate today's date in Chicago time.
+    // 'en-CA' gives YYYY-MM-DD format.
+    const logDate = date || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+
     const log = await prisma.dailyLog.create({
       data: {
         userId: req.userId!,
+        date: logDate,
         healthData: {
           ...healthData,
-          timezone: healthData.timezone || 'America/Chicago' // Default to Central time if not specified
+          timezone: healthData.timezone || 'America/Chicago', // Default to Central time if not specified
         },
-        notes: healthData.notes, // Extract notes from healthData if available
-        createdAt: createdAt,
-      } as any,
+      },
     });
     res.status(201).json(log);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to create log:', error);
+    // Handle unique constraint violation
+    if (error.code === 'P2002') {
+      res.status(409).json({ error: 'A log for this date already exists.' });
+      return;
+    }
     res.status(500).json({ error: 'Failed to create log' });
   }
 });
@@ -58,38 +49,30 @@ router.get('/log', authenticateToken, async (req: AuthenticatedRequest, res) => 
   }
 });
 
-// GET /log/date/:date – get log for specific date
-router.get('/log/date/:date', authenticateToken, async (req: AuthenticatedRequest, res) => {
-  const { date } = req.params;
-  console.log('GET /log/date/:date route hit with date:', date);
-  console.log('Full URL:', req.originalUrl);
-  console.log('User ID:', req.userId);
+// GET /log/by-date – get log for specific date
+router.get('/log/by-date', authenticateToken, async (req: AuthenticatedRequest, res) => {
+  const { date } = req.query;
+
+  if (!date || typeof date !== 'string') {
+    res.status(400).json({ error: 'Date parameter is required' });
+    return;
+  }
 
   try {
-    // Create start and end dates for the day in the Chicago timezone
-    const startDate = createChicagoDate(date, '00:00:00');
-    const endDate = createChicagoDate(date, '23:59:59.999');
-
-    console.log('Searching for logs between:', startDate.toISOString(), 'and', endDate.toISOString());
-
-    const log = await prisma.dailyLog.findFirst({
+    const log = await prisma.dailyLog.findUnique({
       where: {
-        userId: req.userId,
-        createdAt: {
-          gte: startDate,
-          lte: endDate,
+        userId_date: {
+          userId: req.userId!,
+          date: date,
         },
       },
-      orderBy: { createdAt: 'desc' },
     });
 
     if (!log) {
-      console.log('No log found for date:', date);
       res.status(404).json({ error: 'Log not found for this date' });
       return;
     }
 
-    console.log('Found log:', log.id, 'created at:', log.createdAt.toISOString());
     res.json(log);
   } catch (error) {
     console.error('Failed to fetch log by date:', error);
@@ -97,10 +80,15 @@ router.get('/log/date/:date', authenticateToken, async (req: AuthenticatedReques
   }
 });
 
-// PUT /log/:id – update an existing log
-router.put('/log/:id', authenticateToken, async (req: AuthenticatedRequest, res) => {
-  const { id } = req.params;
+// PUT /log/update – update an existing log
+router.put('/log/update', authenticateToken, async (req: AuthenticatedRequest, res) => {
+  const { id } = req.query;
   const { healthData } = req.body;
+
+  if (!id || typeof id !== 'string') {
+    res.status(400).json({ error: 'Log ID is required' });
+    return;
+  }
 
   try {
     // Verify log belongs to user
@@ -121,7 +109,6 @@ router.put('/log/:id', authenticateToken, async (req: AuthenticatedRequest, res)
       ...healthData,
       timezone: healthData.timezone || 'America/Chicago' // Default to Central time if not specified
     };
-    updateData.notes = healthData.notes;
 
     const log = await prisma.dailyLog.update({
       where: { id },

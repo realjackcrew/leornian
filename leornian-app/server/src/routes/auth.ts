@@ -41,6 +41,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       res.status(500).json({ error: 'Internal server error' });
     }
   });
+
   // POST /login
   router.post('/login', async (req: Request, res: Response): Promise<void> => {
     const { email, password } = req.body;
@@ -69,4 +70,4 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
     });
   });
   
-  export default router;
+export default router;

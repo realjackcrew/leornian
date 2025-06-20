@@ -6,7 +6,7 @@ import logRoutes from './routes/log';
 dotenv.config();
 
 const app = express();
-//previous cors was just app.use(cors({ origin: 'http://localhost:5173' }));
+
 // Configure CORS based on environment
 const allowedOrigins = [
   'http://localhost:5173', // Local development
@@ -28,8 +28,9 @@ app.use(cors({
 }));
 
 app.use(express.json());
-app.use('/api', authRoutes); //double check original /auth and /logs
+app.use('/api', authRoutes);
 app.use('/api', logRoutes);
+
 const PORT = process.env.PORT || 4000;
 
 // Add a catch-all route for unmatched API routes

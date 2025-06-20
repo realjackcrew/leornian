@@ -3,7 +3,7 @@ import { AuthContext } from '../context/AuthContext';
 import { getLogs } from '../api/log';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ChevronLeft, ChevronRight, Activity, Moon, Heart, Clock, Apple, BookOpen, Brain, Coffee, Check, Pencil } from 'lucide-react';
-import { formatDateToCentral, toCentralTime, getCurrentCentralDate, isSameDayInCentral } from '../utils/dateUtils';
+import { formatDateAsCentral, toCentralTime, getCurrentCentralDate, isSameDayInCentral } from '../utils/dateUtils';
 
 export default function Dashboard() {
     const { token, firstName } = useContext(AuthContext);
@@ -66,7 +66,8 @@ export default function Dashboard() {
     };
 
     const getLogForDate = (date) => {
-        const log = logs.find(log => isSameDayInCentral(new Date(log.createdAt), date));
+        const dateString = formatDateAsCentral(date);
+        const log = logs.find(log => log.date === dateString);
         return log ? extractLogData(log) : null;
     };
 
@@ -193,7 +194,7 @@ export default function Dashboard() {
 
             {/* Floating Action Button */}
             <button
-                onClick={() => navigate(`/log${selectedDate ? `?date=${formatDateToCentral(selectedDate)}` : ''}`)}
+                onClick={() => navigate(`/log${selectedDate ? `?date=${formatDateAsCentral(selectedDate)}` : ''}`)}
                 className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full shadow-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all flex items-center justify-center"
             >
                 {selectedDate && getLogForDate(selectedDate) ? (<Pencil className="h-6 w-6" />) : (<Plus className="h-6 w-6" />)}

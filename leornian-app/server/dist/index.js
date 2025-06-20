@@ -10,7 +10,6 @@ const auth_1 = __importDefault(require("./routes/auth"));
 const log_1 = __importDefault(require("./routes/log"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
-//previous cors was just app.use(cors({ origin: 'http://localhost:5173' }));
 // Configure CORS based on environment
 const allowedOrigins = [
     'http://localhost:5173', // Local development
@@ -30,9 +29,14 @@ app.use((0, cors_1.default)({
     credentials: true
 }));
 app.use(express_1.default.json());
-app.use('/api', auth_1.default); //double check original /auth and /logs
+app.use('/api', auth_1.default);
 app.use('/api', log_1.default);
 const PORT = process.env.PORT || 4000;
+// Add a catch-all route for unmatched API routes
+app.use('/api/*', (req, res) => {
+    console.log('Unmatched API route:', req.method, req.originalUrl);
+    res.status(404).json({ error: 'API route not found' });
+});
 app.get('/', (_req, res) => {
     res.send('Leornian API is running.');
 });

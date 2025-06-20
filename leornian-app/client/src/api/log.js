@@ -7,7 +7,7 @@ export const getLogs = (token) =>
   });
 
 export const getLogByDate = (token, date) => {
-  const url = `${API_BASE_URL}/api/log/date/${date}`;
+  const url = `${API_BASE_URL}/api/log/by-date?date=${date}`;
   console.log('Calling getLogByDate with URL:', url);
   return axios.get(url, {
     headers: { Authorization: `Bearer ${token}` },
@@ -20,6 +20,6 @@ export const createLog = (token, data) =>
   });
 
 export const updateLog = (token, logId, data) =>
-  axios.put(`${API_BASE_URL}/api/log/${logId}`, data, {
+  axios.put(`${API_BASE_URL}/api/log/update?id=${logId}`, data, {
     headers: { Authorization: `Bearer ${token}` },
   });
