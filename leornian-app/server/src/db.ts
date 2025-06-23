@@ -6,12 +6,7 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-// Singleton pattern for Prisma client
-const prisma =
-  global.prisma ||
-  new PrismaClient({
-    log: ['query', 'info', 'warn', 'error'], // Enable verbose logging (optional)
-  });
+const prisma = global.prisma || new PrismaClient({ log: ['query', 'info', 'warn', 'error'] });
 
 if (process.env.NODE_ENV !== 'production') global.prisma = prisma;
 

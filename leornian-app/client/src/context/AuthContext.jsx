@@ -20,13 +20,6 @@ export const AuthProvider = ({ children }) => {
     setFirstName(null);
   };
 
-  useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    const storedFirstName = localStorage.getItem('firstName');
-    if (storedToken) setToken(storedToken);
-    if (storedFirstName) setFirstName(storedFirstName);
-  }, []);
-
   return (
     <AuthContext.Provider value={{ token, firstName, login, logout }}>
       {children}
