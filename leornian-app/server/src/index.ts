@@ -3,6 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import logRoutes from './routes/log';
+import queryRoutes from './routes/query';
+import chatRoutes from './routes/chat';
 dotenv.config();
 
 const app = express();
@@ -30,6 +32,8 @@ app.use(cors({
 app.use(express.json());
 app.use('/api', authRoutes);
 app.use('/api', logRoutes);
+app.use('/api', queryRoutes);
+app.use('/api', chatRoutes);
 
 const PORT = process.env.PORT || 4000;
 

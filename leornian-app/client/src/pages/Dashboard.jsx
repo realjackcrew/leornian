@@ -28,32 +28,6 @@ export default function Dashboard() {
             format: 'comprehensive'
         };
         
-        // Extract key metrics from values
-        if (values.sleep) {
-            extracted.sleepHours = values.sleep.sleepHours;
-            extracted.sleepQuality = values.sleep.sleepQuality;
-        }
-        if (values.mentalHealth) {
-            extracted.focusScore = values.mentalHealth.focusScore;
-            extracted.moodRating = values.mentalHealth.moodRating;
-            extracted.anxietyLevel = values.mentalHealth.anxietyLevel;
-            extracted.energyLevel = values.mentalHealth.energyLevel;
-        }
-        if (values.physicalHealth) {
-            extracted.hrv = values.physicalHealth.hrv;
-            extracted.exerciseMinutes = values.physicalHealth.exerciseMinutes;
-            extracted.steps = values.physicalHealth.steps;
-        }
-        if (values.lifestyle) {
-            extracted.screenTime = values.lifestyle.screenTime;
-            extracted.stressLevel = values.lifestyle.stressLevel;
-            extracted.productivityScore = values.lifestyle.productivityScore;
-        }
-        if (values.nutrition) {
-            extracted.waterIntake = values.nutrition.waterIntake;
-            extracted.vegetables = values.nutrition.vegetables;
-        }
-        
         return extracted;
     };
 
