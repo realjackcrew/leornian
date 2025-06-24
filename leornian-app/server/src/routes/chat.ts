@@ -6,7 +6,7 @@ import path from 'path';
 
 const router = express.Router();
 
-const prompt = readFileSync(path.join(__dirname, '../llm/prompt.txt'), 'utf8');
+const prompt = readFileSync(path.join(__dirname, '../llm/prompt.md'), 'utf8');
 
 function bigIntToString(key: string, value: any) {
   if (typeof value === 'bigint') {
@@ -24,7 +24,7 @@ const SYSTEM_MESSAGE = {
 router.post('/chat', async (req, res) => {
   try {
     console.log('Chat request received:', req.body);
-    const { message, conversationHistory = [], includeHistory = false } = req.body;
+    const { message } = req.body;
     
     if (!message || typeof message !== 'string') {
       console.log('Invalid message format');
@@ -35,17 +35,11 @@ router.post('/chat', async (req, res) => {
 
     console.log('Processing message:', message);
 
-    // Build the conversation - only include history if explicitly requested
-    const messages = includeHistory 
-      ? [
-          SYSTEM_MESSAGE,
-          ...conversationHistory,
-          { role: 'user', content: message }
-        ]
-      : [
-          SYSTEM_MESSAGE,
-          { role: 'user', content: message }
-        ];
+    // Only send the current message and system prompt
+    const messages = [
+      SYSTEM_MESSAGE,
+      { role: 'user', content: message }
+    ];
 
     console.log('Calling OpenAI with function calling...');
     // First call to OpenAI with function calling
@@ -76,8 +70,7 @@ router.post('/chat', async (req, res) => {
 
       console.log('Query result:', queryResult);
 
-      // For the interpretation call, we can include the original message context
-      // but not the full conversation history to save tokens
+      // For the interpretation call, only include the original message context
       const interpretationMessages = [
         SYSTEM_MESSAGE,
         { role: 'user', content: message },

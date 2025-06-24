@@ -1,6 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { API_BASE_URL } from '../config';
+import ReactMarkdown from 'react-markdown';
 
 export default function Chat() {
   const { token } = useContext(AuthContext);
@@ -116,22 +117,29 @@ export default function Chat() {
                 message.sender === 'user' ? 'justify-end' : 'justify-start'
               }`}
             >
-              <div
-                className={`max-w-xs lg:max-w-md p-3 rounded-lg ${
-                  message.sender === 'user'
-                    ? 'bg-blue-500 text-white'
-                    : message.isError
-                    ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                    : 'bg-white text-gray-900 dark:bg-gray-800 dark:text-white'
-                }`}
-              >
-                <div className="text-sm">{message.text}</div>
-                {message.functionCalled && (
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    📊 Used database query
-                  </div>
-                )}
-              </div>
+              {message.sender === 'user' ? (
+                <div
+                  className="max-w-xs lg:max-w-md p-3 rounded-lg bg-blue-500 text-white"
+                >
+                  <div className="text-sm">{message.text}</div>
+                </div>
+              ) : (
+                <div
+                  className={`markdown-message w-full p-3 ${
+                    message.isError
+                      ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 rounded-lg'
+                      : 'bg-transparent text-gray-900 dark:text-white'
+                  }`}
+                  style={{ overflowX: 'auto' }}
+                >
+                  <ReactMarkdown>{message.text}</ReactMarkdown>
+                  {message.functionCalled && !message.isError && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      📊 Used database query
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
           {isLoading && (
