@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { register as registerApi } from '../api/auth';
+import { useState, useEffect } from 'react';
+import { register as registerApi, googleAuth } from '../api/auth';
 import { useNavigate, Link } from 'react-router-dom';
 import { UserPlus, Mail, Lock, User } from 'lucide-react';
 
@@ -10,6 +10,40 @@ export default function RegisterPage() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    // Initialize Google Sign-In
+    if (window.google) {
+      window.google.accounts.id.initialize({
+        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+        callback: handleGoogleSignIn
+      });
+      
+      window.google.accounts.id.renderButton(
+        document.getElementById('google-signin-button'),
+        { 
+          theme: 'outline', 
+          size: 'large',
+          width: '100%',
+          text: 'signup_with'
+        }
+      );
+    }
+  }, []);
+
+  const handleGoogleSignIn = async (response) => {
+    setIsLoading(true);
+    try {
+      const res = await googleAuth(response.credential);
+      alert('Registration successful! Please log in.');
+      navigate('/login');
+    } catch (error) {
+      console.error('Google sign-in error:', error);
+      alert('Google registration failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,6 +59,10 @@ export default function RegisterPage() {
       setIsLoading(false);
     }
   };
+
+  function capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
@@ -53,7 +91,7 @@ export default function RegisterPage() {
                 className="block w-full pl-10 pr-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 type="text"
                 placeholder="First name"
-                value={firstName}
+                value={capitalize(firstName)}
                 onChange={e => setFirstName(e.target.value)}
                 required
               />
@@ -67,7 +105,7 @@ export default function RegisterPage() {
                 className="block w-full pl-10 pr-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 type="text"
                 placeholder="Last name"
-                value={lastName}
+                value={capitalize(lastName)}
                 onChange={e => setLastName(e.target.value)}
                 required
               />
@@ -113,6 +151,17 @@ export default function RegisterPage() {
             <span>{isLoading ? 'Creating account...' : 'Create account'}</span>
           </button>
         </form>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-200 dark:border-gray-600"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white/90 dark:bg-gray-900/90 text-gray-500 dark:text-gray-400">Or continue with</span>
+          </div>
+        </div>
+
+        <div id="google-signin-button" className="w-full"></div>
 
         <div className="text-center mt-6">
           <p className="text-sm text-gray-600 dark:text-gray-300">

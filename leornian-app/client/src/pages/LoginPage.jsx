@@ -1,5 +1,5 @@
-import { useState, useContext } from 'react';
-import { login as loginApi } from '../api/auth';
+import { useState, useContext, useEffect } from 'react';
+import { login as loginApi, googleAuth } from '../api/auth';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogIn, Mail, Lock } from 'lucide-react';
@@ -11,6 +11,40 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+
+  useEffect(() => {
+    // Initialize Google Sign-In
+    if (window.google) {
+      window.google.accounts.id.initialize({
+        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+        callback: handleGoogleSignIn
+      });
+      
+      window.google.accounts.id.renderButton(
+        document.getElementById('google-signin-button'),
+        { 
+          theme: 'outline', 
+          size: 'large',
+          width: '100%',
+          text: 'signin_with'
+        }
+      );
+    }
+  }, []);
+
+  const handleGoogleSignIn = async (response) => {
+    setIsLoading(true);
+    try {
+      const res = await googleAuth(response.credential);
+      login(res.data.token, res.data.user.firstName);
+      navigate('/');
+    } catch (error) {
+      console.error('Google sign-in error:', error);
+      alert('Google sign-in failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -107,6 +141,17 @@ export default function LoginPage() {
             <span>{isLoading ? 'Signing in...' : 'Sign in'}</span>
           </button>
         </form>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-200 dark:border-gray-600"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white/90 dark:bg-gray-900/90 text-gray-500 dark:text-gray-400">Or continue with</span>
+          </div>
+        </div>
+
+        <div id="google-signin-button" className="w-full"></div>
 
         <div className="text-center mt-6">
           <div className="relative">

@@ -25,9 +25,12 @@ function UserDropdown({ user, onLogout, getButtonStyles }) {
   };
 
   return (
-    <div className="relative user-dropdown">
+    <div 
+      className="relative user-dropdown"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
       <button 
-        onClick={() => setIsOpen(!isOpen)}
         className={`px-4 py-2 rounded-lg transition-all duration-200 font-light text-lg ${getButtonStyles()}`}
       >
         Hello, {user.firstName || 'There'}
