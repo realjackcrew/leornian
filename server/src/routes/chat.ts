@@ -6,7 +6,7 @@ import path from 'path';
 
 const router = express.Router();
 
-const prompt = readFileSync(path.join(__dirname, '../llm/prompt.md'), 'utf8');
+const prompt = readFileSync(path.join(__dirname, '../llm/prompt2.md'), 'utf8');
 
 function bigIntToString(key: string, value: any) {
   if (typeof value === 'bigint') {
