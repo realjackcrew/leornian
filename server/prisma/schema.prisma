@@ -19,6 +19,8 @@ model User {
   password  String
   firstName String?
   lastName  String?
+  // WHOOP integration credentials stored as JSON
+  whoopCredentials Json?
   logs      DailyLog[]
 }
 

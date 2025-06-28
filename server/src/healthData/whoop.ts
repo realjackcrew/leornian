@@ -251,6 +251,30 @@ class WhoopAPI {
   isAuthenticated(): boolean {
     return this.accessToken !== null && this.isTokenValid();
   }
+
+  /**
+   * Get the current access token
+   * @returns Access token or null if not available
+   */
+  getAccessToken(): string | null {
+    return this.accessToken;
+  }
+
+  /**
+   * Get the current refresh token
+   * @returns Refresh token or null if not available
+   */
+  getRefreshToken(): string | null {
+    return this.refreshToken;
+  }
+
+  /**
+   * Get the token expiry timestamp
+   * @returns Token expiry timestamp or null if not available
+   */
+  getTokenExpiry(): number | null {
+    return this.tokenExpiry;
+  }
 }
 
 // Export a singleton instance

@@ -16,7 +16,7 @@ function bigIntToString(key: string, value: any) {
 }
 
 // System message that provides context about the database
-const SYSTEM_MESSAGE = {
+const SYSTEM_PROMPT = {
   role: 'system',
   content: prompt
 };
@@ -37,7 +37,7 @@ router.post('/chat', async (req, res) => {
 
     // Only send the current message and system prompt
     const messages = [
-      SYSTEM_MESSAGE,
+      SYSTEM_PROMPT,
       { role: 'user', content: message }
     ];
 
@@ -72,7 +72,7 @@ router.post('/chat', async (req, res) => {
 
       // For the interpretation call, only include the original message context
       const interpretationMessages = [
-        SYSTEM_MESSAGE,
+        SYSTEM_PROMPT,
         { role: 'user', content: message },
         firstResponse,
         {

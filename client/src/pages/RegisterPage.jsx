@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { register as registerApi, googleAuth } from '../api/auth';
 import { useNavigate, Link } from 'react-router-dom';
-import { UserPlus, Mail, Lock, User } from 'lucide-react';
+import { UserPlus, Mail, Lock, User, Activity } from 'lucide-react';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -162,6 +162,21 @@ export default function RegisterPage() {
         </div>
 
         <div id="google-signin-button" className="w-full"></div>
+
+        <button
+          type="button"
+          onClick={() => {
+            // Redirect to WHOOP OAuth URL
+            const whoopClientId = import.meta.env.VITE_WHOOP_CLIENT_ID;
+            const redirectUri = `${window.location.origin}/whoop-callback`;
+            const whoopAuthUrl = `https://api.whoop.com/oauth/authorize?client_id=${whoopClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=read:recovery%20read:cycles%20read:workout%20read:profile`;
+            window.location.href = whoopAuthUrl;
+          }}
+          className="w-full flex justify-center items-center space-x-2 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+        >
+          <Activity className="h-5 w-5" />
+          <span>Connect WHOOP Account</span>
+        </button>
 
         <div className="text-center mt-6">
           <p className="text-sm text-gray-600 dark:text-gray-300">
