@@ -12,7 +12,12 @@ export const googleAuth = (idToken) =>
 
 export const whoopAuth = async (authorizationCode) => {
   const token = localStorage.getItem('token');
-  const response = await fetch(`${API_BASE_URL}/whoop/auth`, {
+  
+  if (!token) {
+    throw new Error('User not authenticated. Please log in first.');
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/whoop/auth`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -22,16 +27,33 @@ export const whoopAuth = async (authorizationCode) => {
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'WHOOP authentication failed');
+    let errorMessage = 'WHOOP authentication failed';
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error || errorMessage;
+    } catch (parseError) {
+      // If response is not JSON, try to get text
+      try {
+        const errorText = await response.text();
+        errorMessage = errorText || errorMessage;
+      } catch (textError) {
+        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      }
+    }
+    throw new Error(errorMessage);
   }
 
-  return response.json();
+  try {
+    return await response.json();
+  } catch (parseError) {
+    console.error('Failed to parse WHOOP auth response:', parseError);
+    throw new Error('Invalid response from server');
+  }
 };
 
 export const checkWhoopStatus = async () => {
   const token = localStorage.getItem('token');
-  const response = await fetch(`${API_BASE_URL}/whoop/status`, {
+  const response = await fetch(`${API_BASE_URL}/api/whoop/status`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
@@ -47,7 +69,7 @@ export const checkWhoopStatus = async () => {
 
 export const disconnectWhoop = async () => {
   const token = localStorage.getItem('token');
-  const response = await fetch(`${API_BASE_URL}/whoop/disconnect`, {
+  const response = await fetch(`${API_BASE_URL}/api/whoop/disconnect`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token}`

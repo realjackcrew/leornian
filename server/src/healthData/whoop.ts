@@ -60,7 +60,7 @@ interface WhoopPhysicalData {
 }
 
 class WhoopAPI {
-  private baseURL = 'https://api.whoop.com';
+  private baseURL = 'https://api.prod.whoop.com';
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
   private tokenExpiry: number | null = null;
@@ -75,12 +75,20 @@ class WhoopAPI {
     }
 
     try {
+      // WHOOP expects form-urlencoded data, not JSON
+      const formData = new URLSearchParams();
+      formData.append('grant_type', 'refresh_token');
+      formData.append('refresh_token', this.refreshToken);
+      formData.append('client_id', process.env.WHOOP_CLIENT_ID || '');
+      formData.append('client_secret', process.env.WHOOP_CLIENT_SECRET || '');
+
       const response = await axios.post<WhoopTokenResponse>(
-        'https://api.whoop.com/oauth/token',
+        'https://api.prod.whoop.com/oauth/oauth2/token',
+        formData,
         {
-          grant_type: 'refresh_token',
-          refresh_token: this.refreshToken,
-          client_id: process.env.WHOOP_CLIENT_ID,
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
         }
       );
 
@@ -120,12 +128,29 @@ class WhoopAPI {
    */
   async initialize(authorizationCode: string): Promise<void> {
     try {
+      // WHOOP expects form-urlencoded data, not JSON
+      const formData = new URLSearchParams();
+      formData.append('grant_type', 'authorization_code');
+      formData.append('code', authorizationCode);
+      formData.append('client_id', process.env.WHOOP_CLIENT_ID || '');
+      formData.append('client_secret', process.env.WHOOP_CLIENT_SECRET || '');
+      formData.append('redirect_uri', process.env.WHOOP_REDIRECT_URI || 'http://localhost:5173/whoop-callback');
+
+      console.log('WHOOP token request data:', {
+        grant_type: 'authorization_code',
+        code: authorizationCode,
+        client_id: process.env.WHOOP_CLIENT_ID,
+        client_secret: process.env.WHOOP_CLIENT_SECRET ? '[REDACTED]' : 'NOT_SET',
+        redirect_uri: process.env.WHOOP_REDIRECT_URI || 'http://localhost:5173/whoop-callback'
+      });
+
       const response = await axios.post<WhoopTokenResponse>(
-        'https://api.whoop.com/oauth/token',
+        'https://api.prod.whoop.com/oauth/oauth2/token',
+        formData,
         {
-          grant_type: 'authorization_code',
-          code: authorizationCode,
-          client_id: process.env.WHOOP_CLIENT_ID,
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
         }
       );
 

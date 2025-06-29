@@ -11,9 +11,13 @@ router.post('/whoop/auth', authenticateToken, async (req: AuthenticatedRequest, 
     const { authorizationCode } = req.body;
     
     if (!authorizationCode) {
+      console.error('WHOOP auth: Missing authorization code');
       res.status(400).json({ error: 'Authorization code is required' });
       return;
     }
+
+    console.log('WHOOP auth: Processing authorization code for user:', req.userId);
+    console.log('WHOOP auth: Authorization code:', authorizationCode.substring(0, 20) + '...');
 
     // Initialize WHOOP API with the authorization code
     await whoopAPI.initialize(authorizationCode);
@@ -26,21 +30,43 @@ router.post('/whoop/auth', authenticateToken, async (req: AuthenticatedRequest, 
       token_type: 'Bearer'
     };
 
+    console.log('WHOOP auth: Tokens received, storing in database');
+
     // Store the credentials in the database
     await prisma.user.update({
       where: { id: req.userId! },
       data: {
-        whoopCredentials: tokens
+        whoopCredentials: tokens as any
       }
     });
+
+    console.log('WHOOP auth: Credentials stored successfully for user:', req.userId);
 
     res.json({ 
       success: true, 
       message: 'WHOOP credentials stored successfully' 
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('WHOOP authentication error:', error);
-    res.status(500).json({ error: 'Failed to authenticate with WHOOP' });
+    
+    // Provide more detailed error information
+    let errorMessage = 'Failed to authenticate with WHOOP';
+    if (error.response?.data) {
+      console.error('WHOOP API error details:', error.response.data);
+      
+      const whoopError = error.response.data;
+      if (whoopError.error === 'invalid_grant') {
+        if (whoopError.error_hint?.includes('already been used')) {
+          errorMessage = 'This authorization code has already been used. Please try connecting WHOOP again.';
+        } else {
+          errorMessage = 'Authorization code is invalid or expired. Please try connecting WHOOP again.';
+        }
+      } else {
+        errorMessage = `WHOOP API error: ${whoopError.error_description || whoopError.error || errorMessage}`;
+      }
+    }
+    
+    res.status(500).json({ error: errorMessage });
   }
 });
 
@@ -69,7 +95,7 @@ router.delete('/whoop/disconnect', authenticateToken, async (req: AuthenticatedR
     await prisma.user.update({
       where: { id: req.userId! },
       data: {
-        whoopCredentials: null
+        whoopCredentials: undefined
       }
     });
 

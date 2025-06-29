@@ -34,7 +34,6 @@ export default function Dashboard() {
             notes: log.healthData.notes,
             format: 'comprehensive'
         };
-        
         return extracted;
     };
 
@@ -144,9 +143,22 @@ export default function Dashboard() {
                                 ) : (
                                     <button
                                         onClick={() => {
+                                            // Check if user is logged in (has token)
+                                            const token = localStorage.getItem('token');
+                                            if (!token) {
+                                                alert('Please log in first before connecting your WHOOP account.');
+                                                return;
+                                            }
+
+                                            // Generate and store state parameter for CSRF protection
+                                            const state = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+                                            sessionStorage.setItem('whoop_oauth_state', state);
+                                            
+                                            console.log('WHOOP OAuth: Stored state:', state);
+                                            
                                             const whoopClientId = import.meta.env.VITE_WHOOP_CLIENT_ID;
                                             const redirectUri = `${window.location.origin}/whoop-callback`;
-                                            const whoopAuthUrl = `https://api.whoop.com/oauth/authorize?client_id=${whoopClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=read:recovery%20read:cycles%20read:workout%20read:profile`;
+                                            const whoopAuthUrl = `https://api.prod.whoop.com/oauth/oauth2/auth?client_id=${whoopClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=offline%20read:profile%20read:recovery%20read:cycles%20read:workout&state=${state}`;
                                             window.location.href = whoopAuthUrl;
                                         }}
                                         className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
