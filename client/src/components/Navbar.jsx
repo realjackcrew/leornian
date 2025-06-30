@@ -31,7 +31,7 @@ function UserDropdown({ user, onLogout, getButtonStyles }) {
       onMouseLeave={() => setIsOpen(false)}
     >
       <button 
-        className={`px-4 py-2 rounded-lg transition-all duration-200 font-light text-lg ${getButtonStyles()}`}
+        className={`px-4 py-2 rounded-lg transition-all duration-200 font-light text-lg font-light hover:opacity-80 transition-opacity`}
       >
         Hello, {user.firstName || 'There'}
       </button>
@@ -44,7 +44,7 @@ function UserDropdown({ user, onLogout, getButtonStyles }) {
         <div className="rounded-lg min-w-[140px] overflow-hidden">
           <button 
             onClick={handleLogout}
-            className={`w-full text-left px-3 py-2 text-red-600 hover:text-red-700 hover:bg-gray-100 transition-colors duration-200 text-sm ${getButtonStyles()}`}
+            className={`w-full text-right px-3 py-2 text-white-600 hover:text-red-700 transition-colors duration-200 text-sm hover:opacity-80 transition-opacity`}
           >
             Log Out
           </button>
@@ -79,7 +79,7 @@ export default function Navbar({ user, onLogout }) {
     }
     if (isHomePage) {
       return scrolledPastLanding 
-        ? 'bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200/20 dark:border-gray-700/20 text-gray-800 dark:text-gray-200' 
+        ? 'bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-transparent text-gray-800 dark:text-gray-200' 
         : 'bg-transparent text-white';
     }
     return 'bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200';
