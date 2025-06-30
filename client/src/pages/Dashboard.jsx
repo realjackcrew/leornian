@@ -116,59 +116,6 @@ export default function Dashboard() {
                     <h2 className="text-2xl font-light text-gray-900 dark:text-white mb-2">
                         Welcome back!
                     </h2>
-                    
-                    {/* WHOOP Connection Status */}
-                    <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                                <Activity className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-                                <div>
-                                    <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                                        WHOOP Integration
-                                    </h3>
-                                    <p className="text-sm text-gray-600 dark:text-gray-300">
-                                        {whoopStatus.isConnected 
-                                            ? 'Your WHOOP account is connected' 
-                                            : 'Connect your WHOOP account for automatic data sync'
-                                        }
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                {whoopStatus.isConnected ? (
-                                    <div className="flex items-center space-x-1 text-green-600 dark:text-green-400">
-                                        <Check className="h-4 w-4" />
-                                        <span className="text-sm font-medium">Connected</span>
-                                    </div>
-                                ) : (
-                                    <button
-                                        onClick={() => {
-                                            // Check if user is logged in (has token)
-                                            const token = localStorage.getItem('token');
-                                            if (!token) {
-                                                alert('Please log in first before connecting your WHOOP account.');
-                                                return;
-                                            }
-
-                                            // Generate and store state parameter for CSRF protection
-                                            const state = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-                                            sessionStorage.setItem('whoop_oauth_state', state);
-                                            
-                                            console.log('WHOOP OAuth: Stored state:', state);
-                                            
-                                            const whoopClientId = import.meta.env.VITE_WHOOP_CLIENT_ID;
-                                            const redirectUri = `${window.location.origin}/whoop-callback`;
-                                            const whoopAuthUrl = `https://api.prod.whoop.com/oauth/oauth2/auth?client_id=${whoopClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=offline%20read:profile%20read:recovery%20read:cycles%20read:workout&state=${state}`;
-                                            window.location.href = whoopAuthUrl;
-                                        }}
-                                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                                    >
-                                        Connect
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
@@ -222,6 +169,58 @@ export default function Dashboard() {
                             </div>
                         </>
                     )}
+                </div>
+                {/* WHOOP Connection Status */}
+                <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                            <Activity className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+                            <div>
+                                <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                                    WHOOP Integration
+                                </h3>
+                                <p className="text-sm text-gray-600 dark:text-gray-300">
+                                    {whoopStatus.isConnected 
+                                        ? 'Your WHOOP account is connected' 
+                                        : 'Connect your WHOOP account for automatic data sync'
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            {whoopStatus.isConnected ? (
+                                <div className="flex items-center space-x-1 text-green-600 dark:text-green-400">
+                                    <Check className="h-4 w-4" />
+                                    <span className="text-sm font-medium">Connected</span>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => {
+                                        // Check if user is logged in (has token)
+                                        const token = localStorage.getItem('token');
+                                        if (!token) {
+                                            alert('Please log in first before connecting your WHOOP account.');
+                                            return;
+                                        }
+
+                                        // Generate and store state parameter for CSRF protection
+                                        const state = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+                                        sessionStorage.setItem('whoop_oauth_state', state);
+                                        
+                                        console.log('WHOOP OAuth: Stored state:', state);
+                                        
+                                        const whoopClientId = import.meta.env.VITE_WHOOP_CLIENT_ID;
+                                        const redirectUri = `${window.location.origin}/whoop-callback`;
+                                        const whoopAuthUrl = `https://api.prod.whoop.com/oauth/oauth2/auth?client_id=${whoopClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=offline%20read:profile%20read:recovery%20read:cycles%20read:workout&state=${state}`;
+                                        window.location.href = whoopAuthUrl;
+                                    }}
+                                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                                >
+                                    Connect
+                                </button>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
 

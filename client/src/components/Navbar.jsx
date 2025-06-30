@@ -88,7 +88,7 @@ export default function Navbar({ user, onLogout }) {
   // Determine button colors based on scroll and login status
   const getButtonStyles = () => {
     if (isHomePage && !scrolledPastLanding) {
-      return 'text-white hover:text-white/80 hover:bg-white/10';
+      return 'text-white dark:text-white hover:text-white/80 dark:hover:text-white/80 hover:bg-white/10 dark:hover:bg-white/10 hover:dark:bg-white/10';
     }
     return 'text-gray-800 dark:text-gray-200 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800';
   };
@@ -128,7 +128,7 @@ export default function Navbar({ user, onLogout }) {
         ) : (
           <Link 
             to="/login" 
-            className={`px-4 py-2 rounded-lg transition-all duration-200 font-light text-lg ${getButtonStyles()}`}
+            className="text-lg font-light hover:opacity-80 transition-opacity"
           >
             Log In
           </Link>
@@ -136,7 +136,7 @@ export default function Navbar({ user, onLogout }) {
         
         <button 
           onClick={toggleTheme}
-          className={`p-2 rounded-lg transition-all duration-200 ${getButtonStyles()}`}
+          className="hover:opacity-80 transition-opacity"
           title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
         >
           {isDarkMode ? <Sun size={22} /> : <Moon size={22} />}
@@ -144,7 +144,7 @@ export default function Navbar({ user, onLogout }) {
         
         <Link 
           to="/settings"
-          className={`p-2 rounded-lg transition-all duration-200 ${getButtonStyles()}`}
+          className="hover:opacity-80 transition-opacity"
           title="Settings"
         >
           <Settings size={22} />
