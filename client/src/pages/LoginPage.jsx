@@ -35,7 +35,7 @@ export default function LoginPage() {
   const handleGoogleSignIn = async (response) => {
     setIsLoading(true);
     try {
-      const res = await googleAuth(response.credential);
+      const res = await googleAuth(response.credential, rememberMe);
       login(res.data.token, res.data.user.firstName);
       navigate('/');
     } catch (error) {
@@ -50,7 +50,7 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const res = await loginApi(email, password);
+      const res = await loginApi(email, password, rememberMe);
       login(res.data.token, res.data.user.firstName);
       navigate('/');
     } catch {
@@ -124,9 +124,9 @@ export default function LoginPage() {
             </div>
 
             <div className="text-sm">
-              <a href="#" className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
+              <Link to="/forgot-password" className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
                 Forgot your password?
-              </a>
+              </Link>
             </div>
           </div>
 

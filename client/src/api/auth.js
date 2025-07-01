@@ -4,11 +4,11 @@ import { API_BASE_URL } from '../config';
 export const register = (email, password, firstName, lastName) =>
   axios.post(`${API_BASE_URL}/api/register`, { email, password, firstName, lastName });
 
-export const login = (email, password) =>
-  axios.post(`${API_BASE_URL}/api/login`, { email, password });
+export const login = (email, password, rememberMe = false) =>
+  axios.post(`${API_BASE_URL}/api/login`, { email, password, rememberMe });
 
-export const googleAuth = (idToken) =>
-  axios.post(`${API_BASE_URL}/api/google-auth`, { idToken });
+export const googleAuth = (idToken, rememberMe = false) =>
+  axios.post(`${API_BASE_URL}/api/google-auth`, { idToken, rememberMe });
 
 export const whoopAuth = async (authorizationCode) => {
   const token = localStorage.getItem('token');
@@ -83,3 +83,13 @@ export const disconnectWhoop = async () => {
 
   return response.json();
 };
+
+// Password reset functions
+export const requestPasswordReset = (email) =>
+  axios.post(`${API_BASE_URL}/api/forgot-password`, { email });
+
+export const verifyResetCode = (email, code) =>
+  axios.post(`${API_BASE_URL}/api/verify-reset-code`, { email, code });
+
+export const resetPassword = (email, newPassword, verificationToken) =>
+  axios.post(`${API_BASE_URL}/api/reset-password`, { email, newPassword, verificationToken });

@@ -34,7 +34,7 @@ export default function RegisterPage() {
   const handleGoogleSignIn = async (response) => {
     setIsLoading(true);
     try {
-      const res = await googleAuth(response.credential);
+      const res = await googleAuth(response.credential, false);
       alert('Registration successful! Please log in.');
       navigate('/login');
     } catch (error) {
