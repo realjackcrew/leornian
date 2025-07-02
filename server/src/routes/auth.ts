@@ -15,28 +15,14 @@ const resetTokens = new Map<string, { code: string; expiresAt: number }>();
 router.post('/register', async (req: Request, res: Response): Promise<void> => {
     try {
       const { email, password, firstName, lastName } = req.body;
-      console.log('Register request received:', { email, firstName, lastName });
-      console.log('Request body:', req.body);
   
       if (!email || !password) {
-        console.warn('Missing email or password in request body');
         res.status(400).json({ error: 'Email and password are required' });
-        return;
-      }
-  
-      // Test database connection
-      try {
-        await prisma.$connect();
-        console.log('Database connection successful');
-      } catch (dbError) {
-        console.error('Database connection failed:', dbError);
-        res.status(500).json({ error: 'Database connection failed' });
         return;
       }
   
       const existing = await prisma.user.findUnique({ where: { email } });
       if (existing) {
-        console.log('Email already exists:', email);
         res.status(400).json({ error: 'Email already in use' });
         return;
       }
@@ -51,19 +37,10 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
         } 
       });
   
-      console.log('User created with ID:', user.id);
       res.status(201).json({ userId: user.id });
     } catch (err) {
-      console.error('Unexpected register error:', err);
-      console.error('Error details:', {
-        name: err instanceof Error ? err.name : 'Unknown',
-        message: err instanceof Error ? err.message : 'Unknown error',
-        stack: err instanceof Error ? err.stack : 'No stack trace'
-      });
-      res.status(500).json({ 
-        error: 'Internal server error',
-        details: process.env.NODE_ENV === 'development' ? err instanceof Error ? err.message : 'Unknown error' : undefined
-      });
+      console.error('Registration error:', err);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
