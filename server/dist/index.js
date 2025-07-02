@@ -8,6 +8,9 @@ const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const auth_1 = __importDefault(require("./routes/auth"));
 const log_1 = __importDefault(require("./routes/log"));
+const query_1 = __importDefault(require("./routes/query"));
+const chat_1 = __importDefault(require("./routes/chat"));
+const whoop_1 = __importDefault(require("./routes/whoop"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 // Configure CORS based on environment
@@ -31,6 +34,9 @@ app.use((0, cors_1.default)({
 app.use(express_1.default.json());
 app.use('/api', auth_1.default);
 app.use('/api', log_1.default);
+app.use('/api', query_1.default);
+app.use('/api', chat_1.default);
+app.use('/api', whoop_1.default);
 const PORT = process.env.PORT || 4000;
 // Add a catch-all route for unmatched API routes
 app.use('/api/*', (req, res) => {

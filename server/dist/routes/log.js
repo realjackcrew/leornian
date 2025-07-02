@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const auth_1 = require("../middleware/auth");
-const db_1 = __importDefault(require("../db"));
+const database_1 = __importDefault(require("../db/database"));
 const router = (0, express_1.Router)();
 // POST /log – create a new daily log
 router.post('/log', auth_1.authenticateToken, async (req, res) => {
@@ -14,7 +14,7 @@ router.post('/log', auth_1.authenticateToken, async (req, res) => {
         // If no date is provided, generate today's date in Chicago time.
         // 'en-CA' gives YYYY-MM-DD format.
         const logDate = date || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
-        const log = await db_1.default.dailyLog.create({
+        const log = await database_1.default.dailyLog.create({
             data: {
                 userId: req.userId,
                 date: logDate,
@@ -39,7 +39,7 @@ router.post('/log', auth_1.authenticateToken, async (req, res) => {
 // GET /logs – get all logs for current user
 router.get('/log', auth_1.authenticateToken, async (req, res) => {
     try {
-        const logs = await db_1.default.dailyLog.findMany({
+        const logs = await database_1.default.dailyLog.findMany({
             where: { userId: req.userId },
             orderBy: { createdAt: 'desc' },
         });
@@ -58,7 +58,7 @@ router.get('/log/by-date', auth_1.authenticateToken, async (req, res) => {
         return;
     }
     try {
-        const log = await db_1.default.dailyLog.findUnique({
+        const log = await database_1.default.dailyLog.findUnique({
             where: {
                 userId_date: {
                     userId: req.userId,
@@ -87,7 +87,7 @@ router.put('/log/update', auth_1.authenticateToken, async (req, res) => {
     }
     try {
         // Verify log belongs to user
-        const existingLog = await db_1.default.dailyLog.findFirst({
+        const existingLog = await database_1.default.dailyLog.findFirst({
             where: { id, userId: req.userId },
         });
         if (!existingLog) {
@@ -100,7 +100,7 @@ router.put('/log/update', auth_1.authenticateToken, async (req, res) => {
             ...healthData,
             timezone: healthData.timezone || 'America/Chicago' // Default to Central time if not specified
         };
-        const log = await db_1.default.dailyLog.update({
+        const log = await database_1.default.dailyLog.update({
             where: { id },
             data: updateData,
         });
