@@ -15,11 +15,22 @@ const resetTokens = new Map<string, { code: string; expiresAt: number }>();
 router.post('/register', async (req: Request, res: Response): Promise<void> => {
     try {
       const { email, password, firstName, lastName } = req.body;
-      console.log('Register request received:', email);
+      console.log('Register request received:', { email, firstName, lastName });
+      console.log('Request body:', req.body);
   
       if (!email || !password) {
         console.warn('Missing email or password in request body');
         res.status(400).json({ error: 'Email and password are required' });
+        return;
+      }
+  
+      // Test database connection
+      try {
+        await prisma.$connect();
+        console.log('Database connection successful');
+      } catch (dbError) {
+        console.error('Database connection failed:', dbError);
+        res.status(500).json({ error: 'Database connection failed' });
         return;
       }
   
@@ -35,8 +46,8 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
         data: { 
           email, 
           password: hashed,
-          firstName,
-          lastName
+          firstName: firstName || '',
+          lastName: lastName || ''
         } 
       });
   
@@ -44,7 +55,15 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       res.status(201).json({ userId: user.id });
     } catch (err) {
       console.error('Unexpected register error:', err);
-      res.status(500).json({ error: 'Internal server error' });
+      console.error('Error details:', {
+        name: err instanceof Error ? err.name : 'Unknown',
+        message: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : 'No stack trace'
+      });
+      res.status(500).json({ 
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? err instanceof Error ? err.message : 'Unknown error' : undefined
+      });
     }
   });
 

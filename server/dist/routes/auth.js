@@ -17,10 +17,21 @@ const resetTokens = new Map();
 router.post('/register', async (req, res) => {
     try {
         const { email, password, firstName, lastName } = req.body;
-        console.log('Register request received:', email);
+        console.log('Register request received:', { email, firstName, lastName });
+        console.log('Request body:', req.body);
         if (!email || !password) {
             console.warn('Missing email or password in request body');
             res.status(400).json({ error: 'Email and password are required' });
+            return;
+        }
+        // Test database connection
+        try {
+            await database_1.default.$connect();
+            console.log('Database connection successful');
+        }
+        catch (dbError) {
+            console.error('Database connection failed:', dbError);
+            res.status(500).json({ error: 'Database connection failed' });
             return;
         }
         const existing = await database_1.default.user.findUnique({ where: { email } });
@@ -34,8 +45,8 @@ router.post('/register', async (req, res) => {
             data: {
                 email,
                 password: hashed,
-                firstName,
-                lastName
+                firstName: firstName || '',
+                lastName: lastName || ''
             }
         });
         console.log('User created with ID:', user.id);
@@ -43,7 +54,15 @@ router.post('/register', async (req, res) => {
     }
     catch (err) {
         console.error('Unexpected register error:', err);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Error details:', {
+            name: err instanceof Error ? err.name : 'Unknown',
+            message: err instanceof Error ? err.message : 'Unknown error',
+            stack: err instanceof Error ? err.stack : 'No stack trace'
+        });
+        res.status(500).json({
+            error: 'Internal server error',
+            details: process.env.NODE_ENV === 'development' ? err instanceof Error ? err.message : 'Unknown error' : undefined
+        });
     }
 });
 // POST /login
