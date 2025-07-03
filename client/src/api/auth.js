@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 
-export const register = (email, password, firstName, lastName) =>
-  axios.post(`${API_BASE_URL}/api/register`, { email, password, firstName, lastName });
+export const register = (email, password, firstName, lastName, verificationToken) =>
+  axios.post(`${API_BASE_URL}/api/register`, { email, password, firstName, lastName, verificationToken });
 
 export const login = (email, password, rememberMe = false) =>
   axios.post(`${API_BASE_URL}/api/login`, { email, password, rememberMe });
@@ -93,3 +93,9 @@ export const verifyResetCode = (email, code) =>
 
 export const resetPassword = (email, newPassword, verificationToken) =>
   axios.post(`${API_BASE_URL}/api/reset-password`, { email, newPassword, verificationToken });
+
+export const sendVerificationCode = (email, purpose) =>
+  axios.post(`${API_BASE_URL}/api/send-verification-code`, { email, purpose });
+
+export const verifyEmailCode = (email, code, purpose) =>
+  axios.post(`${API_BASE_URL}/api/verify-code`, { email, code, purpose });

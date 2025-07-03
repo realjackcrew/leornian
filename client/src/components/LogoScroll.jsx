@@ -22,7 +22,6 @@ const logos = [
   { name: "Pershing Square Capital Management", src: "https://upload.wikimedia.org/wikipedia/en/4/40/Pershing_Square_Holdings_Logo.svg" },
   { name: "Dropbox", src: "https://upload.wikimedia.org/wikipedia/commons/7/78/Dropbox_Icon.svg" },
   { name: "Binance", src: "https://upload.wikimedia.org/wikipedia/commons/1/12/Binance_logo.svg" },
-  { name: "Jane Street", src: "https://upload.wikimedia.org/wikipedia/commons/c/c9/Jane_Street_Capital_Logo.svg" },
   { name: "Uber", src: "https://upload.wikimedia.org/wikipedia/commons/c/cc/Uber_logo_2018.png" },
   { name: "Duolingo", src: "https://upload.wikimedia.org/wikipedia/commons/5/5c/Duolingo_logo_%282019%29.svg" },
   { name: "OpenAI", src: "https://upload.wikimedia.org/wikipedia/commons/4/4d/OpenAI_Logo.svg" },

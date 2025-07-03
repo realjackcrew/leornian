@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
 import prisma from '../db/database';
+import { sendVerificationEmail } from '../resend';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
@@ -12,12 +13,28 @@ const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 // In-memory storage for reset tokens (in production, use Redis or similar)
 const resetTokens = new Map<string, { code: string; expiresAt: number }>();
 
+// In-memory storage for verification codes (purpose: register or reset)
+const verificationCodes = new Map<string, { code: string; expiresAt: number; purpose: 'register' | 'reset' }>();
+
 router.post('/register', async (req: Request, res: Response): Promise<void> => {
     try {
-      const { email, password, firstName, lastName } = req.body;
+      const { email, password, firstName, lastName, verificationToken } = req.body;
   
-      if (!email || !password) {
-        res.status(400).json({ error: 'Email and password are required' });
+      if (!email || !password || !verificationToken) {
+        res.status(400).json({ error: 'Email, password, and verification token are required' });
+        return;
+      }
+  
+      // Verify the token
+      let decoded: any;
+      try {
+        decoded = jwt.verify(verificationToken, JWT_SECRET);
+        if (decoded.email !== email || decoded.purpose !== 'register' || decoded.type !== 'email_verification') {
+          res.status(400).json({ error: 'Invalid verification token' });
+          return;
+        }
+      } catch (e) {
+        res.status(400).json({ error: 'Invalid or expired verification token' });
         return;
       }
   
@@ -145,29 +162,22 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
   router.post('/forgot-password', async (req: Request, res: Response): Promise<void> => {
     try {
       const { email } = req.body;
-      
       if (!email) {
         res.status(400).json({ error: 'Email is required' });
         return;
       }
-
       // Check if user exists
       const user = await prisma.user.findUnique({ where: { email } });
-      
       // Always return success for security (don't reveal if email exists)
       if (user) {
         // Generate a 6-digit code
         const code = Math.floor(100000 + Math.random() * 900000).toString();
-        
         // Store the code in memory with expiration (15 minutes)
         const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
         resetTokens.set(email, { code, expiresAt });
-
-        // TODO: Send email with the code
-        // For now, we'll just log it (in production, use a proper email service)
-        console.log(`Password reset code for ${email}: ${code}`);
+        // Send email with the code using the same utility as registration
+        await sendVerificationEmail(email, code, 'reset');
       }
-
       res.json({ message: 'If an account with that email exists, a reset code has been sent.' });
     } catch (err) {
       console.error('Forgot password error:', err);
@@ -229,8 +239,13 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       // Verify the verification token
       try {
         const decoded = jwt.verify(verificationToken, JWT_SECRET) as any;
-        
-        if (decoded.email !== email || decoded.type !== 'password_reset_verification') {
+        if (
+          decoded.email !== email ||
+          !(
+            (decoded.type === 'password_reset_verification') ||
+            (decoded.type === 'email_verification' && decoded.purpose === 'reset')
+          )
+        ) {
           res.status(400).json({ error: 'Invalid verification token' });
           return;
         }
@@ -261,5 +276,64 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       res.status(500).json({ error: 'Internal server error' });
     }
   });
+
+// POST /send-verification-code
+router.post('/send-verification-code', async (req: Request, res: Response) => {
+  try {
+    const { email, purpose } = req.body;
+    if (!email || !['register', 'reset'].includes(purpose)) {
+      return res.status(400).json({ error: 'Email and valid purpose are required' });
+    }
+
+    // For registration, ensure email is not already in use
+    if (purpose === 'register') {
+      const existing = await prisma.user.findUnique({ where: { email } });
+      if (existing) {
+        return res.status(400).json({ error: 'Email already in use' });
+      }
+    }
+    // For reset, ensure email exists
+    if (purpose === 'reset') {
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (!user) {
+        // Always return success for security
+        return res.json({ message: 'If an account with that email exists, a code has been sent.' });
+      }
+    }
+
+    // Generate a 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
+    verificationCodes.set(email, { code, expiresAt, purpose });
+
+    await sendVerificationEmail(email, code, purpose);
+    return res.json({ message: 'Verification code sent.' });
+  } catch (err) {
+    console.error('Send verification code error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /verify-code
+router.post('/verify-code', async (req: Request, res: Response) => {
+  try {
+    const { email, code, purpose } = req.body;
+    if (!email || !code || !['register', 'reset'].includes(purpose)) {
+      return res.status(400).json({ error: 'Email, code, and valid purpose are required' });
+    }
+    const stored = verificationCodes.get(email);
+    if (!stored || stored.code !== code || stored.purpose !== purpose || Date.now() > stored.expiresAt) {
+      return res.status(400).json({ error: 'Invalid or expired code' });
+    }
+    // Remove the code after successful verification
+    verificationCodes.delete(email);
+    // Return a short-lived verification token
+    const verificationToken = jwt.sign({ email, purpose, type: 'email_verification' }, JWT_SECRET, { expiresIn: '10m' });
+    return res.json({ verificationToken });
+  } catch (err) {
+    console.error('Verify code error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 export default router;
