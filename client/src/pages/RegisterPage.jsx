@@ -3,6 +3,7 @@ import { register as registerApi, googleAuth } from '../api/auth';
 import { useNavigate, Link } from 'react-router-dom';
 import { UserPlus, Mail, Lock, User } from 'lucide-react';
 import EmailVerification from '../components/EmailVerification';
+import { getErrorMessage, createRetryFunction } from '../utils/errorUtils';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -37,12 +38,14 @@ export default function RegisterPage() {
   const handleGoogleSignIn = async (response) => {
     setIsLoading(true);
     try {
-      const res = await googleAuth(response.credential, false);
+      const googleAuthWithRetry = createRetryFunction(googleAuth, 2000);
+      const res = await googleAuthWithRetry(response.credential, false);
       alert('Registration successful! Please log in.');
       navigate('/login');
     } catch (error) {
       console.error('Google sign-in error:', error);
-      alert('Google registration failed');
+      const msg = getErrorMessage(error, 'Google registration failed');
+      alert(msg);
     } finally {
       setIsLoading(false);
     }
@@ -52,12 +55,14 @@ export default function RegisterPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await registerApi(email, password, firstName, lastName, verificationToken);
+      const registerWithRetry = createRetryFunction(registerApi, 2000);
+      await registerWithRetry(email, password, firstName, lastName, verificationToken);
       alert('Registration successful! Please log in.');
       navigate('/login');
     } catch (error) {
       console.error('Registration error:', error);
-      alert('Registration failed');
+      const msg = getErrorMessage(error, 'Registration failed');
+      alert(msg);
     } finally {
       setIsLoading(false);
     }

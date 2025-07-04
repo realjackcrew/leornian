@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { sendVerificationCode, verifyEmailCode } from '../api/auth';
+import { getErrorMessage, createRetryFunction } from '../utils/errorUtils';
 
 export default function EmailVerification({ email, purpose, onVerified, disabled }) {
   const [step, setStep] = useState('idle'); // idle | sent | verified
@@ -13,20 +14,13 @@ export default function EmailVerification({ email, purpose, onVerified, disabled
     setError('');
     setInfo('');
     try {
-      await sendVerificationCode(email, purpose);
+      // Create a retry function that will wait 2 seconds before retrying on network errors
+      const sendCodeWithRetry = createRetryFunction(sendVerificationCode, 2000);
+      await sendCodeWithRetry(email, purpose);
       setStep('sent');
       setInfo('Verification code sent! Check your email.');
     } catch (err) {
-      let msg = 'Failed to send code.';
-      if (err?.response) {
-        if (err.response.data?.error) {
-          msg = err.response.data.error;
-        } else if (err.response.status === 500) {
-          msg = 'A server error occurred. Please try again later.';
-        }
-      } else if (err?.message && err.message.includes('Network')) {
-        msg = 'Network error. Please check your connection.';
-      }
+      const msg = getErrorMessage(err, 'Failed to send code.');
       setError(msg);
       console.error('Send code error:', err);
     } finally {
@@ -40,21 +34,14 @@ export default function EmailVerification({ email, purpose, onVerified, disabled
     setError('');
     setInfo('');
     try {
-      const res = await verifyEmailCode(email, code, purpose);
+      // Create a retry function that will wait 2 seconds before retrying on network errors
+      const verifyCodeWithRetry = createRetryFunction(verifyEmailCode, 2000);
+      const res = await verifyCodeWithRetry(email, code, purpose);
       setStep('verified');
       setInfo('Email verified!');
       onVerified(res.data.verificationToken);
     } catch (err) {
-      let msg = 'Invalid or expired code.';
-      if (err?.response) {
-        if (err.response.data?.error) {
-          msg = err.response.data.error;
-        } else if (err.response.status === 500) {
-          msg = 'A server error occurred. Please try again later.';
-        }
-      } else if (err?.message && err.message.includes('Network')) {
-        msg = 'Network error. Please check your connection.';
-      }
+      const msg = getErrorMessage(err, 'Invalid or expired code.');
       setError(msg);
       console.error('Verify code error:', err);
     } finally {

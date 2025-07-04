@@ -170,25 +170,7 @@ export default function Dashboard() {
                         </>
                     )}
                 </div>
-                {/* WHOOP Connection Status */}
-                <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                            <Activity className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-                            <div>
-                                <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                                    WHOOP Integration
-                                </h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-300">
-                                    {whoopStatus.isConnected 
-                                        ? 'Your WHOOP account is connected' 
-                                        : 'Connect your WHOOP account for automatic data sync'
-                                    }
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                
             </div>
 
             {/* Floating Action Button */}

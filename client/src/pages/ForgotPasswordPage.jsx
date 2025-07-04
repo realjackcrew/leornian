@@ -3,6 +3,7 @@ import { requestPasswordReset, resetPassword } from '../api/auth';
 import EmailVerification from '../components/EmailVerification';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { getErrorMessage, createRetryFunction } from '../utils/errorUtils';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -19,11 +20,14 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
     setError('');
     try {
-      await resetPassword(email, newPassword, verificationToken);
+      // Create a retry function that will wait 2 seconds before retrying on network errors
+      const resetPasswordWithRetry = createRetryFunction(resetPassword, 2000);
+      await resetPasswordWithRetry(email, newPassword, verificationToken);
       setSuccess(true);
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
-      setError(err?.response?.data?.error || 'Failed to reset password');
+      const msg = getErrorMessage(err, 'Failed to reset password');
+      setError(msg);
     } finally {
       setIsLoading(false);
     }

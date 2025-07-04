@@ -3,6 +3,7 @@ import { login as loginApi, googleAuth } from '../api/auth';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogIn, Mail, Lock } from 'lucide-react';
+import { getErrorMessage, createRetryFunction } from '../utils/errorUtils';
 
 export default function LoginPage() {
   const { login } = useContext(AuthContext);
@@ -35,12 +36,14 @@ export default function LoginPage() {
   const handleGoogleSignIn = async (response) => {
     setIsLoading(true);
     try {
-      const res = await googleAuth(response.credential, rememberMe);
+      const googleAuthWithRetry = createRetryFunction(googleAuth, 2000);
+      const res = await googleAuthWithRetry(response.credential, rememberMe);
       login(res.data.token, res.data.user.firstName);
       navigate('/');
     } catch (error) {
       console.error('Google sign-in error:', error);
-      alert('Google sign-in failed');
+      const msg = getErrorMessage(error, 'Google sign-in failed');
+      alert(msg);
     } finally {
       setIsLoading(false);
     }
@@ -50,11 +53,13 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const res = await loginApi(email, password, rememberMe);
+      const loginWithRetry = createRetryFunction(loginApi, 2000);
+      const res = await loginWithRetry(email, password, rememberMe);
       login(res.data.token, res.data.user.firstName);
       navigate('/');
-    } catch {
-      alert('Login failed');
+    } catch (error) {
+      const msg = getErrorMessage(error, 'Login failed');
+      alert(msg);
     } finally {
       setIsLoading(false);
     }
