@@ -7,6 +7,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import Dashboard from './pages/Dashboard';
 import Log from './pages/Log';
 import Chat from './pages/Chat'
+import Settings from './pages/Settings';
 import WhoopCallback from './pages/WhoopCallback';
 import { AuthContext } from './context/AuthContext';
 import { useContext } from 'react';
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/log" element={<Log />} />
         <Route path="/chat" element={<Chat />} />
+        <Route path="/settings" element={<Settings />} />
       </Routes>
     </BrowserRouter>
   );

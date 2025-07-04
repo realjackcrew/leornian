@@ -7,6 +7,7 @@ import logRoutes from './routes/log';
 import queryRoutes from './routes/query';
 import chatRoutes from './routes/chat';
 import whoopRoutes from './routes/whoop';
+import userRoutes from './routes/user';
 dotenv.config();
 
 const app = express();
@@ -38,6 +39,7 @@ app.use('/api', logRoutes);
 app.use('/api', queryRoutes);
 app.use('/api', chatRoutes);
 app.use('/api', whoopRoutes);
+app.use('/api/user', userRoutes);
 
 const PORT = process.env.PORT || 4000;
 

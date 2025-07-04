@@ -99,3 +99,19 @@ export const sendVerificationCode = (email, purpose) =>
 
 export const verifyEmailCode = (email, code, purpose) =>
   axios.post(`${API_BASE_URL}/api/verify-code`, { email, code, purpose });
+
+export const getUserProfile = async () => {
+  const token = localStorage.getItem('token');
+  const response = await fetch(`${API_BASE_URL}/api/user/profile`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to get user profile');
+  }
+
+  return response.json();
+};
