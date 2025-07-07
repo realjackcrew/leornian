@@ -1,44 +1,84 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, Settings as SettingsIcon, Database, User, MessageCircle, ChevronRight, Zap, Palette } from "lucide-react";
 import { checkWhoopStatus, getUserProfile } from '../api/auth';
-import { dataPointDefinitions, getCategoryNames } from '../components/Datapoints';
+import { getDatapointDefinitions, getDatapointPreferences, saveDatapointPreferences } from '../api/datapoints';
+import { API_BASE_URL } from '../config';
 import { useTheme } from '../context/ThemeContext';
+import { AuthContext } from '../context/AuthContext';
 
 export default function Settings() {
     const navigate = useNavigate();
-    const { isDarkMode, toggleTheme } = useTheme();
+    const { isDarkMode, theme, setThemeMode } = useTheme();
+    const { refreshUser } = useContext(AuthContext);
     const [whoopStatus, setWhoopStatus] = useState({ hasCredentials: false, isConnected: false });
     const [activeCategory, setActiveCategory] = useState('profile');
     const [userProfile, setUserProfile] = useState({ firstName: '', lastName: '', email: '' });
-    const [enabledDatapoints, setEnabledDatapoints] = useState(() => {
-        // Initialize with all datapoints enabled by default
-        const enabled = {};
-        Object.entries(dataPointDefinitions).forEach(([category, dataPoints]) => {
-            enabled[category] = {};
-            Object.keys(dataPoints).forEach(key => {
-                enabled[category][key] = true;
-            });
-        });
-        return enabled;
-    });
+    const [dataPointDefinitions, setDataPointDefinitions] = useState({});
+    const [enabledDatapoints, setEnabledDatapoints] = useState({});
+    const [selectedTheme, setSelectedTheme] = useState(theme);
+    const [selectedFont, setSelectedFont] = useState('open-sans');
 
     useEffect(() => {
-        // Load user profile and WHOOP status
+        // Load user profile, WHOOP status, and datapoint data
         const loadData = async () => {
             try {
-                const [profile, whoop] = await Promise.all([
+                const [profile, whoop, definitions, preferences] = await Promise.all([
                     getUserProfile(),
-                    checkWhoopStatus()
+                    checkWhoopStatus(),
+                    getDatapointDefinitions(),
+                    getDatapointPreferences()
                 ]);
                 setUserProfile(profile);
                 setWhoopStatus(whoop);
+                setDataPointDefinitions(definitions);
+                
+                // If user has no preferences, initialize with all datapoints enabled
+                if (Object.keys(preferences).length === 0) {
+                    const allEnabled = {};
+                    Object.entries(definitions).forEach(([category, dataPoints]) => {
+                        allEnabled[category] = {};
+                        Object.keys(dataPoints).forEach(key => {
+                            allEnabled[category][key] = true;
+                        });
+                    });
+                    setEnabledDatapoints(allEnabled);
+                } else {
+                    setEnabledDatapoints(preferences);
+                }
             } catch (err) {
                 console.error('Failed to load data:', err);
             }
         };
         
         loadData();
+    }, []);
+
+    // Update selected theme when theme changes
+    useEffect(() => {
+        setSelectedTheme(theme);
+    }, [theme]);
+
+    // Load saved font on mount
+    useEffect(() => {
+        const savedFont = localStorage.getItem('selectedFont');
+        if (savedFont) {
+            setSelectedFont(savedFont);
+            const fontMap = {
+                'inter': "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                'roboto': "'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                'open-sans': "'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                'lato': "'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                'poppins': "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                'montserrat': "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                'source-sans-pro': "'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                'nunito': "'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                'raleway': "'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                'ubuntu': "'Ubuntu', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                'comic-sans': "'Comic Sans MS', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+            };
+            document.documentElement.style.fontFamily = fontMap[savedFont] || fontMap['open-sans'];
+        }
     }, []);
 
     const handleWhoopConnect = () => {
@@ -90,10 +130,44 @@ export default function Settings() {
         }));
     };
 
-    const handleSaveDatapoints = () => {
-        // TODO: Implement save functionality
-        console.log('Saving datapoint configuration:', enabledDatapoints);
-        alert('Datapoint configuration saved! (Functionality to be implemented)');
+    const handleSaveProfile = async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/user/profile`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    firstName: userProfile.firstName,
+                    lastName: userProfile.lastName,
+                    email: userProfile.email,
+                    preferredName: userProfile.preferredName
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            // Refresh the user context to update the navbar
+            await refreshUser();
+            
+            alert('Profile updated successfully!');
+        } catch (err) {
+            console.error('Failed to save profile:', err);
+            alert('Failed to save profile. Please try again.');
+        }
+    };
+
+    const handleSaveDatapoints = async () => {
+        try {
+            await saveDatapointPreferences(enabledDatapoints);
+            alert('Datapoint configuration saved successfully!');
+        } catch (err) {
+            console.error('Failed to save datapoint configuration:', err);
+            alert('Failed to save datapoint configuration. Please try again.');
+        }
     };
 
     const getCategoryButtonText = (categoryKey) => {
@@ -102,7 +176,10 @@ export default function Settings() {
         return Object.values(categoryValues).every(Boolean) ? 'Disable All' : 'Enable All';
     };
 
-    const categoryNames = getCategoryNames();
+    const categoryNames = Object.keys(dataPointDefinitions).map(key => ({
+        key,
+        name: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')
+    }));
 
     const menuItems = [
         { id: 'profile', label: 'Profile', icon: User },
@@ -157,6 +234,22 @@ export default function Settings() {
                             />
                         </div>
                         <div>
+                            <label htmlFor="preferredName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Preferred Name <span className="text-gray-500 dark:text-gray-400 text-xs">(optional)</span>
+                            </label>
+                            <input
+                                type="text"
+                                id="preferredName"
+                                value={userProfile.preferredName || ''}
+                                onChange={(e) => setUserProfile(prev => ({ ...prev, preferredName: e.target.value }))}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                placeholder="What would you like to be called? Batman? Napoleon? The Dread Pirate Roberts?"
+                            />
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                This name will be used throughout the app instead of your first name
+                            </p>
+                        </div>
+                        <div>
                             <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                 Email Address
                             </label>
@@ -169,6 +262,16 @@ export default function Settings() {
                                 placeholder="Enter your email address"
                             />
                         </div>
+                    </div>
+                    
+                    {/* Save Profile Button */}
+                    <div className="flex justify-end pt-4">
+                        <button
+                            onClick={handleSaveProfile}
+                            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+                        >
+                            Save Profile
+                        </button>
                     </div>
                 </div>
             </div>
@@ -200,9 +303,9 @@ export default function Settings() {
                             id="model"
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                         >
-                            <option value="gpt-4">GPT-4 (Recommended)</option>
-                            <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Faster)</option>
-                            <option value="claude-3">Claude 3 (Alternative)</option>
+                            <option value="gpt-4o">GPT-4o (Recommended)</option>
+                            <option value="gpt-4o-mini">GPT-4o Mini (Fastest)</option>
+                            <option value="gpt-4.1-mini">GPT-4.1 Mini (Cheapest)</option>
                         </select>
                     </div>
                 </div>
@@ -315,7 +418,7 @@ export default function Settings() {
                                     More Integrations Coming Soon
                                 </h3>
                                 <p className="text-gray-600 dark:text-gray-400">
-                                    We're working on adding support for more fitness platforms
+                                    We're working on adding support for the other inferior fitness platforms
                                 </p>
                             </div>
                         </div>
@@ -343,17 +446,11 @@ export default function Settings() {
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-                <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <div className="p-6 border-transparent">
                     <div className="flex items-center justify-between">
                         <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                             Available Datapoints
                         </h3>
-                        <button
-                            onClick={handleSaveDatapoints}
-                            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                        >
-                            Save Configuration
-                        </button>
                     </div>
                 </div>
 
@@ -376,12 +473,12 @@ export default function Settings() {
                                 </div>
                                 <div className="p-4">
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {Object.entries(dataPointDefinitions[key]).map(([datapointKey, definition]) => (
+                                        {Object.entries(dataPointDefinitions[key] || {}).map(([datapointKey, definition]) => (
                                             <div key={datapointKey} className="flex items-center space-x-3">
                                                 <input
                                                     type="checkbox"
                                                     id={`${key}-${datapointKey}`}
-                                                    checked={enabledDatapoints[key][datapointKey]}
+                                                    checked={enabledDatapoints[key]?.[datapointKey] || false}
                                                     onChange={() => handleToggleDatapoint(key, datapointKey)}
                                                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                                 />
@@ -401,8 +498,18 @@ export default function Settings() {
                 </div>
             </div>
 
+            {/* Save Button */}
+            <div className="flex justify-end pt-6">
+                <button
+                    onClick={handleSaveDatapoints}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+                >
+                    Save Configuration
+                </button>
+            </div>
+
             {/* Summary */}
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mt-6">
                 <div className="flex items-start gap-3">
                     <div className="flex-shrink-0">
                         <div className="w-6 h-6 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center">
@@ -415,9 +522,9 @@ export default function Settings() {
                         </h3>
                         <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
                             You have selected{' '}
-                            {Object.values(enabledDatapoints).reduce((total, category) => 
-                                total + Object.values(category).filter(Boolean).length, 0
-                            )} datapoints across {categoryNames.length} categories.
+                                                    {Object.values(enabledDatapoints).reduce((total, category) => 
+                            total + Object.values(category || {}).filter(Boolean).length, 0
+                        )} datapoints across {categoryNames.length} categories.
                         </p>
                     </div>
                 </div>
@@ -442,63 +549,79 @@ export default function Settings() {
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                         Theme
                     </h3>
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                                Color Theme
-                            </label>
-                            <div className="space-y-3">
-                                <label className="flex items-center space-x-3 cursor-pointer">
-                                    <input
-                                        type="radio"
-                                        name="theme"
-                                        value="system"
-                                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                                        defaultChecked
-                                    />
-                                    <span className="text-gray-700 dark:text-gray-300">System Default</span>
-                                </label>
-                                <label className="flex items-center space-x-3 cursor-pointer">
-                                    <input
-                                        type="radio"
-                                        name="theme"
-                                        value="light"
-                                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                                    />
-                                    <span className="text-gray-700 dark:text-gray-300">Light Mode</span>
-                                </label>
-                                <label className="flex items-center space-x-3 cursor-pointer">
-                                    <input
-                                        type="radio"
-                                        name="theme"
-                                        value="dark"
-                                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                                    />
-                                    <span className="text-gray-700 dark:text-gray-300">Dark Mode</span>
-                                </label>
-                            </div>
-                        </div>
-                        
-                        {/* Quick Toggle */}
-                        <div className="pt-4 border-t border-gray-200 dark:border-gray-600">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    Quick Toggle
-                                </span>
-                                <button
-                                    onClick={toggleTheme}
-                                    className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                                    style={{
-                                        backgroundColor: isDarkMode ? '#3B82F6' : '#D1D5DB'
-                                    }}
-                                >
-                                    <span
-                                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                            isDarkMode ? 'translate-x-6' : 'translate-x-1'
-                                        }`}
-                                    />
-                                </button>
-                            </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
+                            Color Theme
+                        </label>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {/* System Default */}
+                            <button
+                                onClick={() => {
+                                    setSelectedTheme('system');
+                                    setThemeMode('system');
+                                }}
+                                className={`relative p-4 border-2 rounded-lg transition-colors group ${
+                                    selectedTheme === 'system'
+                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                        : 'border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-600'
+                                }`}
+                            >
+                                <div className="flex flex-col items-center space-y-3">
+                                    <div className="w-12 h-8 bg-gradient-to-r from-gray-100 to-gray-300 dark:from-gray-700 dark:to-gray-600 rounded-md flex items-center justify-center">
+                                        <div className="w-3 h-3 bg-gray-400 dark:bg-gray-500 rounded-full"></div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="font-medium text-gray-900 dark:text-white">System Default</div>
+                                        <div className="text-sm text-gray-500 dark:text-gray-400">Follows your OS</div>
+                                    </div>
+                                </div>
+                            </button>
+
+                            {/* Light Mode */}
+                            <button
+                                onClick={() => {
+                                    setSelectedTheme('light');
+                                    setThemeMode('light');
+                                }}
+                                className={`relative p-4 border-2 rounded-lg transition-colors group ${
+                                    selectedTheme === 'light'
+                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                        : 'border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-600'
+                                }`}
+                            >
+                                <div className="flex flex-col items-center space-y-3">
+                                    <div className="w-12 h-8 bg-gradient-to-r from-yellow-100 to-yellow-300 rounded-md flex items-center justify-center">
+                                        <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="font-medium text-gray-900 dark:text-white">Light Mode</div>
+                                        <div className="text-sm text-gray-500 dark:text-gray-400">Clean & bright</div>
+                                    </div>
+                                </div>
+                            </button>
+
+                            {/* Dark Mode */}
+                            <button
+                                onClick={() => {
+                                    setSelectedTheme('dark');
+                                    setThemeMode('dark');
+                                }}
+                                className={`relative p-4 border-2 rounded-lg transition-colors group ${
+                                    selectedTheme === 'dark'
+                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                        : 'border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-600'
+                                }`}
+                            >
+                                <div className="flex flex-col items-center space-y-3">
+                                    <div className="w-12 h-8 bg-gradient-to-r from-gray-800 to-gray-900 rounded-md flex items-center justify-center">
+                                        <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="font-medium text-gray-900 dark:text-white">Dark Mode</div>
+                                        <div className="text-sm text-gray-500 dark:text-gray-400">Easy on the eyes</div>
+                                    </div>
+                                </div>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -514,11 +637,32 @@ export default function Settings() {
                         </label>
                         <select
                             id="font"
+                            value={selectedFont}
+                            onChange={(e) => {
+                                setSelectedFont(e.target.value);
+                                // Apply font to document
+                                const fontMap = {
+                                    'inter': "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                                    'roboto': "'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                                    'open-sans': "'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                                    'lato': "'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                                    'poppins': "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                                    'montserrat': "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                                    'source-sans-pro': "'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                                    'nunito': "'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                                    'raleway': "'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                                    'ubuntu': "'Ubuntu', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                                    'comic-sans': "'Comic Sans MS', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+                                };
+                                document.documentElement.style.fontFamily = fontMap[e.target.value] || fontMap['open-sans'];
+                                // Save to localStorage
+                                localStorage.setItem('selectedFont', e.target.value);
+                            }}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                         >
-                            <option value="inter">Inter (Default)</option>
+                            <option value="open-sans">Open Sans (Default)</option>
+                            <option value="inter">Inter</option>
                             <option value="roboto">Roboto</option>
-                            <option value="open-sans">Open Sans</option>
                             <option value="lato">Lato</option>
                             <option value="poppins">Poppins</option>
                             <option value="montserrat">Montserrat</option>
@@ -526,6 +670,7 @@ export default function Settings() {
                             <option value="nunito">Nunito</option>
                             <option value="raleway">Raleway</option>
                             <option value="ubuntu">Ubuntu</option>
+                            <option value="comic-sans">Comic Sans MS</option>
                         </select>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                             Changes will apply to the entire application

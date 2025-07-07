@@ -15,7 +15,8 @@ router.get('/profile', authenticateToken, async (req: Request, res: Response): P
         id: true,
         email: true,
         firstName: true,
-        lastName: true
+        lastName: true,
+        preferredName: true
       }
     });
 
@@ -35,7 +36,7 @@ router.get('/profile', authenticateToken, async (req: Request, res: Response): P
 router.put('/profile', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as AuthenticatedRequest).userId;
-    const { firstName, lastName, email } = req.body;
+    const { firstName, lastName, email, preferredName } = req.body;
 
     // Check if email is being changed and if it's already taken
     if (email) {
@@ -54,13 +55,15 @@ router.put('/profile', authenticateToken, async (req: Request, res: Response): P
       data: {
         firstName: firstName || undefined,
         lastName: lastName || undefined,
-        email: email || undefined
+        email: email || undefined,
+        preferredName: preferredName || undefined
       },
       select: {
         id: true,
         email: true,
         firstName: true,
-        lastName: true
+        lastName: true,
+        preferredName: true
       }
     });
 

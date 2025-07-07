@@ -11,39 +11,77 @@ export const useTheme = () => {
 };
 
 export const ThemeProvider = ({ children }) => {
-  const [isDarkMode, setIsDarkMode] = useState(() => {
+  const [theme, setTheme] = useState(() => {
     // Check if we're on the client side
-    if (typeof window === 'undefined') return false;
+    if (typeof window === 'undefined') return 'system';
     
-    // Check localStorage first, then system preference
-    const saved = localStorage.getItem('darkMode');
-    if (saved !== null) {
-      return JSON.parse(saved);
+    // Check localStorage first
+    const saved = localStorage.getItem('theme');
+    if (saved && ['light', 'dark', 'system'].includes(saved)) {
+      return saved;
     }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return 'system';
   });
+
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
     // Only run on client side
     if (typeof window === 'undefined') return;
     
     // Save to localStorage
-    localStorage.setItem('darkMode', JSON.stringify(isDarkMode));
+    localStorage.setItem('theme', theme);
+    
+    // Determine if dark mode should be active
+    let shouldBeDark = false;
+    
+    if (theme === 'dark') {
+      shouldBeDark = true;
+    } else if (theme === 'light') {
+      shouldBeDark = false;
+    } else if (theme === 'system') {
+      shouldBeDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    
+    setIsDarkMode(shouldBeDark);
     
     // Apply to document
-    if (isDarkMode) {
+    if (shouldBeDark) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
-  }, [isDarkMode]);
+  }, [theme]);
 
+  // Listen for system theme changes when using system mode
+  useEffect(() => {
+    if (theme !== 'system' || typeof window === 'undefined') return;
+    
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e) => {
+      setIsDarkMode(e.matches);
+      if (e.matches) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+    
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [theme]);
+
+  const setThemeMode = (newTheme) => {
+    setTheme(newTheme);
+  };
+
+  // Keep toggleTheme for backward compatibility
   const toggleTheme = () => {
-    setIsDarkMode(prev => !prev);
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
 
   return (
-    <ThemeContext.Provider value={{ isDarkMode, toggleTheme }}>
+    <ThemeContext.Provider value={{ isDarkMode, theme, setThemeMode, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -5,7 +5,7 @@ import imageSource from '../assets/boatmonet.png';
 import LogoMarquee from '../components/LogoScroll';
 
 export default function Home() {
-  const { token, firstName } = useContext(AuthContext);
+  const { token, user } = useContext(AuthContext);
 
   return (
     <div className="min-h-screen w-full">

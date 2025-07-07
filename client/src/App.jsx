@@ -14,8 +14,7 @@ import { useContext } from 'react';
 
 
 export default function App() {
-  const { token, firstName, logout } = useContext(AuthContext);
-  const user = token ? { firstName: firstName } : null;
+  const { token, user, logout } = useContext(AuthContext);
 
   return (
     <BrowserRouter>

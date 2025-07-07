@@ -31,9 +31,9 @@ function UserDropdown({ user, onLogout, getButtonStyles }) {
       onMouseLeave={() => setIsOpen(false)}
     >
       <button 
-        className={`px-4 py-2 rounded-lg transition-all duration-200 font-light text-lg font-light hover:opacity-80 transition-opacity`}
+        className={`px-4 py-2 rounded-lg transition-all duration-200 text-lg hover:opacity-80 transition-opacity`}
       >
-        Hello, {user.firstName || 'There'}
+        Hello, {user.preferredName || user.firstName || 'There'}
       </button>
       
       <div className={`absolute right-0 top-full mt-2 transition-all duration-300 ease-out transform ${
@@ -95,12 +95,12 @@ export default function Navbar({ user, onLogout }) {
 
   return (
     <nav
-      className={`fixed top-0 w-full z-50 flex items-center justify-between px-6 py-4 transition-all duration-300 font-sans ${getNavbarStyles()}`}
+      className={`fixed top-0 w-full z-50 flex items-center justify-between px-6 py-4 transition-all duration-300 ${getNavbarStyles()}`}
     >
       <div className="flex items-center space-x-8">
         <Link 
           to="/" 
-          className="text-2xl font-light tracking-wide hover:opacity-80 transition-opacity"
+          className="text-2xl tracking-wide hover:opacity-80 transition-opacity"
         >
           Leornian
         </Link>
@@ -110,7 +110,7 @@ export default function Navbar({ user, onLogout }) {
           title="Chat"
         >
           <MessageCircle size={20} />
-          <span className="text-lg font-light">Chat</span>
+          <span className="text-lg">Chat</span>
         </Link>
         <Link 
           to="/dashboard" 
@@ -118,7 +118,7 @@ export default function Navbar({ user, onLogout }) {
           title="Dashboard"
         >
           <BarChart3 size={20} />
-          <span className="text-lg font-light">Dashboard</span>
+          <span className="text-lg">Dashboard</span>
         </Link>
       </div>
       
@@ -128,7 +128,7 @@ export default function Navbar({ user, onLogout }) {
         ) : (
           <Link 
             to="/login" 
-            className="text-lg font-light hover:opacity-80 transition-opacity"
+            className="text-lg hover:opacity-80 transition-opacity"
           >
             Log In
           </Link>

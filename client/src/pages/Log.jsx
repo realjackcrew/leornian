@@ -3,14 +3,15 @@ import { AuthContext } from '../context/AuthContext';
 import { createLog, updateLog, getLogByDate } from '../api/log';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Check, X } from 'lucide-react';
-import { dataPointDefinitions, getDefaultValues, getCategoryNames } from '../components/Datapoints';
+import { useEnabledDatapoints, getDefaultValues, getCategoryNames } from '../components/Datapoints';
 import { getCurrentCentralDate, formatDateAsCentral, isSameDayInCentral } from '../utils/dateUtils';
 
 export default function Log() {
   const { token } = useContext(AuthContext);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [selectedCategory, setSelectedCategory] = useState('sleep');
+  const { dataPointDefinitions, loading: datapointsLoading, error: datapointsError } = useEnabledDatapoints();
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [values, setValues] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -44,6 +45,22 @@ export default function Log() {
     }
   }, [searchParams]);
 
+  // Set the first available category when datapoints load
+  useEffect(() => {
+    if (!datapointsLoading && !datapointsError) {
+      const availableCategories = Object.keys(dataPointDefinitions);
+      if (availableCategories.length > 0) {
+        // If current category is not available, or no category selected, pick the first one
+        if (!selectedCategory || !availableCategories.includes(selectedCategory)) {
+          setSelectedCategory(availableCategories[0]);
+        }
+      } else {
+        // No datapoints available, default to notes
+        setSelectedCategory('notes');
+      }
+    }
+  }, [dataPointDefinitions, datapointsLoading, datapointsError, selectedCategory]);
+
   // Load existing log data for the selected date
   useEffect(() => {
     if (!token || !selectedDate || isFutureDate) return;
@@ -60,7 +77,7 @@ export default function Log() {
           setNotes(logData.healthData.notes || '');
           
           // Load existing values from the log
-          const existingValues = getDefaultValues();
+          const existingValues = getDefaultValues(dataPointDefinitions);
           
           if (logData.healthData.values) {
             Object.entries(logData.healthData.values).forEach(([category, dataPoints]) => {
@@ -76,15 +93,15 @@ export default function Log() {
           setValues(existingValues);
         } else {
           // No existing log found, use default values
-          setValues(getDefaultValues());
+          setValues(getDefaultValues(dataPointDefinitions));
         }
       } catch (error) {
         // No existing log found, which is fine
         if (error.response && error.response.status === 404) {
-          setValues(getDefaultValues());
+            setValues(getDefaultValues(dataPointDefinitions));
         } else {
           console.error('Error loading existing log:', error);
-          setValues(getDefaultValues());
+            setValues(getDefaultValues(dataPointDefinitions));
         }
       } finally {
         setIsLoadingData(false);
@@ -220,6 +237,32 @@ export default function Log() {
 
   if (!token) return <p className="text-center mt-10 text-gray-900 dark:text-white">Please log in.</p>;
 
+  if (datapointsLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
+            <p className="mt-4 text-gray-600 dark:text-gray-300">Loading datapoints...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (datapointsError) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-12">
+            <p className="text-red-600 dark:text-red-400 mb-2">Error loading datapoints</p>
+            <p className="text-gray-600 dark:text-gray-300">{datapointsError}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!selectedDate) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -275,7 +318,7 @@ export default function Log() {
 
         {/* Category Navigation */}
         <div className="flex justify-between mb-8 border-b border-gray-200 dark:border-gray-700 pb-4">
-          {getCategoryNames().map(({ key, name }) => (
+          {getCategoryNames(dataPointDefinitions).map(({ key, name }) => (
             <span
               key={key}
               onClick={() => setSelectedCategory(key)}
@@ -332,7 +375,7 @@ export default function Log() {
               {/* Subtle column divider */}
               <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px bg-gray-200 dark:bg-gray-700" />
               
-              {Object.entries(dataPointDefinitions[selectedCategory]).map(([key, def]) => (
+              {Object.entries(dataPointDefinitions[selectedCategory] || {}).map(([key, def]) => (
                 <div key={key}>
                   {def.type === 'boolean' ? (
                     <Toggle

@@ -7,7 +7,7 @@ import { Plus, ChevronLeft, ChevronRight, Activity, Moon, Heart, Clock, Apple, B
 import { formatDateAsCentral, toCentralTime, getCurrentCentralDate, isSameDayInCentral } from '../utils/dateUtils';
 
 export default function Dashboard() {
-    const { token, firstName } = useContext(AuthContext);
+    const { token, user } = useContext(AuthContext);
     const navigate = useNavigate();
     const [logs, setLogs] = useState([]);
     const [selectedDate, setSelectedDate] = useState(getCurrentCentralDate());

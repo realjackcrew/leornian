@@ -19,9 +19,13 @@ model User {
   password  String
   firstName String?
   lastName  String?
+  preferredName String?
   // WHOOP integration credentials stored as JSON
   whoopCredentials Json?
+  // User settings stored as JSON
+  settings  Json?
   logs      DailyLog[]
+  datapointPreferences DatapointPreference[]
 }
 
 model DailyLog {
@@ -35,4 +39,18 @@ model DailyLog {
   user User @relation(fields: [userId], references: [id])
 
   @@unique([userId, date])
+}
+
+model DatapointPreference {
+  id          String   @id @default(cuid())
+  userId      String
+  category    String   // e.g., 'sleep', 'nutrition', 'lifestyle', etc.
+  datapoint   String   // e.g., 'bedtime', 'waterIntakePints', etc.
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category, datapoint])
 }
