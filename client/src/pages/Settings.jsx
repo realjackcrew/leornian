@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Check, Settings as SettingsIcon, Database, User, MessageCircle, ChevronRight, Zap, Palette } from "lucide-react";
 import { checkWhoopStatus, getUserProfile } from '../api/auth';
 import { getDatapointDefinitions, getDatapointPreferences, saveDatapointPreferences } from '../api/datapoints';
+import { getChatSettings, updateChatSettings, getChatOptions } from '../api/chat';
 import { API_BASE_URL } from '../config';
 import { useTheme } from '../context/ThemeContext';
 import { AuthContext } from '../context/AuthContext';
@@ -18,20 +19,36 @@ export default function Settings() {
     const [enabledDatapoints, setEnabledDatapoints] = useState({});
     const [selectedTheme, setSelectedTheme] = useState(theme);
     const [selectedFont, setSelectedFont] = useState('open-sans');
+    
+    // Chat settings state
+    const [chatSettings, setChatSettings] = useState({
+        voice: 'default',
+        verbosity: 'balanced',
+        model: 'gpt-4o'
+    });
+    const [chatOptions, setChatOptions] = useState({
+        voices: [],
+        verbosities: [],
+        models: []
+    });
 
     useEffect(() => {
-        // Load user profile, WHOOP status, and datapoint data
+        // Load user profile, WHOOP status, datapoint data, and chat settings
         const loadData = async () => {
             try {
-                const [profile, whoop, definitions, preferences] = await Promise.all([
+                const [profile, whoop, definitions, preferences, chatSettingsData, chatOptionsData] = await Promise.all([
                     getUserProfile(),
                     checkWhoopStatus(),
                     getDatapointDefinitions(),
-                    getDatapointPreferences()
+                    getDatapointPreferences(),
+                    getChatSettings(),
+                    getChatOptions()
                 ]);
                 setUserProfile(profile);
                 setWhoopStatus(whoop);
                 setDataPointDefinitions(definitions);
+                setChatSettings(chatSettingsData);
+                setChatOptions(chatOptionsData);
                 
                 // If user has no preferences, initialize with all datapoints enabled
                 if (Object.keys(preferences).length === 0) {
@@ -170,6 +187,23 @@ export default function Settings() {
         }
     };
 
+    const handleSaveChatSettings = async () => {
+        try {
+            await updateChatSettings(chatSettings);
+            alert('Chat settings saved successfully!');
+        } catch (err) {
+            console.error('Failed to save chat settings:', err);
+            alert('Failed to save chat settings. Please try again.');
+        }
+    };
+
+    const handleChatSettingChange = (setting, value) => {
+        setChatSettings(prev => ({
+            ...prev,
+            [setting]: value
+        }));
+    };
+
     const getCategoryButtonText = (categoryKey) => {
         const categoryValues = enabledDatapoints[categoryKey];
         if (!categoryValues) return 'Enable All';
@@ -301,11 +335,17 @@ export default function Settings() {
                         </label>
                         <select
                             id="model"
+                            value={chatSettings.model}
+                            onChange={(e) => handleChatSettingChange('model', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                         >
-                            <option value="gpt-4o">GPT-4o (Recommended)</option>
-                            <option value="gpt-4o-mini">GPT-4o Mini (Fastest)</option>
-                            <option value="gpt-4.1-mini">GPT-4.1 Mini (Cheapest)</option>
+                            {chatOptions.models.map(model => (
+                                <option key={model} value={model}>
+                                    {model === 'gpt-4o' ? 'GPT-4o (Recommended)' : 
+                                     model === 'gpt-4o-mini' ? 'GPT-4o Mini (Fastest)' : 
+                                     model === 'gpt-4.1-mini' ? 'GPT-4.1 Mini (Cheapest)' : model}
+                                </option>
+                            ))}
                         </select>
                     </div>
                 </div>
@@ -321,12 +361,15 @@ export default function Settings() {
                         </label>
                         <select
                             id="verbosity"
+                            value={chatSettings.verbosity}
+                            onChange={(e) => handleChatSettingChange('verbosity', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                         >
-                            <option value="concise">Concise</option>
-                            <option value="balanced">Balanced</option>
-                            <option value="detailed">Detailed</option>
-                            <option value="very-detailed">Very Detailed</option>
+                            {chatOptions.verbosities.map(verbosity => (
+                                <option key={verbosity} value={verbosity}>
+                                    {verbosity.charAt(0).toUpperCase() + verbosity.slice(1).replace('-', ' ')}
+                                </option>
+                            ))}
                         </select>
                     </div>
                 </div>
@@ -342,19 +385,40 @@ export default function Settings() {
                         </label>
                         <select
                             id="voice"
+                            value={chatSettings.voice}
+                            onChange={(e) => handleChatSettingChange('voice', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                         >
-                            <option value="default">Default</option>
-                            <option value="cowboy">🤠 Cowboy</option>
-                            <option value="vampire">🧛 Vampire</option>
-                            <option value="alien">👽 Alien</option>
-                            <option value="pirate">🏴‍☠️ Pirate</option>
-                            <option value="robot">🤖 Robot</option>
-                            <option value="wizard">🧙 Wizard</option>
-                            <option value="surfer">🏄 Surfer</option>
-                            <option value="detective">🕵️ Detective</option>
+                            {chatOptions.voices.map(voice => {
+                                const voiceLabels = {
+                                    'default': 'Default',
+                                    'cowboy': '🤠 Cowboy',
+                                    'vampire': '🧛 Vampire',
+                                    'alien': '👽 Alien',
+                                    'pirate': '🏴‍☠️ Pirate',
+                                    'robot': '🤖 Robot',
+                                    'wizard': '🧙 Wizard',
+                                    'surfer': '🏄 Surfer',
+                                    'detective': '🕵️ Detective'
+                                };
+                                return (
+                                    <option key={voice} value={voice}>
+                                        {voiceLabels[voice] || voice}
+                                    </option>
+                                );
+                            })}
                         </select>
                     </div>
+                </div>
+
+                {/* Save Chat Settings Button */}
+                <div className="flex justify-end pt-6">
+                    <button
+                        onClick={handleSaveChatSettings}
+                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+                    >
+                        Save Chat Settings
+                    </button>
                 </div>
             </div>
         </div>

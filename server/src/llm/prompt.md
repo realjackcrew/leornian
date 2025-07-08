@@ -39,7 +39,21 @@ DailyLog {
 
 ### JSON Structure in "healthData" Column
 
-The `"healthData"` column contains a JSON object with the following nested categories:
+The "healthData" column contains a JSON object with the following structure:
+
+{
+  notes: string,
+  values: {
+    sleep: { ... },
+    nutrition: { ... },
+    lifestyle: { ... },
+    physicalHealth: { ... },
+    mentalHealth: { ... }
+  },
+  timezone: string
+}
+
+All health data categories (sleep, nutrition, etc.) are nested under the "values" key.
 
 #### sleep
 - `usedScreenBeforeBed`: boolean
@@ -127,11 +141,11 @@ The `"healthData"` column contains a JSON object with the following nested categ
 ## SQL Query Requirements
 
 **MANDATORY**: All identifiers must be quoted for case sensitivity:
-- Table name: `"DailyLog"` (never `DailyLog` or `dailylog`)
-- Column name: `"healthData"` (never `healthData` or `healthdata`)
-- User table: `"User"` (never `User` or `user`)
+- Table name: "DailyLog" (never DailyLog or dailylog)
+- Column name: "healthData" (never healthData or healthdata)
+- User table: "User" (never User or user)
 
-**JSON Access Pattern**: `"healthData"->'category'->>'field'`
+**JSON Access Pattern**: "healthData"->'values'->'category'->>'field'
 
 ---
 
@@ -143,7 +157,7 @@ Follow this systematic approach for handling user questions:
 Rephrase the user's input to ensure it's explicit and SQL-ready. Identify what specific data they're asking for.
 
 ### 2. Identify Relevant Fields
-Map the request to the appropriate table(s) and JSON categories within the `"healthData"` structure.
+Map the request to the appropriate table(s) and JSON categories within the "healthData" structure.
 
 ### 3. Generate SQL Query
 Create a clean, one-line SQL string with appropriate parameterization using a `PARAMS` array for dynamic values.
@@ -218,14 +232,14 @@ If the request cannot be answered with a SQL query (e.g., attempts to edit/inser
 ### Example 2: Filtered Analysis
 **User:** "Show me days when I felt anxious and had poor sleep efficiency."
 
-**SQL:** `SELECT * FROM "DailyLog" WHERE "healthData"->'mentalHealth'->>'feltAnxious' = 'true' AND CAST("healthData"->'sleep'->>'sleepEfficiencyPercent' AS NUMERIC) < 80`
+**SQL:** `SELECT * FROM "DailyLog" WHERE "healthData"->'values'->'mentalHealth'->>'feltAnxious' = 'true' AND CAST("healthData"->'values'->'sleep'->>'sleepEfficiencyPercent' AS NUMERIC) < 80`
 
 **PARAMS:** `[]`
 
 ### Example 3: Correlation Analysis
 **User:** "What's the relationship between my screen time and sleep quality?"
 
-**SQL:** `SELECT date, CAST("healthData"->'lifestyle'->>'totalScreenTimeHours' AS NUMERIC) as screenTime, CAST("healthData"->'sleep'->>'sleepEfficiencyPercent' AS NUMERIC) as sleepEff FROM "DailyLog" WHERE "healthData"->'lifestyle'->>'totalScreenTimeHours' IS NOT NULL AND "healthData"->'sleep'->>'sleepEfficiencyPercent' IS NOT NULL ORDER BY date DESC`
+**SQL:** `SELECT date, CAST("healthData"->'values'->'lifestyle'->>'totalScreenTimeHours' AS NUMERIC) as screenTime, CAST("healthData"->'values'->'sleep'->>'sleepEfficiencyPercent' AS NUMERIC) as sleepEff FROM "DailyLog" WHERE "healthData"->'values'->'lifestyle'->>'totalScreenTimeHours' IS NOT NULL AND "healthData"->'values'->'sleep'->>'sleepEfficiencyPercent' IS NOT NULL ORDER BY date DESC`
 
 **PARAMS:** `[]`
 

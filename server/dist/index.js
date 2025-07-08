@@ -6,11 +6,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const database_1 = __importDefault(require("./db/database"));
 const auth_1 = __importDefault(require("./routes/auth"));
 const log_1 = __importDefault(require("./routes/log"));
 const query_1 = __importDefault(require("./routes/query"));
 const chat_1 = __importDefault(require("./routes/chat"));
 const whoop_1 = __importDefault(require("./routes/whoop"));
+const user_1 = __importDefault(require("./routes/user"));
+const datapoints_1 = __importDefault(require("./routes/datapoints"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 // Configure CORS based on environment
@@ -19,15 +22,12 @@ const allowedOrigins = [
     'https://leo.jackcrew.net', // Production client URL
     process.env.CLIENT_URL, // Additional production client URL
 ].filter(Boolean); // Remove any undefined values
-console.log('Allowed CORS origins:', allowedOrigins);
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin)
             return callback(null, true);
-        console.log('Request origin:', origin);
         if (allowedOrigins.indexOf(origin) === -1) {
-            console.log('CORS blocked origin:', origin);
             const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
             return callback(new Error(msg), false);
         }
@@ -41,6 +41,8 @@ app.use('/api', log_1.default);
 app.use('/api', query_1.default);
 app.use('/api', chat_1.default);
 app.use('/api', whoop_1.default);
+app.use('/api/user', user_1.default);
+app.use('/api/datapoints', datapoints_1.default);
 const PORT = process.env.PORT || 4000;
 // Add a catch-all route for unmatched API routes
 app.use('/api/*', (req, res) => {
@@ -50,7 +52,15 @@ app.use('/api/*', (req, res) => {
 app.get('/', (_req, res) => {
     res.send('Leornian API is running.');
 });
+app.get('/health', async (_req, res) => {
+    try {
+        await database_1.default.$connect();
+        res.json({ status: 'healthy' });
+    }
+    catch (error) {
+        res.status(500).json({ status: 'unhealthy' });
+    }
+});
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
-    console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
 });

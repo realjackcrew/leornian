@@ -8,35 +8,37 @@ const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const google_auth_library_1 = require("google-auth-library");
 const database_1 = __importDefault(require("../db/database"));
+const resend_1 = require("../resend");
 const router = (0, express_1.Router)();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const googleClient = new google_auth_library_1.OAuth2Client(GOOGLE_CLIENT_ID);
 // In-memory storage for reset tokens (in production, use Redis or similar)
 const resetTokens = new Map();
+// In-memory storage for verification codes (purpose: register or reset)
+const verificationCodes = new Map();
 router.post('/register', async (req, res) => {
     try {
-        const { email, password, firstName, lastName } = req.body;
-        console.log('Register request received:', { email, firstName, lastName });
-        console.log('Request body:', req.body);
-        if (!email || !password) {
-            console.warn('Missing email or password in request body');
-            res.status(400).json({ error: 'Email and password are required' });
+        const { email, password, firstName, lastName, verificationToken } = req.body;
+        if (!email || !password || !verificationToken) {
+            res.status(400).json({ error: 'Email, password, and verification token are required' });
             return;
         }
-        // Test database connection
+        // Verify the token
+        let decoded;
         try {
-            await database_1.default.$connect();
-            console.log('Database connection successful');
+            decoded = jsonwebtoken_1.default.verify(verificationToken, JWT_SECRET);
+            if (decoded.email !== email || decoded.purpose !== 'register' || decoded.type !== 'email_verification') {
+                res.status(400).json({ error: 'Invalid verification token' });
+                return;
+            }
         }
-        catch (dbError) {
-            console.error('Database connection failed:', dbError);
-            res.status(500).json({ error: 'Database connection failed' });
+        catch (e) {
+            res.status(400).json({ error: 'Invalid or expired verification token' });
             return;
         }
         const existing = await database_1.default.user.findUnique({ where: { email } });
         if (existing) {
-            console.log('Email already exists:', email);
             res.status(400).json({ error: 'Email already in use' });
             return;
         }
@@ -49,20 +51,11 @@ router.post('/register', async (req, res) => {
                 lastName: lastName || ''
             }
         });
-        console.log('User created with ID:', user.id);
         res.status(201).json({ userId: user.id });
     }
     catch (err) {
-        console.error('Unexpected register error:', err);
-        console.error('Error details:', {
-            name: err instanceof Error ? err.name : 'Unknown',
-            message: err instanceof Error ? err.message : 'Unknown error',
-            stack: err instanceof Error ? err.stack : 'No stack trace'
-        });
-        res.status(500).json({
-            error: 'Internal server error',
-            details: process.env.NODE_ENV === 'development' ? err instanceof Error ? err.message : 'Unknown error' : undefined
-        });
+        console.error('Registration error:', err);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 // POST /login
@@ -168,9 +161,8 @@ router.post('/forgot-password', async (req, res) => {
             // Store the code in memory with expiration (15 minutes)
             const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
             resetTokens.set(email, { code, expiresAt });
-            // TODO: Send email with the code
-            // For now, we'll just log it (in production, use a proper email service)
-            console.log(`Password reset code for ${email}: ${code}`);
+            // Send email with the code using the same utility as registration
+            await (0, resend_1.sendVerificationEmail)(email, code, 'reset');
         }
         res.json({ message: 'If an account with that email exists, a reset code has been sent.' });
     }
@@ -221,7 +213,9 @@ router.post('/reset-password', async (req, res) => {
         // Verify the verification token
         try {
             const decoded = jsonwebtoken_1.default.verify(verificationToken, JWT_SECRET);
-            if (decoded.email !== email || decoded.type !== 'password_reset_verification') {
+            if (decoded.email !== email ||
+                !((decoded.type === 'password_reset_verification') ||
+                    (decoded.type === 'email_verification' && decoded.purpose === 'reset'))) {
                 res.status(400).json({ error: 'Invalid verification token' });
                 return;
             }
@@ -248,6 +242,62 @@ router.post('/reset-password', async (req, res) => {
     catch (err) {
         console.error('Reset password error:', err);
         res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// POST /send-verification-code
+router.post('/send-verification-code', async (req, res) => {
+    try {
+        const { email, purpose } = req.body;
+        if (!email || !['register', 'reset'].includes(purpose)) {
+            return res.status(400).json({ error: 'Email and valid purpose are required' });
+        }
+        // For registration, ensure email is not already in use
+        if (purpose === 'register') {
+            const existing = await database_1.default.user.findUnique({ where: { email } });
+            if (existing) {
+                return res.status(400).json({ error: 'Email already in use' });
+            }
+        }
+        // For reset, ensure email exists
+        if (purpose === 'reset') {
+            const user = await database_1.default.user.findUnique({ where: { email } });
+            if (!user) {
+                // Always return success for security
+                return res.json({ message: 'If an account with that email exists, a code has been sent.' });
+            }
+        }
+        // Generate a 6-digit code
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
+        verificationCodes.set(email, { code, expiresAt, purpose });
+        await (0, resend_1.sendVerificationEmail)(email, code, purpose);
+        return res.json({ message: 'Verification code sent.' });
+    }
+    catch (err) {
+        console.error('Send verification code error:', err);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+// POST /verify-code
+router.post('/verify-code', async (req, res) => {
+    try {
+        const { email, code, purpose } = req.body;
+        if (!email || !code || !['register', 'reset'].includes(purpose)) {
+            return res.status(400).json({ error: 'Email, code, and valid purpose are required' });
+        }
+        const stored = verificationCodes.get(email);
+        if (!stored || stored.code !== code || stored.purpose !== purpose || Date.now() > stored.expiresAt) {
+            return res.status(400).json({ error: 'Invalid or expired code' });
+        }
+        // Remove the code after successful verification
+        verificationCodes.delete(email);
+        // Return a short-lived verification token
+        const verificationToken = jsonwebtoken_1.default.sign({ email, purpose, type: 'email_verification' }, JWT_SECRET, { expiresIn: '10m' });
+        return res.json({ verificationToken });
+    }
+    catch (err) {
+        console.error('Verify code error:', err);
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 exports.default = router;

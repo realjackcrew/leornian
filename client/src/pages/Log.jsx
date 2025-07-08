@@ -51,7 +51,8 @@ export default function Log() {
       const availableCategories = Object.keys(dataPointDefinitions);
       if (availableCategories.length > 0) {
         // If current category is not available, or no category selected, pick the first one
-        if (!selectedCategory || !availableCategories.includes(selectedCategory)) {
+        // Don't reset if the selected category is 'notes'
+        if (!selectedCategory || (!availableCategories.includes(selectedCategory) && selectedCategory !== 'notes')) {
           setSelectedCategory(availableCategories[0]);
         }
       } else {

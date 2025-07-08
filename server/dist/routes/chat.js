@@ -6,22 +6,17 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const openai_1 = require("../llm/openai");
 const queries_1 = require("../db/queries");
-const fs_1 = require("fs");
-const path_1 = __importDefault(require("path"));
+const promptBuilder_1 = require("../llm/promptBuilder");
+const auth_1 = require("../middleware/auth");
+const database_1 = __importDefault(require("../db/database"));
 const router = express_1.default.Router();
-const prompt = (0, fs_1.readFileSync)(path_1.default.join(__dirname, '../llm/prompt2.md'), 'utf8');
 function bigIntToString(key, value) {
     if (typeof value === 'bigint') {
         return value.toString();
     }
     return value;
 }
-// System message that provides context about the database
-const SYSTEM_PROMPT = {
-    role: 'system',
-    content: prompt
-};
-router.post('/chat', async (req, res) => {
+router.post('/chat', auth_1.authenticateToken, async (req, res) => {
     try {
         console.log('Chat request received:', req.body);
         const { message } = req.body;
@@ -31,7 +26,25 @@ router.post('/chat', async (req, res) => {
                 error: 'Message is required and must be a string'
             });
         }
-        console.log('Processing message:', message);
+        const userId = req.userId;
+        console.log('Processing message for user:', userId, message);
+        // Get user's chat settings
+        const user = await database_1.default.user.findUnique({
+            where: { id: userId },
+            select: { settings: true }
+        });
+        const settings = user?.settings || {};
+        const chatSettings = {
+            voice: settings.voice || 'default',
+            verbosity: settings.verbosity || 'balanced'
+        };
+        console.log('Using chat settings:', chatSettings);
+        // Build dynamic prompt based on user preferences
+        const dynamicPrompt = (0, promptBuilder_1.buildDynamicPrompt)(chatSettings);
+        const SYSTEM_PROMPT = {
+            role: 'system',
+            content: dynamicPrompt
+        };
         // Only send the current message and system prompt
         const messages = [
             SYSTEM_PROMPT,
