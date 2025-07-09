@@ -69,7 +69,7 @@ class WhoopAPI {
     return this.tokenExpiry ? Date.now() < this.tokenExpiry : false;
   }
 
-  private async refreshAccessToken(): Promise<void> {
+  public async refreshAccessToken(): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
     if (!this.refreshToken) {
       throw new Error('No refresh token available');
     }
@@ -95,6 +95,12 @@ class WhoopAPI {
       this.accessToken = response.data.access_token;
       this.refreshToken = response.data.refresh_token;
       this.tokenExpiry = Date.now() + (response.data.expires_in * 1000);
+      
+      return {
+        access_token: response.data.access_token,
+        refresh_token: response.data.refresh_token,
+        expires_in: response.data.expires_in
+      };
     } catch (error) {
       console.error('Failed to refresh WHOOP access token:', error);
       throw error;
@@ -164,6 +170,69 @@ class WhoopAPI {
   }
 
   /**
+   * Get cycle data for a specific date range
+   * @param startDate Start date in ISO format (YYYY-MM-DD)
+   * @param endDate End date in ISO format (YYYY-MM-DD)
+   * @returns Array of cycle data
+   */
+  async getCycleData(startDate: string, endDate: string): Promise<any[]> {
+    try {
+      console.log('WHOOP API: Fetching cycle data for date range:', startDate, 'to', endDate);
+      const cycles = await this.makeAuthenticatedRequest('/developer/v1/cycle/range', {
+        start: startDate,
+        end: endDate,
+      });
+      console.log('WHOOP API: Found cycles:', cycles?.length || 0, 'cycles');
+      return cycles;
+    } catch (error) {
+      console.error('Failed to fetch WHOOP cycle data:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get sleep data for a specific cycle
+   * @param cycleId The cycle ID
+   * @returns Sleep data for the cycle
+   */
+  async getSleepDataForCycle(cycleId: string): Promise<WhoopSleepData | null> {
+    try {
+      return await this.makeAuthenticatedRequest(`/developer/v1/cycle/${cycleId}/sleep`);
+    } catch (error) {
+      console.error('Failed to fetch WHOOP sleep data for cycle:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get physical activity/workout data for a specific cycle
+   * @param cycleId The cycle ID
+   * @returns Physical activity data for the cycle
+   */
+  async getPhysicalDataForCycle(cycleId: string): Promise<WhoopPhysicalData | null> {
+    try {
+      return await this.makeAuthenticatedRequest(`/developer/v1/cycle/${cycleId}/workout`);
+    } catch (error) {
+      console.error('Failed to fetch WHOOP physical data for cycle:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get recovery data for a specific cycle
+   * @param cycleId The cycle ID
+   * @returns Recovery data for the cycle
+   */
+  async getRecoveryDataForCycle(cycleId: string): Promise<any | null> {
+    try {
+      return await this.makeAuthenticatedRequest(`/developer/v1/cycle/${cycleId}/recovery`);
+    } catch (error) {
+      console.error('Failed to fetch WHOOP recovery data for cycle:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get sleep data for a specific date range
    * @param startDate Start date in ISO format (YYYY-MM-DD)
    * @param endDate End date in ISO format (YYYY-MM-DD)
@@ -171,10 +240,24 @@ class WhoopAPI {
    */
   async getSleepData(startDate: string, endDate: string): Promise<WhoopSleepData[]> {
     try {
-      return await this.makeAuthenticatedRequest('/developer/v1/cycle/sleep', {
-        start: startDate,
-        end: endDate,
-      });
+      // First get the cycle data for the date range
+      const cycles = await this.getCycleData(startDate, endDate);
+      
+      if (!cycles || cycles.length === 0) {
+        console.log('WHOOP API: No cycles found for date range:', startDate, 'to', endDate);
+        return [];
+      }
+      
+      // Then get sleep data for each cycle
+      const sleepDataPromises = cycles.map(cycle => 
+        this.getSleepDataForCycle(cycle.id).catch(error => {
+          console.warn(`Failed to fetch sleep data for cycle ${cycle.id}:`, error);
+          return null;
+        })
+      );
+      
+      const sleepData = await Promise.all(sleepDataPromises);
+      return sleepData.filter(data => data !== null);
     } catch (error) {
       console.error('Failed to fetch WHOOP sleep data:', error);
       throw error;
@@ -202,10 +285,24 @@ class WhoopAPI {
    */
   async getPhysicalData(startDate: string, endDate: string): Promise<WhoopPhysicalData[]> {
     try {
-      return await this.makeAuthenticatedRequest('/developer/v1/cycle/workout', {
-        start: startDate,
-        end: endDate,
-      });
+      // First get the cycle data for the date range
+      const cycles = await this.getCycleData(startDate, endDate);
+      
+      if (!cycles || cycles.length === 0) {
+        console.log('WHOOP API: No cycles found for date range:', startDate, 'to', endDate);
+        return [];
+      }
+      
+      // Then get physical data for each cycle
+      const physicalDataPromises = cycles.map(cycle => 
+        this.getPhysicalDataForCycle(cycle.id).catch(error => {
+          console.warn(`Failed to fetch physical data for cycle ${cycle.id}:`, error);
+          return null;
+        })
+      );
+      
+      const physicalData = await Promise.all(physicalDataPromises);
+      return physicalData.filter(data => data !== null);
     } catch (error) {
       console.error('Failed to fetch WHOOP physical data:', error);
       throw error;
@@ -233,10 +330,24 @@ class WhoopAPI {
    */
   async getRecoveryData(startDate: string, endDate: string): Promise<any[]> {
     try {
-      return await this.makeAuthenticatedRequest('/developer/v1/cycle/recovery', {
-        start: startDate,
-        end: endDate,
-      });
+      // First get the cycle data for the date range
+      const cycles = await this.getCycleData(startDate, endDate);
+      
+      if (!cycles || cycles.length === 0) {
+        console.log('WHOOP API: No cycles found for date range:', startDate, 'to', endDate);
+        return [];
+      }
+      
+      // Then get recovery data for each cycle
+      const recoveryDataPromises = cycles.map(cycle => 
+        this.getRecoveryDataForCycle(cycle.id).catch(error => {
+          console.warn(`Failed to fetch recovery data for cycle ${cycle.id}:`, error);
+          return null;
+        })
+      );
+      
+      const recoveryData = await Promise.all(recoveryDataPromises);
+      return recoveryData.filter(data => data !== null);
     } catch (error) {
       console.error('Failed to fetch WHOOP recovery data:', error);
       throw error;
@@ -299,6 +410,35 @@ class WhoopAPI {
    */
   getTokenExpiry(): number | null {
     return this.tokenExpiry;
+  }
+
+  /**
+   * Set the access, refresh tokens, and expiry from user credentials
+   * @param accessToken The access token
+   * @param refreshToken The refresh token
+   * @param tokenExpiry The expiry timestamp (ms since epoch)
+   */
+  setTokens(accessToken: string, refreshToken: string, tokenExpiry: number | null) {
+    this.accessToken = accessToken;
+    this.refreshToken = refreshToken;
+    this.tokenExpiry = tokenExpiry;
+  }
+
+  /**
+   * Get current tokens as an object (for database storage)
+   * @returns Object with access_token, refresh_token, and expires_in
+   */
+  getTokens(): { access_token: string; refresh_token: string; expires_in: number } | null {
+    if (!this.accessToken || !this.refreshToken) {
+      return null;
+    }
+    
+    const expiresIn = this.tokenExpiry ? Math.floor((this.tokenExpiry - Date.now()) / 1000) : null;
+    return {
+      access_token: this.accessToken,
+      refresh_token: this.refreshToken,
+      expires_in: expiresIn || 0
+    };
   }
 }
 

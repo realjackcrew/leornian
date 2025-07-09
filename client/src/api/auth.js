@@ -115,3 +115,29 @@ export const getUserProfile = async () => {
 
   return response.json();
 };
+
+export const fetchWhoopData = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('User not authenticated. Please log in first.');
+  const response = await fetch(`${API_BASE_URL}/api/whoop/data`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  if (!response.ok) {
+    let errorMessage = 'Failed to fetch WHOOP data';
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error || errorMessage;
+    } catch (parseError) {
+      try {
+        const errorText = await response.text();
+        errorMessage = errorText || errorMessage;
+      } catch (textError) {
+        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      }
+    }
+    throw new Error(errorMessage);
+  }
+  return response.json();
+};

@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, Settings as SettingsIcon, Database, User, MessageCircle, ChevronRight, Zap, Palette } from "lucide-react";
-import { checkWhoopStatus, getUserProfile } from '../api/auth';
+import { checkWhoopStatus, getUserProfile, disconnectWhoop } from '../api/auth';
 import { getDatapointDefinitions, getDatapointPreferences, saveDatapointPreferences } from '../api/datapoints';
 import { getChatSettings, updateChatSettings, getChatOptions } from '../api/chat';
 import { API_BASE_URL } from '../config';
@@ -116,6 +116,27 @@ export default function Settings() {
         const redirectUri = `${window.location.origin}/whoop-callback`;
         const whoopAuthUrl = `https://api.prod.whoop.com/oauth/oauth2/auth?client_id=${whoopClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=offline%20read:profile%20read:recovery%20read:cycles%20read:workout&state=${state}`;
         window.location.href = whoopAuthUrl;
+    };
+
+    const handleWhoopDisconnect = async () => {
+        try {
+            await disconnectWhoop();
+            setWhoopStatus({ hasCredentials: false, isConnected: false });
+            alert('WHOOP account disconnected successfully!');
+        } catch (error) {
+            console.error('Failed to disconnect WHOOP:', error);
+            alert('Failed to disconnect WHOOP account. Please try again.');
+        }
+    };
+
+    const handleWhoopReconnect = () => {
+        // First disconnect, then connect
+        handleWhoopDisconnect().then(() => {
+            // Small delay to ensure disconnect completes
+            setTimeout(() => {
+                handleWhoopConnect();
+            }, 500);
+        });
     };
 
     const handleToggleCategory = (category) => {
@@ -454,9 +475,23 @@ export default function Settings() {
                         </div>
                         <div className="flex items-center space-x-2">
                             {whoopStatus.isConnected ? (
-                                <div className="flex items-center space-x-1 text-green-600 dark:text-green-400">
-                                    <Check className="h-4 w-4" />
-                                    <span className="text-sm font-medium">Connected</span>
+                                <div className="flex items-center space-x-2">
+                                    <div className="flex items-center space-x-1 text-green-600 dark:text-green-400">
+                                        <Check className="h-4 w-4" />
+                                        <span className="text-sm font-medium">Connected</span>
+                                    </div>
+                                    <button
+                                        onClick={handleWhoopReconnect}
+                                        className="px-3 py-1 text-xs bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors"
+                                    >
+                                        Reconnect
+                                    </button>
+                                    <button
+                                        onClick={handleWhoopDisconnect}
+                                        className="px-3 py-1 text-xs bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                                    >
+                                        Disconnect
+                                    </button>
                                 </div>
                             ) : (
                                 <button

@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Check, X } from 'lucide-react';
 import { useEnabledDatapoints, getDefaultValues, getCategoryNames } from '../components/Datapoints';
 import { getCurrentCentralDate, formatDateAsCentral, isSameDayInCentral } from '../utils/dateUtils';
+import { fetchWhoopData } from '../api/auth';
 
 export default function Log() {
   const { token } = useContext(AuthContext);
@@ -93,13 +94,90 @@ export default function Log() {
           }
           setValues(existingValues);
         } else {
-          // No existing log found, use default values
-          setValues(getDefaultValues(dataPointDefinitions));
+          // No existing log found, use default values and try to prepopulate with WHOOP data
+          let defaultValues = getDefaultValues(dataPointDefinitions);
+          
+          // Only fetch WHOOP data for today's log
+          const today = getCurrentCentralDate();
+          const isToday = selectedDate && isSameDayInCentral(selectedDate, today);
+          
+          if (isToday) {
+            try {
+              const whoopResp = await fetchWhoopData();
+              if (whoopResp && whoopResp.success && whoopResp.data) {
+                const whoop = whoopResp.data;
+                // Map WHOOP fields to log fields
+                // sleep
+                if (defaultValues.sleep) {
+                  if (whoop.bedtime !== undefined) defaultValues.sleep.bedtime = whoop.bedtime;
+                  if (whoop.wakeTime !== undefined) defaultValues.sleep.wakeTime = whoop.wakeTime;
+                  if (whoop.sleepEfficiencyPercent !== undefined) defaultValues.sleep.sleepEfficiencyPercent = whoop.sleepEfficiencyPercent;
+                  if (whoop.sleepFulfillmentPercent !== undefined) defaultValues.sleep.sleepFulfillmentPercent = whoop.sleepFulfillmentPercent;
+                  if (whoop.sleepDebtMinutes !== undefined) defaultValues.sleep.sleepDebtMinutes = whoop.sleepDebtMinutes;
+                }
+                // physicalHealth
+                if (defaultValues.physicalHealth) {
+                  if (whoop.didStrengthTrainingWorkout !== undefined) defaultValues.physicalHealth.didStrengthTrainingWorkout = whoop.didStrengthTrainingWorkout;
+                  if (whoop.wentForRun !== undefined) defaultValues.physicalHealth.wentForRun = whoop.wentForRun;
+                  if (whoop.caloriesBurned !== undefined) defaultValues.physicalHealth.caloriesBurned = whoop.caloriesBurned;
+                  if (whoop.restingHR !== undefined) defaultValues.physicalHealth.restingHR = whoop.restingHR;
+                  if (whoop.heartRateVariability !== undefined) defaultValues.physicalHealth.heartRateVariability = whoop.heartRateVariability;
+                  if (whoop.whoopStrainScore !== undefined) defaultValues.physicalHealth.whoopStrainScore = whoop.whoopStrainScore;
+                  if (whoop.whoopRecoveryScorePercent !== undefined) defaultValues.physicalHealth.whoopRecoveryScorePercent = whoop.whoopRecoveryScorePercent;
+                }
+              }
+            } catch (whoopErr) {
+              // WHOOP data is optional, just log error
+              console.warn('Could not prepopulate with WHOOP data:', whoopErr);
+              
+              // If it's a token expiration error, show a helpful message
+              if (whoopErr.message && whoopErr.message.includes('WHOOP credentials have expired')) {
+                console.warn('WHOOP tokens expired. User should reconnect in Settings page.');
+                // Show a user-friendly alert
+                setTimeout(() => {
+                  alert('WHOOP connection has expired. You can reconnect your WHOOP account in Settings > Integrations to automatically populate your logs with WHOOP data.');
+                }, 1000); // Small delay to avoid showing alert immediately
+              }
+            }
+          }
+          setValues(defaultValues);
         }
       } catch (error) {
         // No existing log found, which is fine
         if (error.response && error.response.status === 404) {
-            setValues(getDefaultValues(dataPointDefinitions));
+            let defaultValues = getDefaultValues(dataPointDefinitions);
+            
+            // Only fetch WHOOP data for today's log
+            const today = getCurrentCentralDate();
+            const isToday = selectedDate && isSameDayInCentral(selectedDate, today);
+            
+            if (isToday) {
+              try {
+                const whoopResp = await fetchWhoopData();
+                if (whoopResp && whoopResp.success && whoopResp.data) {
+                  const whoop = whoopResp.data;
+                  if (defaultValues.sleep) {
+                    if (whoop.bedtime !== undefined) defaultValues.sleep.bedtime = whoop.bedtime;
+                    if (whoop.wakeTime !== undefined) defaultValues.sleep.wakeTime = whoop.wakeTime;
+                    if (whoop.sleepEfficiencyPercent !== undefined) defaultValues.sleep.sleepEfficiencyPercent = whoop.sleepEfficiencyPercent;
+                    if (whoop.sleepFulfillmentPercent !== undefined) defaultValues.sleep.sleepFulfillmentPercent = whoop.sleepFulfillmentPercent;
+                    if (whoop.sleepDebtMinutes !== undefined) defaultValues.sleep.sleepDebtMinutes = whoop.sleepDebtMinutes;
+                  }
+                  if (defaultValues.physicalHealth) {
+                    if (whoop.didStrengthTrainingWorkout !== undefined) defaultValues.physicalHealth.didStrengthTrainingWorkout = whoop.didStrengthTrainingWorkout;
+                    if (whoop.wentForRun !== undefined) defaultValues.physicalHealth.wentForRun = whoop.wentForRun;
+                    if (whoop.caloriesBurned !== undefined) defaultValues.physicalHealth.caloriesBurned = whoop.caloriesBurned;
+                    if (whoop.restingHR !== undefined) defaultValues.physicalHealth.restingHR = whoop.restingHR;
+                    if (whoop.heartRateVariability !== undefined) defaultValues.physicalHealth.heartRateVariability = whoop.heartRateVariability;
+                    if (whoop.whoopStrainScore !== undefined) defaultValues.physicalHealth.whoopStrainScore = whoop.whoopStrainScore;
+                    if (whoop.whoopRecoveryScorePercent !== undefined) defaultValues.physicalHealth.whoopRecoveryScorePercent = whoop.whoopRecoveryScorePercent;
+                  }
+                }
+              } catch (whoopErr) {
+                console.warn('Could not prepopulate with WHOOP data:', whoopErr);
+              }
+            }
+            setValues(defaultValues);
         } else {
           console.error('Error loading existing log:', error);
             setValues(getDefaultValues(dataPointDefinitions));
@@ -110,7 +188,7 @@ export default function Log() {
     };
 
     loadExistingLog();
-  }, [token, selectedDate, isFutureDate]);
+  }, [token, selectedDate, isFutureDate, dataPointDefinitions]);
 
   // Format date for display
   const formatDisplayDate = (date) => {
