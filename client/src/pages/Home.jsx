@@ -21,7 +21,7 @@ export default function Home() {
         <div className="absolute inset-0 flex items-center justify-left text-left px-4">
           <div className="max-w-3xl">
             <h1 className="text-6xl md:text-8xl font-sans text-white mb-6">
-            Every Moment Counts. Leo Makes Yours Smarter.
+            Know More. <br /> Feel Better. <br /> Live Smarter.
             </h1>
             <Link 
               to="/register" 
