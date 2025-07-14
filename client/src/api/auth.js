@@ -67,6 +67,17 @@ export const checkWhoopStatus = async () => {
   return response.json();
 };
 
+export const testWhoopConnection = async () => {
+  const token = localStorage.getItem('token');
+  const response = await fetch(`${API_BASE_URL}/api/whoop/test-auth`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  return response.json();
+};
+
 export const disconnectWhoop = async () => {
   const token = localStorage.getItem('token');
   const response = await fetch(`${API_BASE_URL}/api/whoop/disconnect`, {
@@ -116,10 +127,17 @@ export const getUserProfile = async () => {
   return response.json();
 };
 
-export const fetchWhoopData = async () => {
+//whoop data for date
+export const fetchWhoopData = async (date) => {
   const token = localStorage.getItem('token');
   if (!token) throw new Error('User not authenticated. Please log in first.');
-  const response = await fetch(`${API_BASE_URL}/api/whoop/data`, {
+
+  const url = new URL(`${API_BASE_URL}/api/whoop/data`);
+  if (date) {
+    url.searchParams.append('date', date);
+  }
+
+  const response = await fetch(url, {
     headers: {
       'Authorization': `Bearer ${token}`
     }

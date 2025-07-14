@@ -1,248 +1,359 @@
 import { Router, Request, Response } from 'express';
+import passport from 'passport';
+import { Strategy as OAuth2Strategy } from 'passport-oauth2';
+import jwt from 'jsonwebtoken';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import prisma from '../db/database';
 import { whoopAPI } from '../healthData/whoop';
+import express from 'express';
 
 const router = Router();
+const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 
-// POST /whoop/auth - Handle WHOOP OAuth callback
-router.post('/whoop/auth', authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    const { authorizationCode } = req.body;
-    
-    if (!authorizationCode) {
-      console.error('WHOOP auth: Missing authorization code');
-      res.status(400).json({ error: 'Authorization code is required' });
-      return;
-    }
+// In a real app, you'd want to use express-session to store state,
+// but to keep it simple, we'll pass the JWT token in the state parameter.
+// This is not the most secure method, but it is simple.
+// Note: passport-oauth2 may overwrite the state if `state: true` is set in the strategy options.
+// We are explicitly not setting it.
 
-    console.log('WHOOP auth: Processing authorization code for user:', req.userId);
-    console.log('WHOOP auth: Authorization code:', authorizationCode.substring(0, 20) + '...');
+const whoopCallbackUrl = process.env.WHOOP_REDIRECT_URI || process.env.WHOOP_CALLBACK_URL!;
 
-    // Initialize WHOOP API with the authorization code
-    await whoopAPI.initialize(authorizationCode);
-
-    // Get the tokens from the WHOOP API instance
-    const tokens = {
-      access_token: whoopAPI.getAccessToken(),
-      refresh_token: whoopAPI.getRefreshToken(),
-      expires_in: whoopAPI.getTokenExpiry() ? Math.floor((whoopAPI.getTokenExpiry()! - Date.now()) / 1000) : null,
-      token_type: 'Bearer'
-    };
-
-    console.log('WHOOP auth: Tokens received, storing in database');
-
-    // Store the credentials in the database
-    await prisma.user.update({
-      where: { id: req.userId! },
-      data: {
-        whoopCredentials: tokens as any
-      }
-    });
-
-    console.log('WHOOP auth: Credentials stored successfully for user:', req.userId);
-
-    res.json({ 
-      success: true, 
-      message: 'WHOOP credentials stored successfully' 
-    });
-  } catch (error: any) {
-    console.error('WHOOP authentication error:', error);
-    
-    // Provide more detailed error information
-    let errorMessage = 'Failed to authenticate with WHOOP';
-    if (error.response?.data) {
-      console.error('WHOOP API error details:', error.response.data);
-      
-      const whoopError = error.response.data;
-      if (whoopError.error === 'invalid_grant') {
-        if (whoopError.error_hint?.includes('already been used')) {
-          errorMessage = 'This authorization code has already been used. Please try connecting WHOOP again.';
-        } else {
-          errorMessage = 'Authorization code is invalid or expired. Please try connecting WHOOP again.';
-        }
-      } else {
-        errorMessage = `WHOOP API error: ${whoopError.error_description || whoopError.error || errorMessage}`;
-      }
-    }
-    
-    res.status(500).json({ error: errorMessage });
-  }
-});
-
-// GET /whoop/status - Check if user has WHOOP credentials
-router.get('/whoop/status', authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.userId! },
-      select: { whoopCredentials: true }
-    });
-
-    const hasCredentials = user?.whoopCredentials !== null;
-    res.json({ 
-      hasCredentials,
-      isConnected: hasCredentials
-    });
-  } catch (error) {
-    console.error('Error checking WHOOP status:', error);
-    res.status(500).json({ error: 'Failed to check WHOOP status' });
-  }
-});
-
-// DELETE /whoop/disconnect - Remove WHOOP credentials
-router.delete('/whoop/disconnect', authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    await prisma.user.update({
-      where: { id: req.userId! },
-      data: {
-        whoopCredentials: undefined
-      }
-    });
-
-    res.json({ 
-      success: true, 
-      message: 'WHOOP credentials removed successfully' 
-    });
-  } catch (error) {
-    console.error('Error disconnecting WHOOP:', error);
-    res.status(500).json({ error: 'Failed to disconnect WHOOP' });
-  }
-});
-
-// GET /whoop/data - Fetch latest WHOOP data (only for today's log)
-router.get('/whoop/data', authenticateToken, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    // Get user's WHOOP credentials
-    const user = await prisma.user.findUnique({
-      where: { id: req.userId! },
-      select: { whoopCredentials: true }
-    });
-    if (!user?.whoopCredentials) {
-      res.status(400).json({ error: 'No WHOOP credentials found for user' });
-      return;
-    }
-    const { access_token, refresh_token, expires_in } = user.whoopCredentials as any;
-    // expires_in is seconds remaining, but we want expiry timestamp
-    const tokenExpiry = expires_in ? (Date.now() + expires_in * 1000) : null;
-    whoopAPI.setTokens(access_token, refresh_token, tokenExpiry);
-
-    let sleepData: any = null, physicalData: any = null, recoveryData: any = null;
-    let tokensUpdated = false;
-
+const whoopStrategy = new OAuth2Strategy({
+    authorizationURL: 'https://api.prod.whoop.com/oauth/oauth2/auth',
+    tokenURL: 'https://api.prod.whoop.com/oauth/oauth2/token',
+    clientID: process.env.WHOOP_CLIENT_ID!,
+    clientSecret: process.env.WHOOP_CLIENT_SECRET!,
+    callbackURL: whoopCallbackUrl,
+    passReqToCallback: true,
+    // WHOOP uses plural 'read:cycles' in OAuth docs. Using wrong scope throws invalid_scope error.
+    scope: ['offline', 'read:profile', 'read:cycles', 'read:recovery', 'read:sleep', 'read:workout']
+  },
+  async (req: Request, accessToken: string, refreshToken: string, results: any, profile: any, done: (err: any, user?: any) => void) => {
     try {
-      console.log('WHOOP data fetch: Attempting to fetch latest data for user:', req.userId);
-      
-      // Try to fetch latest data with current tokens
-      [sleepData, physicalData, recoveryData] = await Promise.all([
-        whoopAPI.getLatestSleepData(),
-        whoopAPI.getLatestPhysicalData(),
-        whoopAPI.getLatestRecoveryData()
-      ]);
-      
-      console.log('WHOOP data fetch: Successfully fetched latest data:', {
-        hasSleep: !!sleepData,
-        hasPhysical: !!physicalData,
-        hasRecovery: !!recoveryData
-      });
-    } catch (apiError: any) {
-      // If we get a 401, try to refresh tokens and retry
-      if (apiError.response?.status === 401) {
-        console.log('WHOOP API returned 401, attempting token refresh for user:', req.userId);
-        try {
-          const newTokens = await whoopAPI.refreshAccessToken();
-          
-          // Update the database with new tokens
-          await prisma.user.update({
-            where: { id: req.userId! },
-            data: {
-              whoopCredentials: {
-                access_token: newTokens.access_token,
-                refresh_token: newTokens.refresh_token,
-                expires_in: newTokens.expires_in,
-                token_type: 'Bearer'
-              } as any
-            }
-          });
-          
-          console.log('WHOOP tokens refreshed and updated in database for user:', req.userId);
-          tokensUpdated = true;
-
-          // Retry the API calls with new tokens
-          [sleepData, physicalData, recoveryData] = await Promise.all([
-            whoopAPI.getLatestSleepData(),
-            whoopAPI.getLatestPhysicalData(),
-            whoopAPI.getLatestRecoveryData()
-          ]);
-        } catch (refreshError) {
-          console.error('Failed to refresh WHOOP tokens for user:', req.userId, refreshError);
-          res.status(401).json({ 
-            error: 'WHOOP credentials have expired. Please go to Settings > Integrations to reconnect your WHOOP account.',
-            code: 'WHOOP_TOKEN_EXPIRED'
-          });
-          return;
+        const state = req.query.state as string;
+        if (!state) {
+            return done(new Error('State parameter missing'));
         }
-      } else if (apiError.response?.status === 404) {
-        // 404 means no latest data available, which is normal
-        console.log('No latest WHOOP data available for user:', req.userId);
-        sleepData = null;
-        physicalData = null;
-        recoveryData = null;
-      } else {
-        // Re-throw non-401/404 errors
-        throw apiError;
-      }
-    }
 
-    const sleep = sleepData;
-    const physical = physicalData;
-    const recovery = recoveryData;
+        let decoded: any;
+        try {
+            decoded = jwt.verify(state, JWT_SECRET);
+        } catch (e) {
+            return done(new Error('Invalid state token'));
+        }
 
-    // If tokens were refreshed during the request, update database again
-    if (!tokensUpdated) {
-      const currentTokens = whoopAPI.getTokens();
-      if (currentTokens && (currentTokens.access_token !== access_token || currentTokens.refresh_token !== refresh_token)) {
+        const userId = decoded.userId;
+        const whoopUserId = profile.user_id;
+
+        // Persist tokens in DB and log the retrieved access token for visibility.
+        console.log('\x1b[32m[WHOOP] Access token obtained: ' + accessToken + '\x1b[0m');
+
         await prisma.user.update({
-          where: { id: req.userId! },
-          data: {
-            whoopCredentials: {
-              access_token: currentTokens.access_token,
-              refresh_token: currentTokens.refresh_token,
-              expires_in: currentTokens.expires_in,
-              token_type: 'Bearer'
-            } as any
-          }
+            where: { id: userId },
+            data: { 
+                whoopAccessToken: accessToken,
+                whoopRefreshToken: refreshToken,
+                whoopTokenExpiresAt: new Date(Date.now() + results.expires_in * 1000),
+                whoopUserId: String(whoopUserId),
+                firstName: profile.first_name,
+                lastName: profile.last_name,
+            }
         });
-        console.log('WHOOP tokens updated in database after API calls for user:', req.userId);
-      }
-    }
 
-    // Map WHOOP data to log fields
-    const result: any = {};
-    if (sleep) {
-      result.bedtime = sleep.sleep.sleep_onset ? sleep.sleep.sleep_onset.substring(11, 16) : null; // 'HH:MM'
-      result.wakeTime = sleep.sleep.sleep_wake ? sleep.sleep.sleep_wake.substring(11, 16) : null;
-      result.sleepEfficiencyPercent = sleep.sleep.sleep_efficiency ? Math.round(sleep.sleep.sleep_efficiency * 100) : null;
-      result.sleepFulfillmentPercent = sleep.sleep.sleep_quality_score ? Math.round(sleep.sleep.sleep_quality_score * 100) : null;
-      result.sleepDebtMinutes = sleep.sleep.sleep_debt ? Math.round(sleep.sleep.sleep_debt) : null;
-    }
-    if (physical) {
-      // Look for strength training and run by sport_name
-      result.didStrengthTrainingWorkout = physical.workout.sport_name && physical.workout.sport_name.toLowerCase().includes('strength');
-      result.wentForRun = physical.workout.sport_name && physical.workout.sport_name.toLowerCase().includes('run');
-      result.caloriesBurned = physical.workout.calories ? Math.round(physical.workout.calories) : null;
-    }
-    if (recovery) {
-      result.restingHR = recovery.resting_heart_rate || null;
-      result.heartRateVariability = recovery.heart_rate_variability || null;
-      result.whoopStrainScore = recovery.strain_score || null;
-      result.whoopRecoveryScorePercent = recovery.recovery_score ? Math.round(recovery.recovery_score * 100) : null;
-    }
+        // The "user" passed to `done` is not directly used in the session-less flow,
+        // but it's good practice to return the user profile.
+        return done(null, profile);
 
-    res.json({ success: true, data: result });
+    } catch (error) {
+        return done(error);
+    }
+  }
+);
+
+whoopStrategy.userProfile = (accessToken, done) => {
+    // Note: The 'userProfile' method in passport-oauth2 is a bit of a legacy pattern.
+    // The profile fetched here is mainly used to extract the `whoopUserId` after the initial auth.
+    // We use a separate /v2/user/profile/basic call in the /test-auth route for explicit checks.
+    fetch('https://api.prod.whoop.com/developer/v2/user/profile/basic', {
+        headers: {
+            'Authorization': `Bearer ${accessToken}`
+        }
+    })
+    .then(res => {
+        if (!res.ok) {
+            // Log the error but don't fail the whole auth flow, as the tokens are the main goal.
+            console.error(`WHOOP userProfile fetch failed with status: ${res.status}`);
+            return res.text().then(text => {
+                console.error(`WHOOP userProfile error body: ${text}`);
+                // Return a basic object so the flow can continue to the callback handler.
+                // The main callback handler will store the tokens regardless.
+                return { user_id: 'unknown' };
+            });
+        }
+        return res.json();
+    })
+    .then(profile => {
+        done(null, profile);
+    })
+    .catch(err => {
+        console.error('Error fetching WHOOP user profile during auth:', err);
+        // Allow the auth flow to continue even if profile fetch fails.
+        done(null, { user_id: 'unknown' });
+    });
+};
+
+passport.use('whoop', whoopStrategy);
+
+// This middleware is necessary to initialize Passport
+router.use(passport.initialize());
+
+const isProduction = process.env.NODE_ENV === 'production';
+// In production, we expect CLIENT_URL to be set. For development, we default to localhost.
+const clientUrl = isProduction ? process.env.CLIENT_URL : 'http://localhost:5173';
+
+
+// Redirect to WHOOP for authentication
+// The JWT of the logged-in user is passed as state
+router.get('/auth/whoop', authenticateToken, (req: AuthenticatedRequest, res, next) => {
+    const token = req.query.token as string;
+    if (!token) {
+        // This case should be handled by authenticateToken, but as a fallback.
+        return res.status(401).send('Authentication token not found in query parameter.');
+    }
+    console.log(`[WHOOP Auth] Redirecting to WHOOP. Using callback URL: ${whoopCallbackUrl}`);
+    passport.authenticate('whoop', { state: token, session: false })(req, res, next);
+});
+
+// Callback route for WHOOP to redirect to
+router.get('/auth/whoop/callback',
+    passport.authenticate('whoop', {
+        // We redirect to the client, which can then show a success/failure message.
+        failureRedirect: `${clientUrl}/settings?whoopAuth=failed`,
+        session: false
+    }),
+    (req, res) => {
+        // Successful authentication
+        res.redirect(`${clientUrl}/settings?whoopAuth=success`);
+    }
+);
+
+router.get('/whoop/status', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: req.userId! },
+            select: { whoopAccessToken: true }
+        });
+
+        const hasCredentials = !!user?.whoopAccessToken;
+        res.json({ 
+            hasCredentials,
+            isConnected: hasCredentials
+        });
+    } catch (error) {
+        console.error('Error checking WHOOP status:', error);
+        res.status(500).json({ error: 'Failed to check WHOOP status' });
+    }
+});
+  
+router.delete('/whoop/disconnect', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      await prisma.user.update({
+        where: { id: req.userId! },
+        data: {
+            whoopAccessToken: null,
+            whoopRefreshToken: null,
+            whoopTokenExpiresAt: null,
+            whoopUserId: null
+        }
+      });
+  
+      res.json({ 
+        success: true, 
+        message: 'WHOOP credentials removed successfully' 
+      });
+    } catch (error) {
+      console.error('Error disconnecting WHOOP:', error);
+      res.status(500).json({ error: 'Failed to disconnect WHOOP' });
+    }
+});
+
+router.get('/whoop/test-auth', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({
+        where: { id: req.userId! },
+        select: { 
+            whoopAccessToken: true,
+            whoopRefreshToken: true,
+            whoopTokenExpiresAt: true,
+        }
+    });
+
+    if (!user || !user.whoopAccessToken || !user.whoopRefreshToken || !user.whoopTokenExpiresAt) {
+        return res.status(400).json({ success: false, message: 'No WHOOP credentials found for user.' });
+    }
+    
+    let { whoopAccessToken, whoopRefreshToken, whoopTokenExpiresAt } = user;
+    
+    // If token is expired or close to expiring, refresh it
+    if (Date.now() >= whoopTokenExpiresAt.getTime() - 5 * 60 * 1000) { // 5 minutes buffer
+        try {
+            const response = await fetch('https://api.prod.whoop.com/oauth/oauth2/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    grant_type: 'refresh_token',
+                    refresh_token: whoopRefreshToken,
+                    client_id: process.env.WHOOP_CLIENT_ID!,
+                    client_secret: process.env.WHOOP_CLIENT_SECRET!,
+                })
+            });
+
+            const newTokens = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(newTokens.error_description || 'Failed to refresh token');
+            }
+
+            whoopAccessToken = newTokens.access_token;
+            whoopRefreshToken = newTokens.refresh_token;
+            whoopTokenExpiresAt = new Date(Date.now() + newTokens.expires_in * 1000);
+            
+            await prisma.user.update({
+                where: { id: req.userId! },
+                data: {
+                    whoopAccessToken,
+                    whoopRefreshToken,
+                    whoopTokenExpiresAt,
+                }
+            });
+        } catch (error) {
+            console.error('Failed to refresh WHOOP token during auth test', error);
+            return res.status(401).json({ success: false, message: 'Could not refresh WHOOP session. Please reconnect.' });
+        }
+    }
+    
+    // Use the (potentially new) accessToken to fetch data.
+    const api = whoopAPI;
+    api.setTokens(whoopAccessToken, whoopRefreshToken, whoopTokenExpiresAt.getTime());
+
+    const profile = await api.getUserProfile();
+
+    if (profile && profile.user_id) {
+      res.json({ success: true, message: `Successfully connected to WHOOP as ${profile.first_name} ${profile.last_name}.` });
+    } else {
+      res.status(400).json({ success: false, message: 'Connection test failed. Could not retrieve WHOOP user profile.' });
+    }
   } catch (error) {
-    console.error('Error fetching WHOOP data for log:', error);
-    res.status(500).json({ error: 'Failed to fetch WHOOP data' });
+    console.error('Error during WHOOP auth test:', error);
+    res.status(500).json({ success: false, message: 'An unexpected error occurred during the connection test.' });
   }
 });
+
+router.get('/whoop/data', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: req.userId! },
+            select: { 
+                whoopAccessToken: true,
+                whoopRefreshToken: true,
+                whoopTokenExpiresAt: true,
+            }
+        });
+
+        if (!user || !user.whoopAccessToken || !user.whoopRefreshToken || !user.whoopTokenExpiresAt) {
+            return res.status(400).json({ error: 'No WHOOP credentials found for user' });
+        }
+        
+        let { whoopAccessToken, whoopRefreshToken, whoopTokenExpiresAt } = user;
+        
+        // The WhoopAPI class now handles its own token refreshes internally.
+        // We just need to set the initial tokens from the database.
+        const api = whoopAPI;
+        api.setTokens(whoopAccessToken, whoopRefreshToken, whoopTokenExpiresAt.getTime());
+
+        const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
+        
+        // The log date from the client is a 'YYYY-MM-DD' string. We need to find the cycle that corresponds to this day.
+        // A WHOOP cycle is defined by when a user goes to sleep and wakes up. The cycle for a given calendar day
+        // is the one where the primary sleep *ends* on that day.
+        const logDate = new Date(`${date}T12:00:00.000Z`); // Use noon to avoid timezone issues.
+        const startDate = new Date(logDate);
+        startDate.setDate(logDate.getDate() - 1); // Widen range to be safe.
+        const endDate = new Date(logDate);
+        endDate.setDate(logDate.getDate() + 1);
+
+        const startISO = startDate.toISOString();
+        const endISO = endDate.toISOString();
+
+        const cycles = await api.getCyclesInDateRange(startISO, endISO);
+        if (!cycles || cycles.length === 0) {
+            return res.json({ success: true, data: {}, message: 'No WHOOP cycles found for this date range.' });
+        }
+
+        //find the cycle where the main sleep ends on the log date
+        const targetCycle = cycles.find((c: any) => c.end && c.end.startsWith(date));
+        if (!targetCycle) {
+            return res.json({ success: true, data: {}, message: 'Could not find a matching WHOOP cycle for this date.' });
+        }
+
+        //fetch sleep, recovery, and workouts using cycle ID and date range
+        const [sleepData, recoveryData, workouts] = await Promise.all([
+            api.getSleepForCycle(targetCycle.id),
+            api.getRecoveryForCycle(targetCycle.id),
+            api.getWorkoutsInDateRange(startISO, endISO) // Workouts are still best fetched by date range
+        ]);
+
+        // After successful API calls, get the latest tokens from the API instance
+        const newTokens = api.getTokens();
+        if (newTokens && newTokens.access_token !== whoopAccessToken) {
+            console.log('WHOOP token was refreshed, updating database...');
+            await prisma.user.update({
+                where: { id: req.userId! },
+                data: {
+                    whoopAccessToken: newTokens.access_token,
+                    whoopRefreshToken: newTokens.refresh_token,
+                    whoopTokenExpiresAt: new Date(Date.now() + newTokens.expires_in * 1000),
+                }
+            });
+            console.log('Database updated with new WHOOP tokens.');
+        }
+
+        const targetWorkouts = workouts.filter((w: any) => w.start.startsWith(date));
+
+        const result: any = {};
+        if (sleepData && sleepData.score) {
+            result.bedtime = sleepData.start.substring(11, 16);
+            result.wakeTime = sleepData.end.substring(11, 16);
+            result.sleepEfficiencyPercent = sleepData.score.sleep_efficiency_percentage;
+            result.sleepFulfillmentPercent = sleepData.score.sleep_performance_percentage;
+            
+            //v2 provides sleep debt in milliseconds
+            if (sleepData.score.sleep_needed?.need_from_sleep_debt_milli) {
+                result.sleepDebtMinutes = Math.round(sleepData.score.sleep_needed.need_from_sleep_debt_milli / 60000);
+            } else {
+                result.sleepDebtMinutes = 0;
+            }
+        }
+        if (workouts && workouts.length > 0) {
+            result.didStrengthTrainingWorkout = targetWorkouts.some((w: any) => w.sport_name && w.sport_name.toLowerCase().includes('strength'));
+            result.wentForRun = targetWorkouts.some((w: any) => w.sport_name && w.sport_name.toLowerCase().includes('run'));
+            //v2 provides energy in kilojoules, convert to calories
+            result.caloriesBurned = Math.round(targetWorkouts.reduce((total: number, w: any) => total + (w.score?.kilojoule || 0), 0) / 4.184);
+        }
+        if (recoveryData && recoveryData.score) {
+            result.restingHR = recoveryData.score.resting_heart_rate;
+            result.heartRateVariability = recoveryData.score.hrv_rmssd_milli;
+            // current whoop api does not provide strain... smh
+            result.whoopStrainScore = null; 
+            result.whoopRecoveryScorePercent = recoveryData.score.recovery_score;
+        }
+
+        res.json({ success: true, data: result });
+    } catch (error) {
+        console.error('Error fetching WHOOP data for log:', error);
+        res.status(500).json({ error: 'Failed to fetch WHOOP data' });
+    }
+});
+
 
 export default router; 

@@ -20,6 +20,8 @@ export default function Log() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [existingLogId, setExistingLogId] = useState(null);
   const [isFutureDate, setIsFutureDate] = useState(false);
+  const [isWhoopLoading, setIsWhoopLoading] = useState(false);
+  const [whoopError, setWhoopError] = useState(null);
 
   // Get date from URL parameter or default to current date
   useEffect(() => {
@@ -63,6 +65,53 @@ export default function Log() {
     }
   }, [dataPointDefinitions, datapointsLoading, datapointsError, selectedCategory]);
 
+  const handleLoadFromWhoop = async () => {
+    setIsWhoopLoading(true);
+    setWhoopError(null);
+    try {
+      const dateString = formatDateAsCentral(selectedDate);
+      const whoopResp = await fetchWhoopData(dateString);
+      if (whoopResp && whoopResp.success && whoopResp.data) {
+        const whoop = whoopResp.data;
+        
+        setValues(prevValues => {
+          const newValues = JSON.parse(JSON.stringify(prevValues));
+
+          //maps WHOOP fields to log fields
+
+          if (newValues.sleep) {
+            if (whoop.bedtime !== undefined) newValues.sleep.bedtime = whoop.bedtime;
+            if (whoop.wakeTime !== undefined) newValues.sleep.wakeTime = whoop.wakeTime;
+            if (whoop.sleepEfficiencyPercent !== undefined) newValues.sleep.sleepEfficiencyPercent = whoop.sleepEfficiencyPercent;
+            if (whoop.sleepFulfillmentPercent !== undefined) newValues.sleep.sleepFulfillmentPercent = whoop.sleepFulfillmentPercent;
+            if (whoop.sleepDebtMinutes !== undefined) newValues.sleep.sleepDebtMinutes = whoop.sleepDebtMinutes;
+          }
+          if (newValues.physicalHealth) {
+            if (whoop.didStrengthTrainingWorkout !== undefined) newValues.physicalHealth.didStrengthTrainingWorkout = whoop.didStrengthTrainingWorkout;
+            if (whoop.wentForRun !== undefined) newValues.physicalHealth.wentForRun = whoop.wentForRun;
+            if (whoop.caloriesBurned !== undefined) newValues.physicalHealth.caloriesBurned = whoop.caloriesBurned;
+            if (whoop.restingHR !== undefined) newValues.physicalHealth.restingHR = whoop.restingHR;
+            if (whoop.heartRateVariability !== undefined) newValues.physicalHealth.heartRateVariability = whoop.heartRateVariability;
+            if (whoop.whoopStrainScore !== undefined) newValues.physicalHealth.whoopStrainScore = whoop.whoopStrainScore;
+            if (whoop.whoopRecoveryScorePercent !== undefined) newValues.physicalHealth.whoopRecoveryScorePercent = whoop.whoopRecoveryScorePercent;
+          }
+          return newValues;
+        });
+      } else {
+        setWhoopError("Failed to load data from Whoop. An unknown issue occurred.");
+      }
+    } catch (whoopErr) {
+      console.warn('Could not prepopulate with WHOOP data:', whoopErr);
+      if (whoopErr.message && whoopErr.message.includes('WHOOP credentials have expired')) {
+        setWhoopError('WHOOP connection has expired. You can reconnect your WHOOP account in Settings > Integrations.');
+      } else {
+        setWhoopError(whoopErr.message || 'An unknown error occurred while fetching Whoop data.');
+      }
+    } finally {
+      setIsWhoopLoading(false);
+    }
+  };
+
   // Load existing log data for the selected date
   useEffect(() => {
     if (!token || !selectedDate || isFutureDate) return;
@@ -94,90 +143,13 @@ export default function Log() {
           }
           setValues(existingValues);
         } else {
-          // No existing log found, use default values and try to prepopulate with WHOOP data
-          let defaultValues = getDefaultValues(dataPointDefinitions);
-          
-          // Only fetch WHOOP data for today's log
-          const today = getCurrentCentralDate();
-          const isToday = selectedDate && isSameDayInCentral(selectedDate, today);
-          
-          if (isToday) {
-            try {
-              const whoopResp = await fetchWhoopData();
-              if (whoopResp && whoopResp.success && whoopResp.data) {
-                const whoop = whoopResp.data;
-                // Map WHOOP fields to log fields
-                // sleep
-                if (defaultValues.sleep) {
-                  if (whoop.bedtime !== undefined) defaultValues.sleep.bedtime = whoop.bedtime;
-                  if (whoop.wakeTime !== undefined) defaultValues.sleep.wakeTime = whoop.wakeTime;
-                  if (whoop.sleepEfficiencyPercent !== undefined) defaultValues.sleep.sleepEfficiencyPercent = whoop.sleepEfficiencyPercent;
-                  if (whoop.sleepFulfillmentPercent !== undefined) defaultValues.sleep.sleepFulfillmentPercent = whoop.sleepFulfillmentPercent;
-                  if (whoop.sleepDebtMinutes !== undefined) defaultValues.sleep.sleepDebtMinutes = whoop.sleepDebtMinutes;
-                }
-                // physicalHealth
-                if (defaultValues.physicalHealth) {
-                  if (whoop.didStrengthTrainingWorkout !== undefined) defaultValues.physicalHealth.didStrengthTrainingWorkout = whoop.didStrengthTrainingWorkout;
-                  if (whoop.wentForRun !== undefined) defaultValues.physicalHealth.wentForRun = whoop.wentForRun;
-                  if (whoop.caloriesBurned !== undefined) defaultValues.physicalHealth.caloriesBurned = whoop.caloriesBurned;
-                  if (whoop.restingHR !== undefined) defaultValues.physicalHealth.restingHR = whoop.restingHR;
-                  if (whoop.heartRateVariability !== undefined) defaultValues.physicalHealth.heartRateVariability = whoop.heartRateVariability;
-                  if (whoop.whoopStrainScore !== undefined) defaultValues.physicalHealth.whoopStrainScore = whoop.whoopStrainScore;
-                  if (whoop.whoopRecoveryScorePercent !== undefined) defaultValues.physicalHealth.whoopRecoveryScorePercent = whoop.whoopRecoveryScorePercent;
-                }
-              }
-            } catch (whoopErr) {
-              // WHOOP data is optional, just log error
-              console.warn('Could not prepopulate with WHOOP data:', whoopErr);
-              
-              // If it's a token expiration error, show a helpful message
-              if (whoopErr.message && whoopErr.message.includes('WHOOP credentials have expired')) {
-                console.warn('WHOOP tokens expired. User should reconnect in Settings page.');
-                // Show a user-friendly alert
-                setTimeout(() => {
-                  alert('WHOOP connection has expired. You can reconnect your WHOOP account in Settings > Integrations to automatically populate your logs with WHOOP data.');
-                }, 1000); // Small delay to avoid showing alert immediately
-              }
-            }
-          }
-          setValues(defaultValues);
+          // No existing log found, use default values
+          setValues(getDefaultValues(dataPointDefinitions));
         }
       } catch (error) {
-        // No existing log found, which is fine
+        // No existing log found
         if (error.response && error.response.status === 404) {
-            let defaultValues = getDefaultValues(dataPointDefinitions);
-            
-            // Only fetch WHOOP data for today's log
-            const today = getCurrentCentralDate();
-            const isToday = selectedDate && isSameDayInCentral(selectedDate, today);
-            
-            if (isToday) {
-              try {
-                const whoopResp = await fetchWhoopData();
-                if (whoopResp && whoopResp.success && whoopResp.data) {
-                  const whoop = whoopResp.data;
-                  if (defaultValues.sleep) {
-                    if (whoop.bedtime !== undefined) defaultValues.sleep.bedtime = whoop.bedtime;
-                    if (whoop.wakeTime !== undefined) defaultValues.sleep.wakeTime = whoop.wakeTime;
-                    if (whoop.sleepEfficiencyPercent !== undefined) defaultValues.sleep.sleepEfficiencyPercent = whoop.sleepEfficiencyPercent;
-                    if (whoop.sleepFulfillmentPercent !== undefined) defaultValues.sleep.sleepFulfillmentPercent = whoop.sleepFulfillmentPercent;
-                    if (whoop.sleepDebtMinutes !== undefined) defaultValues.sleep.sleepDebtMinutes = whoop.sleepDebtMinutes;
-                  }
-                  if (defaultValues.physicalHealth) {
-                    if (whoop.didStrengthTrainingWorkout !== undefined) defaultValues.physicalHealth.didStrengthTrainingWorkout = whoop.didStrengthTrainingWorkout;
-                    if (whoop.wentForRun !== undefined) defaultValues.physicalHealth.wentForRun = whoop.wentForRun;
-                    if (whoop.caloriesBurned !== undefined) defaultValues.physicalHealth.caloriesBurned = whoop.caloriesBurned;
-                    if (whoop.restingHR !== undefined) defaultValues.physicalHealth.restingHR = whoop.restingHR;
-                    if (whoop.heartRateVariability !== undefined) defaultValues.physicalHealth.heartRateVariability = whoop.heartRateVariability;
-                    if (whoop.whoopStrainScore !== undefined) defaultValues.physicalHealth.whoopStrainScore = whoop.whoopStrainScore;
-                    if (whoop.whoopRecoveryScorePercent !== undefined) defaultValues.physicalHealth.whoopRecoveryScorePercent = whoop.whoopRecoveryScorePercent;
-                  }
-                }
-              } catch (whoopErr) {
-                console.warn('Could not prepopulate with WHOOP data:', whoopErr);
-              }
-            }
-            setValues(defaultValues);
+            setValues(getDefaultValues(dataPointDefinitions));
         } else {
           console.error('Error loading existing log:', error);
             setValues(getDefaultValues(dataPointDefinitions));
@@ -381,17 +353,32 @@ export default function Log() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center mb-8 pt-24">
-          <button 
-            onClick={() => navigate('/dashboard')}
-            className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5 mr-2" />
-            Back to Dashboard
-          </button>
-          <div className="flex-1 text-center">
+        <div className="grid grid-cols-3 items-center mb-8 pt-24">
+          <div className="justify-self-start">
+            <button 
+              onClick={() => navigate('/dashboard')}
+              className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5 mr-2" />
+              Back to Dashboard
+            </button>
+          </div>
+          <div className="text-center justify-self-center">
             <h1 className="text-3xl font-light text-gray-900 dark:text-white">Daily Log</h1>
-            <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">{formatDisplayDate(selectedDate)}</p>
+            <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">{selectedDate && formatDisplayDate(selectedDate)}</p>
+          </div>
+          <div className="justify-self-end">
+            <div className="flex flex-col items-end">
+              <button
+                  onClick={handleLoadFromWhoop}
+                  disabled={isWhoopLoading}
+                  className="bg-gray-800 hover:bg-gray-700 dark:bg-slate-200 dark:text-slate-900 dark:hover:bg-slate-300 text-white py-2 px-4 rounded-lg inline-flex items-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                  <img src="/src/assets/whoop-icon.png" alt="whoop" className="w-5 h-5 mr-2"/>
+                  <span>{isWhoopLoading ? 'Loading...' : 'Load from Whoop'}</span>
+              </button>
+              {whoopError && <p className="text-red-500 text-sm mt-2">{whoopError}</p>}
+            </div>
           </div>
         </div>
 

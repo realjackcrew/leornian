@@ -1,12 +1,13 @@
 import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, Settings as SettingsIcon, Database, User, MessageCircle, ChevronRight, Zap, Palette } from "lucide-react";
-import { checkWhoopStatus, getUserProfile, disconnectWhoop } from '../api/auth';
+import { checkWhoopStatus, getUserProfile, disconnectWhoop, testWhoopConnection } from '../api/auth';
 import { getDatapointDefinitions, getDatapointPreferences, saveDatapointPreferences } from '../api/datapoints';
 import { getChatSettings, updateChatSettings, getChatOptions } from '../api/chat';
 import { API_BASE_URL } from '../config';
 import { useTheme } from '../context/ThemeContext';
 import { AuthContext } from '../context/AuthContext';
+import whoopIcon from '../assets/whoop-icon.png';
 
 export default function Settings() {
     const navigate = useNavigate();
@@ -31,8 +32,30 @@ export default function Settings() {
         verbosities: [],
         models: []
     });
+    const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+    const [testResult, setTestResult] = useState(null);
+    const [isTesting, setIsTesting] = useState(false);
 
     useEffect(() => {
+        const checkAuthCallback = async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const authStatus = urlParams.get('whoopAuth');
+            if (authStatus) {
+                if (authStatus === 'success') {
+                    setToast({ show: true, message: 'WHOOP connected successfully!', type: 'success' });
+                    // Refresh whoop status to show connected state
+                    const status = await checkWhoopStatus();
+                    setWhoopStatus(status);
+                } else {
+                    setToast({ show: true, message: 'Failed to connect WHOOP. Please try again.', type: 'error' });
+                }
+                // Clean the URL
+                navigate('/settings', { replace: true });
+            }
+        };
+
+        checkAuthCallback();
+
         // Load user profile, WHOOP status, datapoint data, and chat settings
         const loadData = async () => {
             try {
@@ -71,6 +94,16 @@ export default function Settings() {
         loadData();
     }, []);
 
+    // Effect to hide toast after a few seconds
+    useEffect(() => {
+        if (toast.show) {
+            const timer = setTimeout(() => {
+                setToast({ show: false, message: '', type: 'success' });
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [toast]);
+
     // Update selected theme when theme changes
     useEffect(() => {
         setSelectedTheme(theme);
@@ -99,23 +132,12 @@ export default function Settings() {
     }, []);
 
     const handleWhoopConnect = () => {
-        // Check if user is logged in (has token)
         const token = localStorage.getItem('token');
         if (!token) {
-            alert('Please log in first before connecting your WHOOP account.');
+            alert('Authentication token not found. Please log in again.');
             return;
         }
-
-        // Generate and store state parameter for CSRF protection
-        const state = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        sessionStorage.setItem('whoop_oauth_state', state);
-        
-        console.log('WHOOP OAuth: Stored state:', state);
-        
-        const whoopClientId = import.meta.env.VITE_WHOOP_CLIENT_ID;
-        const redirectUri = `${window.location.origin}/whoop-callback`;
-        const whoopAuthUrl = `https://api.prod.whoop.com/oauth/oauth2/auth?client_id=${whoopClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=offline%20read:profile%20read:recovery%20read:cycles%20read:workout&state=${state}`;
-        window.location.href = whoopAuthUrl;
+        window.location.href = `${API_BASE_URL}/api/auth/whoop?token=${token}`;
     };
 
     const handleWhoopDisconnect = async () => {
@@ -129,14 +151,17 @@ export default function Settings() {
         }
     };
 
-    const handleWhoopReconnect = () => {
-        // First disconnect, then connect
-        handleWhoopDisconnect().then(() => {
-            // Small delay to ensure disconnect completes
-            setTimeout(() => {
-                handleWhoopConnect();
-            }, 500);
-        });
+    const handleTestConnection = async () => {
+        setIsTesting(true);
+        setTestResult(null);
+        try {
+            const result = await testWhoopConnection();
+            setTestResult(result);
+        } catch (error) {
+            setTestResult({ success: false, message: error.message || 'An unknown error occurred.' });
+        } finally {
+            setIsTesting(false);
+        }
     };
 
     const handleToggleCategory = (category) => {
@@ -298,7 +323,7 @@ export default function Settings() {
                                 value={userProfile.preferredName || ''}
                                 onChange={(e) => setUserProfile(prev => ({ ...prev, preferredName: e.target.value }))}
                                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                                placeholder="What would you like to be called? Batman? Napoleon? The Dread Pirate Roberts?"
+                                placeholder="What would you like to be called? Neo? Batman? The Dread Pirate Roberts?"
                             />
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                 This name will be used throughout the app instead of your first name
@@ -451,85 +476,93 @@ export default function Settings() {
                 <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
                     Integrations
                 </h2>
-                <p className="text-gray-600 dark:text-gray-400">
-                    Connect your fitness and health apps to automatically import data
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Connect your accounts from other services.
                 </p>
             </div>
+            <div className="border-t border-gray-200 dark:border-gray-700"></div>
 
-            <div className="space-y-6">
-                {/* WHOOP Integration */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                            <div className="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
-                                <span className="text-red-600 dark:text-red-400 font-bold text-lg">W</span>
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                                    WHOOP
-                                </h3>
-                                <p className="text-gray-600 dark:text-gray-400">
-                                    Import recovery, strain, and sleep data
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            {whoopStatus.isConnected ? (
-                                <div className="flex items-center space-x-2">
-                                    <div className="flex items-center space-x-1 text-green-600 dark:text-green-400">
-                                        <Check className="h-4 w-4" />
-                                        <span className="text-sm font-medium">Connected</span>
-                                    </div>
-                                    <button
-                                        onClick={handleWhoopReconnect}
-                                        className="px-3 py-1 text-xs bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors"
-                                    >
-                                        Reconnect
-                                    </button>
-                                    <button
-                                        onClick={handleWhoopDisconnect}
-                                        className="px-3 py-1 text-xs bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-                                    >
-                                        Disconnect
-                                    </button>
-                                </div>
-                            ) : (
-                                <button
-                                    onClick={handleWhoopConnect}
-                                    className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                                >
-                                    Connect
-                                </button>
-                            )}
+            {/* WHOOP Integration */}
+            <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                        <img src={whoopIcon} alt="WHOOP" className="h-8 w-8 rounded-md" />
+                        <div>
+                            <h3 className="font-semibold text-gray-900 dark:text-white">WHOOP</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                Sync your health and activity data.
+                            </p>
                         </div>
                     </div>
-                </div>
-
-                {/* Future Integrations Placeholder */}
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                            <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                                <span className="text-gray-400 dark:text-gray-500 text-lg">+</span>
+                    <div className="flex items-center space-x-2">
+                        {whoopStatus.isConnected ? (
+                             <div className="flex items-center space-x-2">
+                                <div className="flex items-center space-x-1 text-green-600 dark:text-green-400">
+                                    <Check className="h-4 w-4" />
+                                    <span className="text-sm font-medium">Connected</span>
+                                </div>
+                                <button
+                                    onClick={handleWhoopDisconnect}
+                                    className="px-3 py-1 text-xs bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                                >
+                                    Disconnect
+                                </button>
                             </div>
-                            <div>
-                                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                                    More Integrations Coming Soon
-                                </h3>
-                                <p className="text-gray-600 dark:text-gray-400">
-                                    We're working on adding support for the other inferior fitness platforms
-                                </p>
-                            </div>
-                        </div>
-                        <button
-                            disabled
-                            className="px-4 py-2 text-sm bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 rounded-md cursor-not-allowed"
-                        >
-                            Coming Soon
-                        </button>
+                        ) : (
+                            <button
+                                onClick={handleWhoopConnect}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                                Connect
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
+            <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 dark:border-gray-700 mt-4">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                            <span className="text-gray-400 dark:text-gray-500 text-lg">+</span>
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-medium text-gray-900 dark:text-white">More Integrations Coming Soon</h3>
+                            <p className="text-gray-600 dark:text-gray-400">We're working on adding support for the other inferior fitness platforms</p>
+                        </div>
+                    </div>
+                    <button disabled className="px-4 py-2 text-sm bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 rounded-md cursor-not-allowed">Coming Soon</button>
+                </div>
+            </div>
+            {/* Test Connection Button */}
+            {/**
+            <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                        <SettingsIcon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                        <div>
+                            <h3 className="font-semibold text-gray-900 dark:text-white">Test WHOOP Connection</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                Check if your WHOOP account is still connected and functional.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <button
+                            onClick={handleTestConnection}
+                            disabled={isTesting}
+                            className="text-sm font-medium text-blue-600 hover:text-blue-500 disabled:opacity-50 disabled:cursor-wait"
+                        >
+                            {isTesting ? 'Testing...' : 'Test Connection'}
+                        </button>
+                        {testResult && (
+                            <div className={`mt-2 text-sm p-3 rounded-md ${testResult.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                {testResult.message}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+            */}
         </div>
     );
 

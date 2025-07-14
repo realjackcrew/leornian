@@ -1,7 +1,207 @@
 import axios from 'axios';
-import dotenv from 'dotenv';
+import simpleOAuth2, { AccessToken, Token } from 'simple-oauth2';
+import prisma from '../db/database';
 
-dotenv.config();
+
+const whoopOauthConfig = {
+  client: {
+    id: process.env.WHOOP_CLIENT_ID || '',
+    secret: process.env.WHOOP_CLIENT_SECRET || '',
+  },
+  auth: {
+    tokenHost: 'https://api.prod.whoop.com',
+    tokenPath: '/oauth/oauth2/token',
+    authorizePath: '/oauth/oauth2/auth',
+  },
+  options: {
+    authorizationMethod: 'header' as const,
+  },
+};
+
+const oauth2 = new simpleOAuth2.AuthorizationCode(whoopOauthConfig);
+
+const REDIRECT_URI = process.env.WHOOP_REDIRECT_URI || 'http://localhost:4000/api/auth/whoop/callback';
+
+export function getWhoopAuthUrl(state: string): string {
+  const authorizationUri = oauth2.authorizeURL({
+    redirect_uri: REDIRECT_URI,
+    scope: [
+      'read:recovery',
+      'read:cycles',
+      'read:workout',
+      'read:sleep',
+      'read:profile',
+      'read:body_measurement',
+      'offline',
+    ].join(' '),
+    state: state,
+  });
+  return authorizationUri;
+}
+
+export async function handleWhoopCallback(code: string, userId: string): Promise<void> {
+  try {
+    const result = await oauth2.getToken({
+      code,
+      redirect_uri: REDIRECT_URI,
+    });
+
+    const accessToken = oauth2.createToken(result as unknown as Token);
+
+    const { token } = accessToken;
+
+    if (!token.access_token || !token.refresh_token) {
+      throw new Error('Failed to obtain access token or refresh token from Whoop.');
+    }
+
+    // Since credentials are on the User model, we update the user directly.
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        whoopAccessToken: token.access_token,
+        whoopRefreshToken: token.refresh_token,
+        whoopTokenExpiresAt: new Date(Date.now() + (token.expires_in as number) * 1000),
+      },
+    });
+
+    // Fetch and store the Whoop User ID
+    const profile = await makeAuthenticatedRequest(userId, { method: 'GET', url: 'https://api.prod.whoop.com/developer/v2/user/profile/basic' });
+    if (profile.user_id) {
+        await prisma.user.update({
+            where: { id: userId },
+            data: { whoopUserId: profile.user_id.toString() },
+        });
+    }
+
+  } catch (error) {
+    console.error('Error in handleWhoopCallback:', error);
+    throw new Error('Failed to handle Whoop callback and obtain token.');
+  }
+}
+
+async function refreshWhoopToken(userId: string): Promise<AccessToken> {
+    console.log('[Whoop] Access token expired or invalid. Attempting to refresh.');
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.whoopRefreshToken) {
+        throw new Error('No refresh token found for user. Please reconnect Whoop account.');
+    }
+
+    try {
+        console.log('[Whoop] Preparing to refresh token. Parameters:');
+        const params = new URLSearchParams();
+        params.append('grant_type', 'refresh_token');
+        params.append('refresh_token', user.whoopRefreshToken);
+        params.append('client_id', whoopOauthConfig.client.id);
+        params.append('client_secret', whoopOauthConfig.client.secret);
+        params.append('scope', 'offline');
+        
+        console.log({
+            grant_type: 'refresh_token',
+            refresh_token: 'REDACTED',
+            client_id: whoopOauthConfig.client.id,
+            client_secret: 'REDACTED',
+            scope: 'offline'
+        });
+
+        const refreshResponse = await axios.post(
+            whoopOauthConfig.auth.tokenHost + whoopOauthConfig.auth.tokenPath,
+            params,
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+            }
+        );
+
+        const newAccessTokenData = refreshResponse.data;
+        const newAccessToken = oauth2.createToken(newAccessTokenData as unknown as Token);
+
+        await prisma.user.update({
+            where: { id: userId },
+            data: {
+                whoopAccessToken: newAccessToken.token.access_token as string,
+                whoopRefreshToken: newAccessToken.token.refresh_token as string,
+                whoopTokenExpiresAt: new Date(newAccessToken.token.expires_at as number),
+            },
+        });
+        console.log('[Whoop] Successfully refreshed token.');
+        return newAccessToken;
+    } catch (error: any) {
+        console.error('[Whoop] Full error during token refresh:');
+        if (error.response) {
+            console.error('Status:', error.response.status);
+            console.error('Data:', JSON.stringify(error.response.data, null, 2));
+            console.error('Headers:', JSON.stringify(error.response.headers, null, 2));
+            const errorMessage = (error.response.data?.error_description || error.response.data?.error || JSON.stringify(error.response.data));
+            throw new Error(`Token refresh failed with status ${error.response.status}: ${errorMessage}`);
+        } else {
+            console.error(error.message);
+            throw new Error(`Token refresh failed: ${error.message}`);
+        }
+    }
+}
+
+async function getAccessToken(userId: string): Promise<AccessToken> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user || !user.whoopAccessToken || !user.whoopRefreshToken || !user.whoopTokenExpiresAt) {
+    throw new Error('No Whoop credentials found for this user.');
+  }
+
+  let accessToken = oauth2.createToken({
+    access_token: user.whoopAccessToken,
+    refresh_token: user.whoopRefreshToken,
+    expires_at: user.whoopTokenExpiresAt.getTime(),
+  } as Token);
+
+  if (accessToken.expired()) {
+    console.log('[Whoop] Token has expired. Calling refresh function.');
+    return await refreshWhoopToken(userId);
+  }
+
+  console.log('[Whoop] Token is valid and not expired.');
+  return accessToken;
+}
+
+
+export async function makeAuthenticatedRequest(userId: string, options: any): Promise<any> {
+    let accessToken = await getAccessToken(userId);
+
+    const doRequest = async (token: AccessToken) => {
+        const requestConfig = {
+            ...options,
+            headers: {
+                ...options.headers,
+                Authorization: `Bearer ${token.token.access_token}`,
+            },
+        };
+        console.log(`[Whoop] Making authenticated request to: ${options.url}`);
+        return axios(requestConfig);
+    };
+
+    try {
+        const response = await doRequest(accessToken);
+        console.log(`[Whoop] Request to ${options.url} successful.`);
+        return response.data;
+    } catch (error: any) {
+        if (error.response?.status === 401) {
+            console.log('[Whoop] Initial request failed with 401. Attempting token refresh and retry.');
+            try {
+                const newAccessToken = await refreshWhoopToken(userId);
+                const retryResponse = await doRequest(newAccessToken);
+                console.log('[Whoop] Retry request successful.');
+                return retryResponse.data;
+            } catch (retryError: any) {
+                console.error(`[Whoop] Request failed even after token refresh.`);
+                throw new Error(`Whoop request failed after retry: ${retryError.message}`);
+            }
+        }
+        console.error(`[Whoop] Non-401 error during authenticated request to ${options.url}:`, error.message);
+        throw new Error(`Whoop request failed: ${error.message}`);
+    }
+}
 
 interface WhoopTokenResponse {
   access_token: string;
@@ -64,6 +264,8 @@ class WhoopAPI {
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
   private tokenExpiry: number | null = null;
+  // Scopes requested when redirecting to WHOOP
+  private scopes = ['offline', 'read:profile', 'read:cycles', 'read:recovery', 'read:sleep', 'read:workout'];
 
   private isTokenValid(): boolean {
     return this.tokenExpiry ? Date.now() < this.tokenExpiry : false;
@@ -75,7 +277,6 @@ class WhoopAPI {
     }
 
     try {
-      // WHOOP expects form-urlencoded data, not JSON
       const formData = new URLSearchParams();
       formData.append('grant_type', 'refresh_token');
       formData.append('refresh_token', this.refreshToken);
@@ -110,9 +311,10 @@ class WhoopAPI {
   private async makeAuthenticatedRequest(endpoint: string, params?: any): Promise<any> {
     if (!this.accessToken || !this.isTokenValid()) {
       if (this.refreshToken) {
+        console.log('Token is expired or invalid, attempting refresh before request.');
         await this.refreshAccessToken();
       } else {
-        throw new Error('No valid authentication token available');
+        throw new Error('No valid authentication token or refresh token available.');
       }
     }
 
@@ -124,8 +326,33 @@ class WhoopAPI {
       params,
     };
 
-    const response = await axios.get(`${this.baseURL}${endpoint}`, config);
-    return response.data;
+    try {
+      const response = await axios.get(`${this.baseURL}${endpoint}`, config);
+      return response.data;
+    } catch (error: any) {
+      // If the request fails with a 401, try to refresh it and retry the request once.
+      if (error.isAxiosError && error.response?.status === 401) {
+        console.log('WHOOP request failed with 401. Attempting token refresh...');
+        if (this.refreshToken) {
+          try {
+            await this.refreshAccessToken();
+            // Retry the request with the new token.
+            console.log('Token refreshed successfully. Retrying original request...');
+            const retryConfig = { ...config, headers: { ...config.headers, Authorization: `Bearer ${this.accessToken}` } };
+            const response = await axios.get(`${this.baseURL}${endpoint}`, retryConfig);
+            return response.data;
+          } catch (refreshError) {
+            console.error('Failed to refresh token after a 401 error:', refreshError);
+            throw new Error('Authorization failed. Could not refresh token. Please reconnect your WHOOP account.');
+          }
+        } else {
+          throw new Error('Authorization failed. No refresh token available.');
+        }
+      }
+      // For other errors, just re-throw.
+      console.error(`WHOOP API request failed for endpoint ${endpoint}:`, error.response?.data || error.message);
+      throw error;
+    }
   }
 
   /**
@@ -134,7 +361,6 @@ class WhoopAPI {
    */
   async initialize(authorizationCode: string): Promise<void> {
     try {
-      // WHOOP expects form-urlencoded data, not JSON
       const formData = new URLSearchParams();
       formData.append('grant_type', 'authorization_code');
       formData.append('code', authorizationCode);
@@ -170,34 +396,13 @@ class WhoopAPI {
   }
 
   /**
-   * Get cycle data for a specific date range
-   * @param startDate Start date in ISO format (YYYY-MM-DD)
-   * @param endDate End date in ISO format (YYYY-MM-DD)
-   * @returns Array of cycle data
-   */
-  async getCycleData(startDate: string, endDate: string): Promise<any[]> {
-    try {
-      console.log('WHOOP API: Fetching cycle data for date range:', startDate, 'to', endDate);
-      const cycles = await this.makeAuthenticatedRequest('/developer/v1/cycle/range', {
-        start: startDate,
-        end: endDate,
-      });
-      console.log('WHOOP API: Found cycles:', cycles?.length || 0, 'cycles');
-      return cycles;
-    } catch (error) {
-      console.error('Failed to fetch WHOOP cycle data:', error);
-      throw error;
-    }
-  }
-
-  /**
    * Get sleep data for a specific cycle
    * @param cycleId The cycle ID
    * @returns Sleep data for the cycle
    */
   async getSleepDataForCycle(cycleId: string): Promise<WhoopSleepData | null> {
     try {
-      return await this.makeAuthenticatedRequest(`/developer/v1/cycle/${cycleId}/sleep`);
+      return await this.makeAuthenticatedRequest(`/developer/v2/cycle/${cycleId}/sleep`);
     } catch (error) {
       console.error('Failed to fetch WHOOP sleep data for cycle:', error);
       throw error;
@@ -211,7 +416,7 @@ class WhoopAPI {
    */
   async getPhysicalDataForCycle(cycleId: string): Promise<WhoopPhysicalData | null> {
     try {
-      return await this.makeAuthenticatedRequest(`/developer/v1/cycle/${cycleId}/workout`);
+      return await this.makeAuthenticatedRequest(`/developer/v2/cycle/${cycleId}/workout`);
     } catch (error) {
       console.error('Failed to fetch WHOOP physical data for cycle:', error);
       throw error;
@@ -225,7 +430,7 @@ class WhoopAPI {
    */
   async getRecoveryDataForCycle(cycleId: string): Promise<any | null> {
     try {
-      return await this.makeAuthenticatedRequest(`/developer/v1/cycle/${cycleId}/recovery`);
+      return await this.makeAuthenticatedRequest(`/developer/v2/cycle/${cycleId}/recovery`);
     } catch (error) {
       console.error('Failed to fetch WHOOP recovery data for cycle:', error);
       throw error;
@@ -241,7 +446,7 @@ class WhoopAPI {
   async getSleepData(startDate: string, endDate: string): Promise<WhoopSleepData[]> {
     try {
       // First get the cycle data for the date range
-      const cycles = await this.getCycleData(startDate, endDate);
+      const cycles = await this.getCyclesInDateRange(startDate, endDate);
       
       if (!cycles || cycles.length === 0) {
         console.log('WHOOP API: No cycles found for date range:', startDate, 'to', endDate);
@@ -265,115 +470,87 @@ class WhoopAPI {
   }
 
   /**
-   * Get sleep data for the most recent sleep cycle
-   * @returns Latest sleep data
+   * Get all cycles for a specific date range.
+   * @returns An array of cycle data objects, or an empty array if none found.
    */
-  async getLatestSleepData(): Promise<WhoopSleepData | null> {
+  async getCyclesInDateRange(startDate: string, endDate: string): Promise<any[]> {
     try {
-      return await this.makeAuthenticatedRequest('/developer/v1/cycle/sleep/latest');
-    } catch (error) {
-      console.error('Failed to fetch latest WHOOP sleep data:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get physical activity/workout data for a specific date range
-   * @param startDate Start date in ISO format (YYYY-MM-DD)
-   * @param endDate End date in ISO format (YYYY-MM-DD)
-   * @returns Array of physical activity data
-   */
-  async getPhysicalData(startDate: string, endDate: string): Promise<WhoopPhysicalData[]> {
-    try {
-      // First get the cycle data for the date range
-      const cycles = await this.getCycleData(startDate, endDate);
-      
-      if (!cycles || cycles.length === 0) {
-        console.log('WHOOP API: No cycles found for date range:', startDate, 'to', endDate);
+      const response = await this.makeAuthenticatedRequest('/developer/v2/cycle', { start: startDate, end: endDate });
+      return response.records || [];
+    } catch (error: any) {
+      if (error.isAxiosError && error.response?.status === 404) {
+        console.log(`No WHOOP cycle data found for date range: ${startDate} to ${endDate} (404).`);
         return [];
       }
-      
-      // Then get physical data for each cycle
-      const physicalDataPromises = cycles.map(cycle => 
-        this.getPhysicalDataForCycle(cycle.id).catch(error => {
-          console.warn(`Failed to fetch physical data for cycle ${cycle.id}:`, error);
-          return null;
-        })
-      );
-      
-      const physicalData = await Promise.all(physicalDataPromises);
-      return physicalData.filter(data => data !== null);
-    } catch (error) {
-      console.error('Failed to fetch WHOOP physical data:', error);
+      console.error(`Failed to fetch WHOOP cycle data for date range:`, error.response?.data || error.message);
       throw error;
     }
   }
 
   /**
-   * Get the most recent physical activity/workout data
-   * @returns Latest physical activity data
+   * Get sleep data for a specific cycle.
+   * @param cycleId The ID of the cycle.
+   * @returns A sleep data object, or null if not found.
    */
-  async getLatestPhysicalData(): Promise<WhoopPhysicalData | null> {
+  async getSleepForCycle(cycleId: string): Promise<any | null> {
     try {
-      return await this.makeAuthenticatedRequest('/developer/v1/cycle/workout/latest');
-    } catch (error) {
-      console.error('Failed to fetch latest WHOOP physical data:', error);
+      const response = await this.makeAuthenticatedRequest(`/developer/v2/cycle/${cycleId}/sleep`);
+      return response;
+    } catch (error: any) {
+      if (error.isAxiosError && error.response?.status === 404) {
+        console.log(`No WHOOP sleep data found for cycle ${cycleId} (404).`);
+        return null;
+      }
+      console.error(`Failed to fetch WHOOP sleep data for cycle ${cycleId}:`, error.response?.data || error.message);
       throw error;
     }
   }
 
   /**
-   * Get recovery data for a specific date range
-   * @param startDate Start date in ISO format (YYYY-MM-DD)
-   * @param endDate End date in ISO format (YYYY-MM-DD)
-   * @returns Array of recovery data
+   * Get recovery data for a specific cycle.
+   * @param cycleId The ID of the cycle.
+   * @returns A recovery data object, or null if not found.
    */
-  async getRecoveryData(startDate: string, endDate: string): Promise<any[]> {
+  async getRecoveryForCycle(cycleId: string): Promise<any | null> {
     try {
-      // First get the cycle data for the date range
-      const cycles = await this.getCycleData(startDate, endDate);
-      
-      if (!cycles || cycles.length === 0) {
-        console.log('WHOOP API: No cycles found for date range:', startDate, 'to', endDate);
+      // Note: The v2 docs suggest this is the endpoint, but it might be /v2/activity/recovery/cycle/{cycleId}/recovery
+      const response = await this.makeAuthenticatedRequest(`/developer/v2/cycle/${cycleId}/recovery`);
+      return response;
+    } catch (error: any) {
+      if (error.isAxiosError && error.response?.status === 404) {
+        console.log(`No WHOOP recovery data found for cycle ${cycleId} (404).`);
+        return null;
+      }
+      console.error(`Failed to fetch WHOOP recovery data for cycle ${cycleId}:`, error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all workouts for a specific date.
+   * @returns An array of workout data objects, or an empty array if none found.
+   */
+  async getWorkoutsInDateRange(startDate: string, endDate: string): Promise<any[]> {
+    try {
+      const response = await this.makeAuthenticatedRequest('/developer/v2/activity/workout', { start: startDate, end: endDate });
+      return response.records || [];
+    } catch (error: any) {
+      if (error.isAxiosError && error.response?.status === 404) {
+        console.log(`No WHOOP workout data found for date range: ${startDate} to ${endDate} (404).`);
         return [];
       }
-      
-      // Then get recovery data for each cycle
-      const recoveryDataPromises = cycles.map(cycle => 
-        this.getRecoveryDataForCycle(cycle.id).catch(error => {
-          console.warn(`Failed to fetch recovery data for cycle ${cycle.id}:`, error);
-          return null;
-        })
-      );
-      
-      const recoveryData = await Promise.all(recoveryDataPromises);
-      return recoveryData.filter(data => data !== null);
-    } catch (error) {
-      console.error('Failed to fetch WHOOP recovery data:', error);
+      console.error(`Failed to fetch WHOOP workout data for date range:`, error.response?.data || error.message);
       throw error;
     }
   }
 
   /**
-   * Get the most recent recovery data
-   * @returns Latest recovery data
-   */
-  async getLatestRecoveryData(): Promise<any | null> {
-    try {
-      return await this.makeAuthenticatedRequest('/developer/v1/cycle/recovery/latest');
-    } catch (error) {
-      console.error('Failed to fetch latest WHOOP recovery data:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get user profile information
+   * Get user profile information from WHOOP
    * @returns User profile data
    */
   async getUserProfile(): Promise<any> {
     try {
-      return await this.makeAuthenticatedRequest('/developer/v1/user/profile');
+      return await this.makeAuthenticatedRequest('/developer/v2/user/profile/basic');
     } catch (error) {
       console.error('Failed to fetch WHOOP user profile:', error);
       throw error;
@@ -442,6 +619,19 @@ class WhoopAPI {
   }
 }
 
-// Export a singleton instance
+// Helper to get a recent date range for fetching latest data
+const getRecentDateRange = () => {
+  const now = new Date();
+  const threeDaysAgo = new Date();
+  threeDaysAgo.setDate(now.getDate() - 2); // Covers today, yesterday, and the day before
+
+  const formatDate = (date: Date) => date.toISOString().split('T')[0];
+  
+  return {
+    start: formatDate(threeDaysAgo),
+    end: formatDate(now)
+  };
+};
+
 export const whoopAPI = new WhoopAPI();
 export default WhoopAPI;

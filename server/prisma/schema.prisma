@@ -20,8 +20,12 @@ model User {
   firstName String?
   lastName  String?
   preferredName String?
-  // WHOOP integration credentials stored as JSON
-  whoopCredentials Json?
+  
+  whoopAccessToken      String?
+  whoopRefreshToken     String?
+  whoopTokenExpiresAt   DateTime?
+  whoopUserId           String? @unique
+
   // User settings stored as JSON
   settings  Json?
   logs      DailyLog[]
