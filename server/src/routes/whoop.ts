@@ -251,6 +251,8 @@ router.get('/whoop/test-auth', authenticateToken, async (req: AuthenticatedReque
 
 router.get('/whoop/data', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
     try {
+        console.log('[WHOOP] Starting data fetch for user:', req.userId);
+        
         const user = await prisma.user.findUnique({
             where: { id: req.userId! },
             select: { 
@@ -261,10 +263,12 @@ router.get('/whoop/data', authenticateToken, async (req: AuthenticatedRequest, r
         });
 
         if (!user || !user.whoopAccessToken || !user.whoopRefreshToken || !user.whoopTokenExpiresAt) {
+            console.log('[WHOOP] No credentials found for user:', req.userId);
             return res.status(400).json({ error: 'No WHOOP credentials found for user' });
         }
         
         let { whoopAccessToken, whoopRefreshToken, whoopTokenExpiresAt } = user;
+        console.log('[WHOOP] Found credentials for user, setting up API...');
         
         // The WhoopAPI class now handles its own token refreshes internally.
         // We just need to set the initial tokens from the database.
@@ -272,6 +276,7 @@ router.get('/whoop/data', authenticateToken, async (req: AuthenticatedRequest, r
         api.setTokens(whoopAccessToken, whoopRefreshToken, whoopTokenExpiresAt.getTime());
 
         const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
+        console.log('[WHOOP] Fetching data for date:', date);
         
         // The log date from the client is a 'YYYY-MM-DD' string. We need to find the cycle that corresponds to this day.
         // A WHOOP cycle is defined by when a user goes to sleep and wakes up. The cycle for a given calendar day
@@ -284,24 +289,37 @@ router.get('/whoop/data', authenticateToken, async (req: AuthenticatedRequest, r
 
         const startISO = startDate.toISOString();
         const endISO = endDate.toISOString();
+        console.log('[WHOOP] Searching for cycles between:', startISO, 'and', endISO);
 
         const cycles = await api.getCyclesInDateRange(startISO, endISO);
+        console.log('[WHOOP] Found cycles:', cycles?.length || 0);
+        
         if (!cycles || cycles.length === 0) {
+            console.log('[WHOOP] No cycles found, returning empty data');
             return res.json({ success: true, data: {}, message: 'No WHOOP cycles found for this date range.' });
         }
 
         //find the cycle where the main sleep ends on the log date
         const targetCycle = cycles.find((c: any) => c.end && c.end.startsWith(date));
         if (!targetCycle) {
+            console.log('[WHOOP] No target cycle found for date:', date);
+            console.log('[WHOOP] Available cycles:', cycles.map((c: any) => ({ id: c.id, start: c.start, end: c.end })));
             return res.json({ success: true, data: {}, message: 'Could not find a matching WHOOP cycle for this date.' });
         }
 
+        console.log('[WHOOP] Found target cycle:', targetCycle.id, 'with end date:', targetCycle.end);
+
         //fetch sleep, recovery, and workouts using cycle ID and date range
+        console.log('[WHOOP] Fetching sleep, recovery, and workout data...');
         const [sleepData, recoveryData, workouts] = await Promise.all([
             api.getSleepForCycle(targetCycle.id),
             api.getRecoveryForCycle(targetCycle.id),
             api.getWorkoutsInDateRange(startISO, endISO) // Workouts are still best fetched by date range
         ]);
+
+        console.log('[WHOOP] Sleep data:', sleepData ? 'found' : 'not found');
+        console.log('[WHOOP] Recovery data:', recoveryData ? 'found' : 'not found');
+        console.log('[WHOOP] Workouts found:', workouts?.length || 0);
 
         // After successful API calls, get the latest tokens from the API instance
         const newTokens = api.getTokens();
@@ -319,8 +337,11 @@ router.get('/whoop/data', authenticateToken, async (req: AuthenticatedRequest, r
         }
 
         const targetWorkouts = workouts.filter((w: any) => w.start.startsWith(date));
+        console.log('[WHOOP] Target workouts for date:', targetWorkouts.length);
 
         const result: any = {};
+        const missingData: string[] = [];
+        
         if (sleepData && sleepData.score) {
             result.bedtime = sleepData.start.substring(11, 16);
             result.wakeTime = sleepData.end.substring(11, 16);
@@ -333,22 +354,38 @@ router.get('/whoop/data', authenticateToken, async (req: AuthenticatedRequest, r
             } else {
                 result.sleepDebtMinutes = 0;
             }
+        } else {
+            missingData.push('sleep');
         }
+        
         if (workouts && workouts.length > 0) {
             result.didStrengthTrainingWorkout = targetWorkouts.some((w: any) => w.sport_name && w.sport_name.toLowerCase().includes('strength'));
             result.wentForRun = targetWorkouts.some((w: any) => w.sport_name && w.sport_name.toLowerCase().includes('run'));
             //v2 provides energy in kilojoules, convert to calories
             result.caloriesBurned = Math.round(targetWorkouts.reduce((total: number, w: any) => total + (w.score?.kilojoule || 0), 0) / 4.184);
+        } else {
+            missingData.push('workouts');
         }
+        
         if (recoveryData && recoveryData.score) {
             result.restingHR = recoveryData.score.resting_heart_rate;
             result.heartRateVariability = recoveryData.score.hrv_rmssd_milli;
             // current whoop api does not provide strain... smh
             result.whoopStrainScore = null; 
             result.whoopRecoveryScorePercent = recoveryData.score.recovery_score;
+        } else {
+            missingData.push('recovery');
         }
 
-        res.json({ success: true, data: result });
+        console.log('[WHOOP] Final result:', result);
+        console.log('[WHOOP] Missing data types:', missingData);
+        
+        res.json({ 
+            success: true, 
+            data: result,
+            missingData: missingData,
+            hasAnyData: Object.keys(result).length > 0
+        });
     } catch (error) {
         console.error('Error fetching WHOOP data for log:', error);
         res.status(500).json({ error: 'Failed to fetch WHOOP data' });

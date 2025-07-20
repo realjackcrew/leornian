@@ -309,9 +309,11 @@ class WhoopAPI {
   }
 
   private async makeAuthenticatedRequest(endpoint: string, params?: any): Promise<any> {
+    console.log(`[WHOOP API] Making request to: ${endpoint}`, params ? `with params: ${JSON.stringify(params)}` : '');
+    
     if (!this.accessToken || !this.isTokenValid()) {
       if (this.refreshToken) {
-        console.log('Token is expired or invalid, attempting refresh before request.');
+        console.log('[WHOOP API] Token is expired or invalid, attempting refresh before request.');
         await this.refreshAccessToken();
       } else {
         throw new Error('No valid authentication token or refresh token available.');
@@ -327,22 +329,25 @@ class WhoopAPI {
     };
 
     try {
+      console.log(`[WHOOP API] Sending request to: ${this.baseURL}${endpoint}`);
       const response = await axios.get(`${this.baseURL}${endpoint}`, config);
+      console.log(`[WHOOP API] Request successful for ${endpoint}, response status:`, response.status);
       return response.data;
     } catch (error: any) {
       // If the request fails with a 401, try to refresh it and retry the request once.
       if (error.isAxiosError && error.response?.status === 401) {
-        console.log('WHOOP request failed with 401. Attempting token refresh...');
+        console.log('[WHOOP API] Request failed with 401. Attempting token refresh...');
         if (this.refreshToken) {
           try {
             await this.refreshAccessToken();
             // Retry the request with the new token.
-            console.log('Token refreshed successfully. Retrying original request...');
+            console.log('[WHOOP API] Token refreshed successfully. Retrying original request...');
             const retryConfig = { ...config, headers: { ...config.headers, Authorization: `Bearer ${this.accessToken}` } };
             const response = await axios.get(`${this.baseURL}${endpoint}`, retryConfig);
+            console.log(`[WHOOP API] Retry request successful for ${endpoint}`);
             return response.data;
           } catch (refreshError) {
-            console.error('Failed to refresh token after a 401 error:', refreshError);
+            console.error('[WHOOP API] Failed to refresh token after a 401 error:', refreshError);
             throw new Error('Authorization failed. Could not refresh token. Please reconnect your WHOOP account.');
           }
         } else {
@@ -350,7 +355,7 @@ class WhoopAPI {
         }
       }
       // For other errors, just re-throw.
-      console.error(`WHOOP API request failed for endpoint ${endpoint}:`, error.response?.data || error.message);
+      console.error(`[WHOOP API] Request failed for endpoint ${endpoint}:`, error.response?.data || error.message);
       throw error;
     }
   }

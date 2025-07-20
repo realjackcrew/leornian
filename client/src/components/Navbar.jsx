@@ -79,7 +79,7 @@ export default function Navbar({ user, onLogout }) {
     }
     if (isHomePage) {
       return scrolledPastLanding 
-        ? 'bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-transparent text-gray-800 dark:text-gray-200' 
+        ? 'bg-black/95 backdrop-blur-sm border-transparent text-white' 
         : 'bg-transparent text-white';
     }
     return 'bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200';
@@ -88,7 +88,10 @@ export default function Navbar({ user, onLogout }) {
   // Determine button colors based on scroll and login status
   const getButtonStyles = () => {
     if (isHomePage && !scrolledPastLanding) {
-      return 'text-white dark:text-white hover:text-white/80 dark:hover:text-white/80 hover:bg-white/10 dark:hover:bg-white/10 hover:dark:bg-white/10';
+      return 'text-white hover:text-white/80 hover:bg-white/10';
+    }
+    if (isHomePage && scrolledPastLanding) {
+      return 'text-white hover:text-white/80 hover:bg-white/10';
     }
     return 'text-gray-800 dark:text-gray-200 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800';
   };

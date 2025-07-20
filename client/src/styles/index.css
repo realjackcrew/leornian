@@ -169,3 +169,436 @@ html {
 .dark .markdown-message tr:nth-child(even) td {
   background: #111827;
 }
+
+/* Paradigm AI Inspired Homepage Graphics */
+
+/* Subtle Background Pattern */
+.subtle-grid {
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: subtleGridMove 30s linear infinite;
+  opacity: 0.5;
+}
+
+.background-gradient {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+  animation: gradientPulse 8s ease-in-out infinite;
+}
+
+@keyframes subtleGridMove {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(40px, 40px); }
+}
+
+@keyframes gradientPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+/* Floating Background Shapes */
+.floating-shapes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.floating-shape {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.1), transparent);
+  opacity: 0.3;
+}
+
+.shape-bg-1 {
+  width: 200px;
+  height: 200px;
+  top: 10%;
+  left: 5%;
+  animation: floatBg1 20s ease-in-out infinite;
+}
+
+.shape-bg-2 {
+  width: 150px;
+  height: 150px;
+  top: 60%;
+  right: 10%;
+  animation: floatBg2 25s ease-in-out infinite reverse;
+  background: radial-gradient(circle, rgba(147, 51, 234, 0.1), transparent);
+}
+
+.shape-bg-3 {
+  width: 120px;
+  height: 120px;
+  top: 20%;
+  right: 30%;
+  animation: floatBg3 18s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.1), transparent);
+}
+
+.shape-bg-4 {
+  width: 180px;
+  height: 180px;
+  bottom: 15%;
+  left: 20%;
+  animation: floatBg4 22s ease-in-out infinite reverse;
+  background: radial-gradient(circle, rgba(245, 101, 101, 0.1), transparent);
+}
+
+.shape-bg-5 {
+  width: 100px;
+  height: 100px;
+  top: 40%;
+  left: 60%;
+  animation: floatBg5 15s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.1), transparent);
+}
+
+.shape-bg-6 {
+  width: 160px;
+  height: 160px;
+  bottom: 30%;
+  right: 25%;
+  animation: floatBg6 28s ease-in-out infinite reverse;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.1), transparent);
+}
+
+@keyframes floatBg1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(30px, -40px) scale(1.1); }
+  50% { transform: translate(-20px, -60px) scale(0.9); }
+  75% { transform: translate(-50px, -20px) scale(1.05); }
+}
+
+@keyframes floatBg2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-40px, 50px) scale(1.2); }
+  66% { transform: translate(20px, -30px) scale(0.8); }
+}
+
+@keyframes floatBg3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(60px, 40px) scale(1.15); }
+}
+
+@keyframes floatBg4 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(50px, -50px) scale(1.1); }
+  50% { transform: translate(-30px, -80px) scale(0.85); }
+  75% { transform: translate(-70px, 30px) scale(1.2); }
+}
+
+@keyframes floatBg5 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-40px, 60px) scale(1.1); }
+}
+
+@keyframes floatBg6 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(40px, -50px) scale(1.15); }
+  66% { transform: translate(-25px, 40px) scale(0.9); }
+}
+
+/* Background Particles */
+.background-particles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.bg-particle {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  background: rgba(59, 130, 246, 0.4);
+  border-radius: 50%;
+  animation: bgParticleFloat 12s linear infinite;
+}
+
+.bg-particle-1 { top: 5%; left: 10%; animation-delay: 0s; }
+.bg-particle-2 { top: 15%; left: 25%; animation-delay: 1s; }
+.bg-particle-3 { top: 25%; left: 40%; animation-delay: 2s; }
+.bg-particle-4 { top: 35%; left: 55%; animation-delay: 3s; }
+.bg-particle-5 { top: 45%; left: 70%; animation-delay: 4s; }
+.bg-particle-6 { top: 55%; left: 85%; animation-delay: 5s; }
+.bg-particle-7 { top: 65%; left: 15%; animation-delay: 6s; }
+.bg-particle-8 { top: 75%; left: 30%; animation-delay: 7s; }
+.bg-particle-9 { top: 85%; left: 45%; animation-delay: 8s; }
+.bg-particle-10 { top: 95%; left: 60%; animation-delay: 9s; }
+.bg-particle-11 { top: 10%; left: 80%; animation-delay: 10s; }
+.bg-particle-12 { top: 20%; left: 95%; animation-delay: 11s; }
+.bg-particle-13 { top: 30%; left: 5%; animation-delay: 12s; }
+.bg-particle-14 { top: 40%; left: 20%; animation-delay: 13s; }
+.bg-particle-15 { top: 50%; left: 35%; animation-delay: 14s; }
+
+@keyframes bgParticleFloat {
+  0% { 
+    transform: translate(0, 0) scale(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% { 
+    transform: translate(0, -100vh) scale(0);
+    opacity: 0;
+  }
+}
+
+/* Dynamic Background Lines */
+.dynamic-lines {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.dynamic-line {
+  position: absolute;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), transparent);
+  animation: lineFlow 8s ease-in-out infinite;
+}
+
+.line-bg-1 {
+  width: 300px;
+  top: 20%;
+  left: -300px;
+  animation-delay: 0s;
+}
+
+.line-bg-2 {
+  width: 200px;
+  top: 50%;
+  right: -200px;
+  animation-delay: 2s;
+  background: linear-gradient(90deg, transparent, rgba(147, 51, 234, 0.3), transparent);
+}
+
+.line-bg-3 {
+  width: 250px;
+  bottom: 30%;
+  left: -250px;
+  animation-delay: 4s;
+  background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.3), transparent);
+}
+
+@keyframes lineFlow {
+  0% { 
+    transform: translateX(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% { 
+    transform: translateX(100vw);
+    opacity: 0;
+  }
+}
+
+/* Central Node */
+.central-node {
+  width: 80px;
+  height: 80px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.8), rgba(147, 51, 234, 0.6));
+  border-radius: 50%;
+  animation: centralPulse 3s ease-in-out infinite;
+  box-shadow: 
+    0 0 20px rgba(59, 130, 246, 0.5),
+    0 0 40px rgba(59, 130, 246, 0.3),
+    0 0 60px rgba(59, 130, 246, 0.1);
+}
+
+@keyframes centralPulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.1); opacity: 1; }
+}
+
+/* Orbit Containers */
+.orbit-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.orbit-1 {
+  width: 160px;
+  height: 160px;
+  animation: orbit 12s linear infinite;
+}
+
+.orbit-2 {
+  width: 240px;
+  height: 240px;
+  animation: orbit 18s linear infinite reverse;
+}
+
+.orbit-3 {
+  width: 320px;
+  height: 320px;
+  animation: orbit 24s linear infinite;
+}
+
+.orbit-path {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.orbit-element {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.element-1 {
+  background: rgba(59, 130, 246, 0.8);
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
+}
+
+.element-2 {
+  background: rgba(147, 51, 234, 0.8);
+  box-shadow: 0 0 10px rgba(147, 51, 234, 0.6);
+}
+
+.element-3 {
+  background: rgba(16, 185, 129, 0.8);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
+}
+
+@keyframes orbit {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Data Streams */
+.data-stream {
+  position: absolute;
+  width: 2px;
+  height: 60px;
+  background: linear-gradient(to bottom, transparent, rgba(59, 130, 246, 0.6), transparent);
+  border-radius: 1px;
+}
+
+.stream-1 {
+  top: 10%;
+  left: 20%;
+  animation: streamFlow 2s ease-in-out infinite;
+}
+
+.stream-2 {
+  top: 20%;
+  right: 25%;
+  animation: streamFlow 2.5s ease-in-out infinite 0.5s;
+}
+
+.stream-3 {
+  bottom: 20%;
+  left: 30%;
+  animation: streamFlow 1.8s ease-in-out infinite 1s;
+}
+
+.stream-4 {
+  bottom: 15%;
+  right: 20%;
+  animation: streamFlow 2.2s ease-in-out infinite 1.5s;
+}
+
+@keyframes streamFlow {
+  0%, 100% { opacity: 0.3; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-10px); }
+}
+
+/* Data Points */
+.data-points {
+  position: absolute;
+  inset: 0;
+}
+
+.data-point {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: rgba(59, 130, 246, 0.7);
+  border-radius: 50%;
+  animation: dataPointFloat 6s ease-in-out infinite;
+}
+
+.data-point-1 { top: 15%; left: 10%; animation-delay: 0s; }
+.data-point-2 { top: 25%; left: 85%; animation-delay: 0.5s; }
+.data-point-3 { top: 35%; left: 15%; animation-delay: 1s; }
+.data-point-4 { top: 45%; left: 80%; animation-delay: 1.5s; }
+.data-point-5 { top: 55%; left: 20%; animation-delay: 2s; }
+.data-point-6 { top: 65%; left: 75%; animation-delay: 2.5s; }
+.data-point-7 { top: 75%; left: 25%; animation-delay: 3s; }
+.data-point-8 { top: 85%; left: 70%; animation-delay: 3.5s; }
+.data-point-9 { top: 10%; left: 60%; animation-delay: 4s; }
+.data-point-10 { top: 30%; left: 50%; animation-delay: 4.5s; }
+.data-point-11 { top: 70%; left: 45%; animation-delay: 5s; }
+.data-point-12 { top: 90%; left: 40%; animation-delay: 5.5s; }
+
+@keyframes dataPointFloat {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.5); }
+}
+
+/* Connection Lines */
+.connection-lines {
+  animation: linesAnimate 8s ease-in-out infinite;
+}
+
+.connection-line {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: drawLine 4s ease-in-out infinite;
+}
+
+.line-1 {
+  d: path("M 50 50 Q 150 100 250 150");
+  animation-delay: 0s;
+}
+
+.line-2 {
+  d: path("M 100 200 Q 200 150 300 100");
+  animation-delay: 1s;
+}
+
+.line-3 {
+  d: path("M 150 300 Q 250 250 350 200");
+  animation-delay: 2s;
+}
+
+@keyframes drawLine {
+  0% { stroke-dashoffset: 100; opacity: 0; }
+  20% { opacity: 1; }
+  50% { stroke-dashoffset: 0; opacity: 1; }
+  80% { opacity: 1; }
+  100% { stroke-dashoffset: -100; opacity: 0; }
+}
+
+@keyframes linesAnimate {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
