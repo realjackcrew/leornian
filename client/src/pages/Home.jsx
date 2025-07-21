@@ -314,12 +314,17 @@ export default function Home() {
                 </div>
               </div>
             </div>
-          </div>
+                    </div>
         </div>
       </div>
 
+      {/* Company Logos Marquee */}
+      <div className="bg-black">
+        <LogoMarquee />
+      </div>
+
       {/* Personalized Recommendations Section */}
-      <div className="bg-gray-900 text-white min-h-screen flex items-center relative">
+      <div className="bg-black text-white min-h-screen flex items-center relative">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 w-full">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="relative order-2 lg:order-1">
@@ -382,7 +387,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
-          </div>
+                    </div>
         </div>
       </div>
 
@@ -398,13 +403,12 @@ export default function Home() {
                 </span>
               </h2>
               <p className="text-xl text-gray-300 leading-relaxed">
-                Connect all your health devices and apps in one place. 
-                From wearables to medical devices, we bring your data together for a complete health picture.
+                Connect all your health devices and apps in one place.<sup>*</sup> From wearables to medical devices, we bring your data together for a complete health picture.
               </p>
               <div className="space-y-4">
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                  <span className="text-gray-300">100+ device integrations</span>
+                  <span className="text-gray-300">1+ device integrations</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-pink-400 rounded-full"></div>
@@ -414,6 +418,9 @@ export default function Home() {
                   <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
                   <span className="text-gray-300">Secure data handling</span>
                 </div>
+                <p className="text-gray-300 text-xs opacity-50">
+                  <sup>*</sup> Only applies if you are a fellow WHOOP supremacist.
+                </p>
               </div>
             </div>
             <div className="relative">
@@ -457,13 +464,8 @@ export default function Home() {
                 </div>
               </div>
             </div>
-          </div>
+                    </div>
         </div>
-      </div>
-
-      {/* Company Logos Marquee */}
-      <div className="bg-black">
-        <LogoMarquee />
       </div>
 
       {/* Footer */}

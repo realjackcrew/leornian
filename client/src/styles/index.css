@@ -20,59 +20,44 @@ html {
   font-family: var(--font-open-sans, 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
 }
 
-/* Dark mode override styles since Tailwind v4 dark: classes aren't working */
-.dark {
-  color-scheme: dark;
-}
-
-/* Global dark mode styles */
-.dark body {
-  background-color: #111827;
+/* Global styles */
+body {
+  background: #000000;
   color: #f9fafb;
+  min-height: 100vh;
 }
 
-/* Background colors */
-.dark .bg-white { background-color: #1f2937 !important; }
-.dark .bg-gray-50 { background-color: #374151 !important; }
-.dark .bg-gray-100 { background-color: #4b5563 !important; }
-.dark .bg-gray-200 { background-color: #6b7280 !important; }
-.dark .bg-blue-100 { background-color: #1e3a8a !important; }
-.dark .bg-green-100 { background-color: #14532d !important; }
-.dark .bg-red-100 { background-color: #7f1d1d !important; }
-.dark .bg-purple-100 { background-color: #581c87 !important; }
+/* Override all background colors to use dark theme */
+.bg-white { background-color: #1f2937 !important; }
+.bg-gray-50 { background-color: #374151 !important; }
+.bg-gray-100 { background-color: #4b5563 !important; }
+.bg-gray-200 { background-color: #6b7280 !important; }
+.bg-blue-100 { background-color: #1e3a8a !important; }
+.bg-green-100 { background-color: #14532d !important; }
+.bg-red-100 { background-color: #7f1d1d !important; }
+.bg-purple-100 { background-color: #581c87 !important; }
 
 /* Navbar specific background colors with opacity */
-.dark [class*="bg-white/"] { 
+[class*="bg-white/"] { 
   background-color: rgba(31, 41, 55, 0.95) !important; 
 }
-.dark [class*="bg-gray-900/"] { 
+[class*="bg-gray-900/"] { 
   background-color: rgba(31, 41, 55, 0.95) !important; 
 }
 
-/* Text colors */
-.dark .text-gray-800 { color: #f9fafb !important; }
-.dark .text-gray-900 { color: #ffffff !important; }
-.dark .text-gray-600 { color: #d1d5db !important; }
-.dark .text-gray-700 { color: #e5e7eb !important; }
-.dark .text-blue-900 { color: #dbeafe !important; }
-.dark .text-green-900 { color: #dcfce7 !important; }
-.dark .text-red-900 { color: #fecaca !important; }
-.dark .text-purple-900 { color: #e9d5ff !important; }
+/* Text colors - always light */
+.text-gray-800 { color: #f9fafb !important; }
+.text-gray-900 { color: #ffffff !important; }
+.text-gray-600 { color: #d1d5db !important; }
+.text-gray-700 { color: #e5e7eb !important; }
+.text-blue-900 { color: #dbeafe !important; }
+.text-green-900 { color: #dcfce7 !important; }
+.text-red-900 { color: #fecaca !important; }
+.text-purple-900 { color: #e9d5ff !important; }
 
 /* Border colors */
-.dark .border-gray-200 { border-color: #4b5563 !important; }
-.dark .border-gray-300 { border-color: #6b7280 !important; }
-
-/* Test classes */
-.dark .dark-test-blue {
-  background-color: #1e3a8a !important;
-  color: #dbeafe !important;
-}
-
-.dark .dark-test-green {
-  background-color: #14532d !important;
-  color: #dcfce7 !important;
-}
+.border-gray-200 { border-color: #4b5563 !important; }
+.border-gray-300 { border-color: #6b7280 !important; }
 
 @keyframes marquee {
     0% { transform: translateX(0); }
@@ -88,10 +73,6 @@ html {
     -webkit-appearance: none;
     margin: 0;
   }
-
-  /* .remove-arrow { i commented this out. uncomment if there is an issue
-    -moz-appearance: textfield;
-  } */
 
 /* Markdown message styling */
 .markdown-message {
@@ -114,14 +95,14 @@ html {
   margin: 0.5em 0 0.5em 1.5em;
 }
 .markdown-message code {
-  background: #f3f4f6;
-  color: #d6336c;
+  background: #23272e;
+  color: #f472b6;
   padding: 0.2em 0.4em;
   border-radius: 4px;
   font-size: 0.95em;
 }
 .markdown-message pre {
-  background: #1e293b;
+  background: #23272e;
   color: #f1f5f9;
   padding: 1em;
   border-radius: 8px;
@@ -137,36 +118,15 @@ html {
 }
 .markdown-message th,
 .markdown-message td {
-  border: 1px solid #d1d5db;
+  border: 1px solid #4b5563;
   padding: 0.5em 0.75em;
   text-align: left;
 }
 .markdown-message th {
-  background: #f3f4f6;
-  font-weight: 600;
+  background: #23272e;
+  color: #f9fafb;
 }
 .markdown-message tr:nth-child(even) td {
-  background: #f9fafb;
-}
-
-/* Dark mode for markdown */
-.dark .markdown-message code {
-  background: #23272e;
-  color: #f472b6;
-}
-.dark .markdown-message pre {
-  background: #23272e;
-  color: #f1f5f9;
-}
-.dark .markdown-message th {
-  background: #23272e;
-  color: #f9fafb;
-}
-.dark .markdown-message td {
-  background: #1e293b;
-  color: #f9fafb;
-}
-.dark .markdown-message tr:nth-child(even) td {
   background: #111827;
 }
 

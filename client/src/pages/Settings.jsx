@@ -1,24 +1,22 @@
 import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, Settings as SettingsIcon, Database, User, MessageCircle, ChevronRight, Zap, Palette } from "lucide-react";
+import { Check, Settings as SettingsIcon, Database, User, MessageCircle, ChevronRight, Zap, Palette, Plus, Trash2 } from "lucide-react";
 import { checkWhoopStatus, getUserProfile, disconnectWhoop, testWhoopConnection } from '../api/auth';
-import { getDatapointDefinitions, getDatapointPreferences, saveDatapointPreferences } from '../api/datapoints';
+import { getDatapointDefinitions, getDatapointPreferences, saveDatapointPreferences, createCustomDatapoint, deleteCustomDatapoint, getCustomDatapoints } from '../api/datapoints';
 import { getChatSettings, updateChatSettings, getChatOptions } from '../api/chat';
 import { API_BASE_URL } from '../config';
-import { useTheme } from '../context/ThemeContext';
 import { AuthContext } from '../context/AuthContext';
 import whoopIcon from '../assets/whoop-icon.png';
 
 export default function Settings() {
     const navigate = useNavigate();
-    const { isDarkMode, theme, setThemeMode } = useTheme();
     const { refreshUser } = useContext(AuthContext);
     const [whoopStatus, setWhoopStatus] = useState({ hasCredentials: false, isConnected: false });
     const [activeCategory, setActiveCategory] = useState('profile');
     const [userProfile, setUserProfile] = useState({ firstName: '', lastName: '', email: '' });
     const [dataPointDefinitions, setDataPointDefinitions] = useState({});
     const [enabledDatapoints, setEnabledDatapoints] = useState({});
-    const [selectedTheme, setSelectedTheme] = useState(theme);
+
     const [selectedFont, setSelectedFont] = useState('open-sans');
     
     // Chat settings state
@@ -35,6 +33,19 @@ export default function Settings() {
     const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
     const [testResult, setTestResult] = useState(null);
     const [isTesting, setIsTesting] = useState(false);
+
+    // Custom datapoints state
+    const [customDatapoints, setCustomDatapoints] = useState([]);
+    const [showCustomForm, setShowCustomForm] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState('');
+    const [newCustomDatapoint, setNewCustomDatapoint] = useState({
+        label: '',
+        type: 'boolean',
+        description: '',
+        min: 0,
+        max: 100,
+        step: 1
+    });
 
     useEffect(() => {
         const checkAuthCallback = async () => {
@@ -59,19 +70,21 @@ export default function Settings() {
         // Load user profile, WHOOP status, datapoint data, and chat settings
         const loadData = async () => {
             try {
-                const [profile, whoop, definitions, preferences, chatSettingsData, chatOptionsData] = await Promise.all([
+                const [profile, whoop, definitions, preferences, chatSettingsData, chatOptionsData, customData] = await Promise.all([
                     getUserProfile(),
                     checkWhoopStatus(),
                     getDatapointDefinitions(),
                     getDatapointPreferences(),
                     getChatSettings(),
-                    getChatOptions()
+                    getChatOptions(),
+                    getCustomDatapoints()
                 ]);
                 setUserProfile(profile);
                 setWhoopStatus(whoop);
                 setDataPointDefinitions(definitions);
                 setChatSettings(chatSettingsData);
                 setChatOptions(chatOptionsData);
+                setCustomDatapoints(customData);
                 
                 // If user has no preferences, initialize with all datapoints enabled
                 if (Object.keys(preferences).length === 0) {
@@ -104,10 +117,7 @@ export default function Settings() {
         }
     }, [toast]);
 
-    // Update selected theme when theme changes
-    useEffect(() => {
-        setSelectedTheme(theme);
-    }, [theme]);
+
 
     // Load saved font on mount
     useEffect(() => {
@@ -250,6 +260,110 @@ export default function Settings() {
         }));
     };
 
+    // Custom datapoint functions
+    const handleCreateCustomDatapoint = async () => {
+        try {
+            if (!newCustomDatapoint.label.trim()) {
+                alert('Please enter a label for the datapoint');
+                return;
+            }
+
+            if (!selectedCategory) {
+                alert('Please select a category');
+                return;
+            }
+
+            const result = await createCustomDatapoint({
+                ...newCustomDatapoint,
+                category: selectedCategory
+            });
+            
+            // Refresh data to get updated definitions and custom datapoints
+            const [definitions, customData] = await Promise.all([
+                getDatapointDefinitions(),
+                getCustomDatapoints()
+            ]);
+            setDataPointDefinitions(definitions);
+            setCustomDatapoints(customData);
+            
+            // Reset form
+            setNewCustomDatapoint({
+                label: '',
+                type: 'boolean',
+                description: '',
+                min: 0,
+                max: 100,
+                step: 1
+            });
+            setShowCustomForm(false);
+            setSelectedCategory('');
+            
+            alert('Custom datapoint created successfully!');
+        } catch (err) {
+            console.error('Failed to create custom datapoint:', err);
+            alert(err.message || 'Failed to create custom datapoint. Please try again.');
+        }
+    };
+
+    const handleDeleteCustomDatapoint = async (category, name) => {
+        if (!confirm('Are you sure you want to delete this custom datapoint? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            await deleteCustomDatapoint(category, name);
+
+            // Instantly remove from local state for instant UI update
+            setDataPointDefinitions(prev => {
+                const updated = { ...prev };
+                if (updated[category]) {
+                    delete updated[category][name];
+                }
+                return updated;
+            });
+            setCustomDatapoints(prev => prev.filter(d => !(d.category === category && d.name === name)));
+            setEnabledDatapoints(prev => {
+                const updated = { ...prev };
+                if (updated[category]) {
+                    delete updated[category][name];
+                }
+                return updated;
+            });
+
+            // Optionally, refresh all data to ensure consistency
+            const [definitions, customData, preferences] = await Promise.all([
+                getDatapointDefinitions(),
+                getCustomDatapoints(),
+                getDatapointPreferences()
+            ]);
+            setDataPointDefinitions(definitions);
+            setCustomDatapoints(customData);
+            // Remove the deleted datapoint from preferences before setting
+            const cleanedPreferences = { ...preferences };
+            if (cleanedPreferences[category] && cleanedPreferences[category][name]) {
+                delete cleanedPreferences[category][name];
+            }
+            setEnabledDatapoints(cleanedPreferences);
+
+            alert('Custom datapoint deleted successfully!');
+        } catch (err) {
+            console.error('Failed to delete custom datapoint:', err);
+            alert(err.message || 'Failed to delete custom datapoint. Please try again.');
+        }
+    };
+
+    const handleCustomDatapointChange = (field, value) => {
+        setNewCustomDatapoint(prev => ({
+            ...prev,
+            [field]: value
+        }));
+    };
+
+    const handleAddCustomDatapoint = (category) => {
+        setSelectedCategory(category);
+        setShowCustomForm(true);
+    };
+
     const getCategoryButtonText = (categoryKey) => {
         const categoryValues = enabledDatapoints[categoryKey];
         if (!categoryValues) return 'Enable All';
@@ -272,23 +386,23 @@ export default function Settings() {
     const renderProfileSection = () => (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
+                <h2 className="text-2xl font-semibold text-white mb-2">
                     Profile Settings
                 </h2>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-gray-300">
                     Manage your account information and personal details
                 </p>
             </div>
 
             <div className="space-y-6">
                 {/* Name Section */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                <div className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-6">
+                    <h3 className="text-lg font-medium text-white mb-4">
                         Personal Information
                     </h3>
                     <div className="space-y-4">
                         <div>
-                            <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label htmlFor="firstName" className="block text-sm font-medium text-gray-300 mb-2">
                                 First Name
                             </label>
                             <input
@@ -296,7 +410,7 @@ export default function Settings() {
                                 id="firstName"
                                 value={userProfile.firstName || ''}
                                 onChange={(e) => setUserProfile(prev => ({ ...prev, firstName: e.target.value }))}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
                                 placeholder="Enter your first name"
                             />
                         </div>
@@ -595,33 +709,178 @@ export default function Settings() {
                                         <h4 className="text-lg font-medium text-gray-900 dark:text-white">
                                             {name}
                                         </h4>
-                                        <button
-                                            onClick={() => handleToggleCategory(key)}
-                                            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                                        >
-                                            {getCategoryButtonText(key)}
-                                        </button>
+                                        <div className="flex items-center space-x-3">
+                                            <button
+                                                onClick={() => handleToggleCategory(key)}
+                                                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                                            >
+                                                {getCategoryButtonText(key)}
+                                            </button>
+                                            <button
+                                                onClick={() => handleAddCustomDatapoint(key)}
+                                                className="flex items-center space-x-1 px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                                            >
+                                                <Plus className="h-3 w-3" />
+                                                <span>Add Custom</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
+
+                                {/* Custom Datapoint Form for this category */}
+                                {showCustomForm && selectedCategory === key && (
+                                    <div className="p-4 border-b border-gray-200 dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20">
+                                        <h5 className="text-md font-medium text-gray-900 dark:text-white mb-3">
+                                            Add Custom Datapoint to {name}
+                                        </h5>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                    Label *
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={newCustomDatapoint.label}
+                                                    onChange={(e) => handleCustomDatapointChange('label', e.target.value)}
+                                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                                    placeholder="e.g., Meditation Minutes"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                    Type *
+                                                </label>
+                                                <select
+                                                    value={newCustomDatapoint.type}
+                                                    onChange={(e) => handleCustomDatapointChange('type', e.target.value)}
+                                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                                >
+                                                    <option value="boolean">Yes/No</option>
+                                                    <option value="number">Number</option>
+                                                    <option value="time">Time</option>
+                                                    <option value="text">Text</option>
+                                                </select>
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                    Description (optional)
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={newCustomDatapoint.description}
+                                                    onChange={(e) => handleCustomDatapointChange('description', e.target.value)}
+                                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                                    placeholder="Brief description of what this datapoint tracks"
+                                                />
+                                            </div>
+                                            {newCustomDatapoint.type === 'number' && (
+                                                <>
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                            Minimum Value
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            value={newCustomDatapoint.min}
+                                                            onChange={(e) => handleCustomDatapointChange('min', parseFloat(e.target.value) || 0)}
+                                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                            Maximum Value
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            value={newCustomDatapoint.max}
+                                                            onChange={(e) => handleCustomDatapointChange('max', parseFloat(e.target.value) || 100)}
+                                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                            Step Size
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            value={newCustomDatapoint.step}
+                                                            onChange={(e) => handleCustomDatapointChange('step', parseFloat(e.target.value) || 1)}
+                                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                        <div className="flex justify-end space-x-3 mt-4">
+                                            <button
+                                                onClick={() => {
+                                                    setShowCustomForm(false);
+                                                    setSelectedCategory('');
+                                                }}
+                                                className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                onClick={handleCreateCustomDatapoint}
+                                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                                            >
+                                                Create Datapoint
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="p-4">
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {Object.entries(dataPointDefinitions[key] || {}).map(([datapointKey, definition]) => (
-                                            <div key={datapointKey} className="flex items-center space-x-3">
-                                                <input
-                                                    type="checkbox"
-                                                    id={`${key}-${datapointKey}`}
-                                                    checked={enabledDatapoints[key]?.[datapointKey] || false}
-                                                    onChange={() => handleToggleDatapoint(key, datapointKey)}
-                                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                                />
-                                                <label
-                                                    htmlFor={`${key}-${datapointKey}`}
-                                                    className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer"
-                                                >
-                                                    {definition.label}
-                                                </label>
-                                            </div>
-                                        ))}
+                                        {Object.entries(dataPointDefinitions[key] || {}).map(([datapointKey, definition]) => {
+                                            // Check if this is a custom datapoint
+                                            const isCustom = customDatapoints.some(custom => 
+                                                custom.name === datapointKey && custom.category === key
+                                            );
+                                            const customDatapoint = isCustom ? 
+                                                customDatapoints.find(custom => custom.name === datapointKey && custom.category === key) : 
+                                                null;
+
+                                            // Debug logging
+                                            if (datapointKey.startsWith('custom')) {
+                                                console.log('Rendering datapoint:', datapointKey, 'isCustom:', isCustom, 'customDatapoints:', customDatapoints);
+                                            }
+
+                                            return (
+                                                <div key={datapointKey} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                                    <div className="flex items-center space-x-3 flex-1">
+                                                        <input
+                                                            type="checkbox"
+                                                            id={`${key}-${datapointKey}`}
+                                                            checked={enabledDatapoints[key]?.[datapointKey] || false}
+                                                            onChange={() => handleToggleDatapoint(key, datapointKey)}
+                                                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                                        />
+                                                        <label
+                                                            htmlFor={`${key}-${datapointKey}`}
+                                                            className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer flex-1"
+                                                        >
+                                                            {definition.label}
+                                                            {isCustom && (
+                                                                <span className="text-xs text-blue-600 dark:text-blue-400 ml-1">
+                                                                    (custom)
+                                                                </span>
+                                                            )}
+                                                        </label>
+                                                    </div>
+                                                    {isCustom && (
+                                                        <button
+                                                            onClick={() => handleDeleteCustomDatapoint(key, datapointKey)}
+                                                            className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                                                            title="Delete custom datapoint"
+                                                        >
+                                                            <Trash2 className="h-3 w-3" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </div>
@@ -654,9 +913,10 @@ export default function Settings() {
                         </h3>
                         <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
                             You have selected{' '}
-                                                    {Object.values(enabledDatapoints).reduce((total, category) => 
-                            total + Object.values(category || {}).filter(Boolean).length, 0
-                        )} datapoints across {categoryNames.length} categories.
+                            {Object.values(enabledDatapoints).reduce((total, category) => 
+                                total + Object.values(category || {}).filter(Boolean).length, 0
+                            )} datapoints across {categoryNames.length} categories
+                            {customDatapoints.length > 0 && `, including ${customDatapoints.length} custom datapoint${customDatapoints.length === 1 ? '' : 's'}`}.
                         </p>
                     </div>
                 </div>
@@ -676,87 +936,7 @@ export default function Settings() {
             </div>
 
             <div className="space-y-6">
-                {/* Theme Settings */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                        Theme
-                    </h3>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
-                            Color Theme
-                        </label>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {/* System Default */}
-                            <button
-                                onClick={() => {
-                                    setSelectedTheme('system');
-                                    setThemeMode('system');
-                                }}
-                                className={`relative p-4 border-2 rounded-lg transition-colors group ${
-                                    selectedTheme === 'system'
-                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                                        : 'border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-600'
-                                }`}
-                            >
-                                <div className="flex flex-col items-center space-y-3">
-                                    <div className="w-12 h-8 bg-gradient-to-r from-gray-100 to-gray-300 dark:from-gray-700 dark:to-gray-600 rounded-md flex items-center justify-center">
-                                        <div className="w-3 h-3 bg-gray-400 dark:bg-gray-500 rounded-full"></div>
-                                    </div>
-                                    <div className="text-center">
-                                        <div className="font-medium text-gray-900 dark:text-white">System Default</div>
-                                        <div className="text-sm text-gray-500 dark:text-gray-400">Follows your OS</div>
-                                    </div>
-                                </div>
-                            </button>
 
-                            {/* Light Mode */}
-                            <button
-                                onClick={() => {
-                                    setSelectedTheme('light');
-                                    setThemeMode('light');
-                                }}
-                                className={`relative p-4 border-2 rounded-lg transition-colors group ${
-                                    selectedTheme === 'light'
-                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                                        : 'border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-600'
-                                }`}
-                            >
-                                <div className="flex flex-col items-center space-y-3">
-                                    <div className="w-12 h-8 bg-gradient-to-r from-yellow-100 to-yellow-300 rounded-md flex items-center justify-center">
-                                        <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                                    </div>
-                                    <div className="text-center">
-                                        <div className="font-medium text-gray-900 dark:text-white">Light Mode</div>
-                                        <div className="text-sm text-gray-500 dark:text-gray-400">Clean & bright</div>
-                                    </div>
-                                </div>
-                            </button>
-
-                            {/* Dark Mode */}
-                            <button
-                                onClick={() => {
-                                    setSelectedTheme('dark');
-                                    setThemeMode('dark');
-                                }}
-                                className={`relative p-4 border-2 rounded-lg transition-colors group ${
-                                    selectedTheme === 'dark'
-                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                                        : 'border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-600'
-                                }`}
-                            >
-                                <div className="flex flex-col items-center space-y-3">
-                                    <div className="w-12 h-8 bg-gradient-to-r from-gray-800 to-gray-900 rounded-md flex items-center justify-center">
-                                        <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
-                                    </div>
-                                    <div className="text-center">
-                                        <div className="font-medium text-gray-900 dark:text-white">Dark Mode</div>
-                                        <div className="text-sm text-gray-500 dark:text-gray-400">Easy on the eyes</div>
-                                    </div>
-                                </div>
-                            </button>
-                        </div>
-                    </div>
-                </div>
 
                 {/* Font Settings */}
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -804,23 +984,23 @@ export default function Settings() {
                             <option value="ubuntu">Ubuntu</option>
                             <option value="comic-sans">Comic Sans MS</option>
                         </select>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                        <p className="text-sm text-gray-400 mt-2">
                             Changes will apply to the entire application
                         </p>
                     </div>
                 </div>
 
                 {/* Preview */}
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
+                    <h3 className="text-lg font-medium text-white mb-4">
                         Preview
                     </h3>
                     <div className="space-y-3">
-                        <div className="p-4 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-                            <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                        <div className="p-4 bg-gray-700 rounded-lg border border-gray-600">
+                            <h4 className="text-lg font-semibold text-white mb-2">
                                 Sample Heading
                             </h4>
-                            <p className="text-gray-700 dark:text-gray-300">
+                            <p className="text-gray-300">
                                 This is how your text will appear with the selected font and theme settings.
                             </p>
                         </div>
@@ -848,14 +1028,14 @@ export default function Settings() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-16">
+        <div className="min-h-screen bg-black text-white pt-16">
             <div className="max-w-7xl mx-auto px-4 py-8">
                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                    <h1 className="text-3xl font-bold text-white flex items-center gap-3">
                         <SettingsIcon className="h-8 w-8" />
                         Settings
                     </h1>
-                    <p className="text-gray-600 dark:text-gray-400 mt-2">
+                    <p className="text-gray-300 mt-2">
                         Manage your account settings and preferences
                     </p>
                 </div>
@@ -873,8 +1053,8 @@ export default function Settings() {
                                         onClick={() => setActiveCategory(item.id)}
                                         className={`w-full flex items-center justify-between px-4 py-3 text-left rounded-lg transition-colors ${
                                             isActive
-                                                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                                                : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
+                                                ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30'
+                                                : 'text-gray-300 hover:text-white hover:bg-white/10'
                                         }`}
                                     >
                                         <div className="flex items-center space-x-3">

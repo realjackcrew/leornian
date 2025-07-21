@@ -83,19 +83,19 @@ export default function Chat() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100 dark:bg-gray-900">
+    <div className="flex flex-col h-screen bg-black">
       {/* Header with toggle */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
+      <div className="bg-gray-900/50 border-b border-gray-700/50 p-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Chat with Leo</h1>
+          <h1 className="text-xl font-semibold text-white">Chat with Leo</h1>
           <div className="flex items-center space-x-2">
-            <label className="text-sm text-gray-600 dark:text-gray-300">
+            <label className="text-sm text-gray-300">
               Include conversation history
             </label>
             <button
               onClick={() => setIncludeHistory(!includeHistory)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                includeHistory ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                includeHistory ? 'bg-gradient-to-r from-blue-600 to-purple-600' : 'bg-gray-600'
               }`}
             >
               <span
@@ -127,14 +127,14 @@ export default function Chat() {
                 <div
                   className={`markdown-message w-full p-3 ${
                     message.isError
-                      ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 rounded-lg'
-                      : 'bg-transparent text-gray-900 dark:text-white'
+                      ? 'bg-red-800/30 text-red-200 rounded-lg'
+                      : 'bg-transparent text-white'
                   }`}
                   style={{ overflowX: 'auto' }}
                 >
                   <ReactMarkdown>{message.text}</ReactMarkdown>
                   {message.functionCalled && !message.isError && (
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <div className="text-xs text-gray-400 mt-1">
                       📊 Used database query
                     </div>
                   )}
@@ -144,10 +144,10 @@ export default function Chat() {
           ))}
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
+              <div className="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
                 <div className="flex items-center space-x-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                  <span className="text-gray-600 dark:text-gray-300">Thinking...</span>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+                  <span className="text-gray-300">Thinking...</span>
                 </div>
               </div>
             </div>
@@ -167,12 +167,12 @@ export default function Chat() {
                 }
               }}
               placeholder="Ask me about your health data..."
-              className="w-full h-16 p-4 pr-16 text-base text-gray-900 bg-white border border-gray-300 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+              className="w-full h-16 p-4 pr-16 text-base text-white bg-gray-900/50 border border-gray-700/50 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
               disabled={isLoading}
             />
             <button
               type="submit"
-              className="absolute bottom-3.5 right-4 p-2 text-white bg-blue-500 rounded-lg disabled:bg-blue-300 dark:disabled:bg-blue-800 disabled:cursor-not-allowed"
+              className="absolute bottom-3.5 right-4 p-2 text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg disabled:from-blue-800 disabled:to-purple-800 disabled:cursor-not-allowed"
               disabled={!input.trim() || isLoading}
             >
               <svg

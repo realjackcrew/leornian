@@ -347,11 +347,11 @@ export default function Log() {
 
   if (datapointsLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
-            <p className="mt-4 text-gray-600 dark:text-gray-300">Loading datapoints...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto"></div>
+            <p className="mt-4 text-gray-300">Loading datapoints...</p>
           </div>
         </div>
       </div>
@@ -360,11 +360,11 @@ export default function Log() {
 
   if (datapointsError) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400 mb-2">Error loading datapoints</p>
-            <p className="text-gray-600 dark:text-gray-300">{datapointsError}</p>
+            <p className="text-red-400 mb-2">Error loading datapoints</p>
+            <p className="text-gray-300">{datapointsError}</p>
           </div>
         </div>
       </div>
@@ -373,11 +373,11 @@ export default function Log() {
 
   if (!selectedDate) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
-            <p className="mt-4 text-gray-600 dark:text-gray-300">Loading...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto"></div>
+            <p className="mt-4 text-gray-300">Loading...</p>
           </div>
         </div>
       </div>
@@ -386,21 +386,21 @@ export default function Log() {
 
   if (isFutureDate) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen bg-black">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center mb-8 pt-24">
             <button 
               onClick={() => navigate('/dashboard')}
-              className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+              className="flex items-center text-gray-300 hover:text-white transition-colors"
             >
               <ArrowLeft className="h-5 w-5 mr-2" />
               Back to Dashboard
             </button>
-            <h1 className="text-3xl font-light text-gray-900 dark:text-white flex-1 text-center">Daily Log</h1>
+            <h1 className="text-3xl font-light text-white flex-1 text-center">Daily Log</h1>
           </div>
           <div className="text-center py-12">
-            <p className="text-gray-600 dark:text-gray-300 mb-2">Cannot log for future dates</p>
-            <p className="text-gray-500 dark:text-gray-400">You can only log entries for today or past dates</p>
+            <p className="text-gray-300 mb-2">Cannot log for future dates</p>
+            <p className="text-gray-400">You can only log entries for today or past dates</p>
           </div>
         </div>
       </div>
@@ -408,28 +408,28 @@ export default function Log() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-black text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-3 items-center mb-8 pt-24">
           <div className="justify-self-start">
             <button 
               onClick={() => navigate('/dashboard')}
-              className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+              className="flex items-center text-gray-300 hover:text-white transition-colors"
             >
               <ArrowLeft className="h-5 w-5 mr-2" />
               Back to Dashboard
             </button>
           </div>
           <div className="text-center justify-self-center">
-            <h1 className="text-3xl font-light text-gray-900 dark:text-white">Daily Log</h1>
-            <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">{selectedDate && formatDisplayDate(selectedDate)}</p>
+            <h1 className="text-3xl font-light text-white">Daily Log</h1>
+            <p className="text-lg text-gray-300 mt-1">{selectedDate && formatDisplayDate(selectedDate)}</p>
           </div>
           <div className="justify-self-end">
             <div className="flex flex-col items-end">
               <button
                   onClick={handleLoadFromWhoop}
                   disabled={isWhoopLoading}
-                  className="bg-gray-800 hover:bg-gray-700 dark:bg-slate-200 dark:text-slate-900 dark:hover:bg-slate-300 text-white py-2 px-4 rounded-lg inline-flex items-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 py-2 px-4 rounded-lg inline-flex items-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                   <img src="/src/assets/whoop-icon.png" alt="whoop" className="w-5 h-5 mr-2"/>
                   <span>{isWhoopLoading ? 'Loading...' : 'Load from Whoop'}</span>
@@ -453,15 +453,15 @@ export default function Log() {
         </div>
 
         {/* Category Navigation */}
-        <div className="flex justify-between mb-8 border-b border-gray-200 dark:border-gray-700 pb-4">
+        <div className="flex justify-between mb-8 border-b border-gray-700 pb-4">
           {getCategoryNames(dataPointDefinitions).map(({ key, name }) => (
             <span
               key={key}
               onClick={() => setSelectedCategory(key)}
               className={`text-lg cursor-pointer px-4 py-2 rounded-lg transition-colors ${
                 selectedCategory === key
-                  ? 'text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-900/20'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
+                  ? 'text-blue-400 font-medium bg-blue-600/20'
+                  : 'text-gray-300 hover:text-white hover:bg-white/10'
               }`}
             >
               {name}
@@ -471,8 +471,8 @@ export default function Log() {
             onClick={() => setSelectedCategory('notes')}
             className={`text-lg cursor-pointer px-4 py-2 rounded-lg transition-colors ${
               selectedCategory === 'notes'
-                ? 'text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-900/20'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
+                ? 'text-blue-400 font-medium bg-blue-600/20'
+                : 'text-gray-300 hover:text-white hover:bg-white/10'
             }`}
           >
             Notes
@@ -483,8 +483,8 @@ export default function Log() {
         <div className=" rounded-xl p-6">
           {isLoadingData || values === null ? (
             <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
-              <p className="mt-4 text-gray-600 dark:text-gray-300">Loading log data...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto"></div>
+              <p className="mt-4 text-gray-300">Loading log data...</p>
             </div>
           ) : selectedCategory === 'notes' ? (
             <div>
@@ -492,13 +492,13 @@ export default function Log() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Do you have any additional thoughts or observations?"
-                className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                className="w-full px-4 py-3 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-gray-900/50 text-white placeholder-gray-400"
                 rows="4"
               />
               <button
                 onClick={handleSave}
                 disabled={isLoading}
-                className={`w-full mt-6 flex justify-center items-center space-x-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all ${
+                className={`w-full mt-6 flex justify-center items-center space-x-2 py-3 px-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg transition-all ${
                   isLoading ? 'opacity-75 cursor-not-allowed' : ''
                 }`}
               >
