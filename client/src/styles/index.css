@@ -28,7 +28,7 @@ body {
 }
 
 /* Override all background colors to use dark theme */
-.bg-white { background-color: #1f2937 !important; }
+.bg-white { background-color: #FFFFFF !important; }
 .bg-gray-50 { background-color: #374151 !important; }
 .bg-gray-100 { background-color: #4b5563 !important; }
 .bg-gray-200 { background-color: #6b7280 !important; }

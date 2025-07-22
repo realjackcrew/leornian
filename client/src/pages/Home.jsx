@@ -102,13 +102,13 @@ export default function Home() {
         l.length += Math.sqrt(l.vx * l.vx + l.vy * l.vy) * dt;
 
         // draw comet tail following actual path
-        const trailLength = 200; // about the width of the early access button
+        const trailLength = 200;
         const maxHistoryPoints = Math.min(l.history.length, 30);
         
         for (let i = 0; i < maxHistoryPoints - 1; i++) {
           const t = i / maxHistoryPoints;
-          const opacity = t * 0.8; // taper from 0 to 0.8 (head is brightest)
-          const width = t * 5; // taper from 0 to 5px (head is thickest)
+          const opacity = t * 0.8;
+          const width = t * 5;
           
           ctx.lineWidth = width;
           ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
@@ -147,9 +147,8 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen w-full">
-      <div className="relative w-full h-screen bg-black overflow-hidden">
-        {/* Dynamic Background Pattern */}
+    <div>
+      <div className="relative w-full min-h-screen flex flex-col">
         <div className="absolute inset-0">
           <div className="subtle-grid"></div>
           <div className="background-gradient"></div>
@@ -167,15 +166,10 @@ export default function Home() {
               <div key={i} className={`bg-particle bg-particle-${i + 1}`}></div>
             ))}
           </div>
-          {/* dynamic-lines removed per new streak canvas */}
         </div>
-
-        {/* Main Content Container */}
-        <div className="relative z-10 h-full flex items-center">
+        <div className="relative z-10 flex-1 flex items-center">
           <div className="w-full max-w-7xl mx-auto px-6 lg:px-8">
             <div className="grid lg:grid-cols-2 gap-12 items-center h-full">
-              
-              {/* Left Side - Content */}
               <div className="flex flex-col justify-end space-y-8 pt-20">
                 <div>
                   <h1 className="text-5xl lg:text-7xl font-bold text-white leading-tight mb-6">
@@ -188,68 +182,47 @@ export default function Home() {
                     Your personal wellness companion, powered by AI to help you track and optimize your health journey.
                   </p>
                 </div>
-                
                 <div className="flex flex-col sm:flex-row gap-4">
                   <Link 
                     to="/register" 
-                    className="inline-flex items-center justify-center bg-white text-black font-semibold px-8 py-4 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:scale-105 hover:shadow-xl"
+                    className="inline-flex justify-center bg-white text-black font-semibold px-8 py-4 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:scale-105 hover:shadow-xl"
                   >
                     Early Access
                   </Link>
                 </div>
               </div>
-
-              {/* Right Side - Dynamic Graphic */}
               <div className="hidden lg:flex justify-center items-center h-full">
                 <div className="relative w-full max-w-lg h-96">
-                  
-                  {/* Central Node */}
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="central-node"></div>
                   </div>
-                  
-                  {/* Orbiting Elements */}
                   <div className="orbit-container orbit-1">
                     <div className="orbit-path">
                       <div className="orbit-element element-1"></div>
                     </div>
                   </div>
-                  
                   <div className="orbit-container orbit-2">
                     <div className="orbit-path">
                       <div className="orbit-element element-2"></div>
                     </div>
                   </div>
-                  
                   <div className="orbit-container orbit-3">
                     <div className="orbit-path">
                       <div className="orbit-element element-3"></div>
                     </div>
                   </div>
-                  
-                  {/* data streams removed */}
-                  
-                  {/* Floating Data Points */}
                   <div className="data-points">
                     {[...Array(12)].map((_, i) => (
                       <div key={i} className={`data-point data-point-${i + 1}`}></div>
                     ))}
                   </div>
-                  
-                  {/* connection lines removed */}
-                  
                 </div>
               </div>
-              
             </div>
           </div>
         </div>
-        
-        {/* Gradient fade at bottom of hero section */}
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent z-20"></div>
       </div>
-
-      {/* AI-Powered Analytics Section */}
       <div className="bg-black text-white min-h-screen flex items-center relative">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 w-full">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -314,11 +287,9 @@ export default function Home() {
                 </div>
               </div>
             </div>
-                    </div>
+          </div>
         </div>
       </div>
-
-      {/* Company Logos Marquee */}
       <div className="bg-black">
         <LogoMarquee />
       </div>
@@ -387,7 +358,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
-                    </div>
+          </div>
         </div>
       </div>
 
@@ -464,7 +435,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
-                    </div>
+          </div>
         </div>
       </div>
 
