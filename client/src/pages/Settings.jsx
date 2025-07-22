@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from "react";
-import { useNavigate } from "react-router-dom";
-import { Check, Settings as SettingsIcon, Database, User, MessageCircle, ChevronRight, Zap, Palette, Plus, Trash2 } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { Check, Settings as SettingsIcon, Database, User, MessageCircle, ChevronRight, Zap, Palette, Plus, Trash2, Lock } from "lucide-react";
 import { checkWhoopStatus, getUserProfile, disconnectWhoop, testWhoopConnection } from '../api/auth';
 import { getDatapointDefinitions, getDatapointPreferences, saveDatapointPreferences, createCustomDatapoint, deleteCustomDatapoint, getCustomDatapoints } from '../api/datapoints';
 import { getChatSettings, updateChatSettings, getChatOptions } from '../api/chat';
@@ -10,7 +10,20 @@ import whoopIcon from '../assets/whoop-icon.png';
 
 export default function Settings() {
     const navigate = useNavigate();
-    const { refreshUser } = useContext(AuthContext);
+    const { refreshUser, token } = useContext(AuthContext);
+    // Show login prompt if not authenticated
+    if (!token) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-black">
+                <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-blue-900 rounded-2xl shadow-2xl p-10 flex flex-col items-center max-w-md w-full animate-fadein">
+                    <Lock size={48} className="text-white mb-4" />
+                    <div className="text-3xl font-bold mb-2 text-white">Sign in required</div>
+                    <div className="text-lg text-white/80 mb-6 text-center">You need to be logged in to access this page. Please log in to continue.</div>
+                    <Link to="/login" className="px-8 py-3 bg-black/80 rounded-lg text-white font-semibold text-lg shadow-lg hover:scale-105 transition-transform border border-white/10">Go to Login</Link>
+                </div>
+            </div>
+        );
+    }
     const [whoopStatus, setWhoopStatus] = useState({ hasCredentials: false, isConnected: false });
     const [activeCategory, setActiveCategory] = useState('profile');
     const [userProfile, setUserProfile] = useState({ firstName: '', lastName: '', email: '' });
@@ -396,7 +409,7 @@ export default function Settings() {
 
             <div className="space-y-6">
                 {/* Name Section */}
-                <div className="bg-gray-800 rounded-lg shadow-sm border border-gray-700 p-6">
+                <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
                     <h3 className="text-lg font-medium text-white mb-4">
                         Personal Information
                     </h3>
@@ -415,7 +428,7 @@ export default function Settings() {
                             />
                         </div>
                         <div>
-                            <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label htmlFor="lastName" className="block text-sm font-medium text-gray-300 mb-2">
                                 Last Name
                             </label>
                             <input
@@ -423,28 +436,28 @@ export default function Settings() {
                                 id="lastName"
                                 value={userProfile.lastName || ''}
                                 onChange={(e) => setUserProfile(prev => ({ ...prev, lastName: e.target.value }))}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
                                 placeholder="Enter your last name"
                             />
                         </div>
                         <div>
-                            <label htmlFor="preferredName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Preferred Name <span className="text-gray-500 dark:text-gray-400 text-xs">(optional)</span>
+                            <label htmlFor="preferredName" className="block text-sm font-medium text-gray-300 mb-2">
+                                Preferred Name <span className="text-gray-500 text-xs">(optional)</span>
                             </label>
                             <input
                                 type="text"
                                 id="preferredName"
                                 value={userProfile.preferredName || ''}
                                 onChange={(e) => setUserProfile(prev => ({ ...prev, preferredName: e.target.value }))}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
                                 placeholder="What would you like to be called? Neo? Batman? The Dread Pirate Roberts?"
                             />
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            <p className="text-xs text-gray-500 mt-1">
                                 This name will be used throughout the app instead of your first name
                             </p>
                         </div>
                         <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
                                 Email Address
                             </label>
                             <input
@@ -452,12 +465,11 @@ export default function Settings() {
                                 id="email"
                                 value={userProfile.email || ''}
                                 onChange={(e) => setUserProfile(prev => ({ ...prev, email: e.target.value }))}
-                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
                                 placeholder="Enter your email address"
                             />
                         </div>
                     </div>
-                    
                     {/* Save Profile Button */}
                     <div className="flex justify-end pt-4">
                         <button
@@ -475,29 +487,29 @@ export default function Settings() {
     const renderChatSection = () => (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
+                <h2 className="text-2xl font-semibold text-white mb-2">
                     Chat Settings
                 </h2>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-gray-300">
                     Customize your chat experience and AI assistant preferences
                 </p>
             </div>
 
             <div className="space-y-6">
                 {/* Model Selection */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
+                    <h3 className="text-lg font-medium text-white mb-4">
                         AI Model
                     </h3>
                     <div>
-                        <label htmlFor="model" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label htmlFor="model" className="block text-sm font-medium text-gray-300 mb-2">
                             Select Model
                         </label>
                         <select
                             id="model"
                             value={chatSettings.model}
                             onChange={(e) => handleChatSettingChange('model', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                            className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
                         >
                             {chatOptions.models.map(model => (
                                 <option key={model} value={model}>
@@ -511,19 +523,19 @@ export default function Settings() {
                 </div>
 
                 {/* Response Verbosity */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
+                    <h3 className="text-lg font-medium text-white mb-4">
                         Response Style
                     </h3>
                     <div>
-                        <label htmlFor="verbosity" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label htmlFor="verbosity" className="block text-sm font-medium text-gray-300 mb-2">
                             Response Verbosity
                         </label>
                         <select
                             id="verbosity"
                             value={chatSettings.verbosity}
                             onChange={(e) => handleChatSettingChange('verbosity', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                            className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
                         >
                             {chatOptions.verbosities.map(verbosity => (
                                 <option key={verbosity} value={verbosity}>
@@ -535,19 +547,19 @@ export default function Settings() {
                 </div>
 
                 {/* Voice Selection */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
+                    <h3 className="text-lg font-medium text-white mb-4">
                         Chat Voice
                     </h3>
                     <div>
-                        <label htmlFor="voice" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label htmlFor="voice" className="block text-sm font-medium text-gray-300 mb-2">
                             Select Voice
                         </label>
                         <select
                             id="voice"
                             value={chatSettings.voice}
                             onChange={(e) => handleChatSettingChange('voice', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                            className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
                         >
                             {chatOptions.voices.map(voice => {
                                 const voiceLabels = {
@@ -587,23 +599,23 @@ export default function Settings() {
     const renderIntegrationsSection = () => (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
+                <h2 className="text-2xl font-semibold text-white mb-2">
                     Integrations
                 </h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-gray-300">
                     Connect your accounts from other services.
                 </p>
             </div>
-            <div className="border-t border-gray-200 dark:border-gray-700"></div>
+            <div className="border-t border-gray-700"></div>
 
             {/* WHOOP Integration */}
-            <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
+            <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                         <img src={whoopIcon} alt="WHOOP" className="h-8 w-8 rounded-md" />
                         <div>
-                            <h3 className="font-semibold text-gray-900 dark:text-white">WHOOP</h3>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                            <h3 className="font-semibold text-white">WHOOP</h3>
+                            <p className="text-xs text-gray-400">
                                 Sync your health and activity data.
                             </p>
                         </div>
@@ -611,7 +623,7 @@ export default function Settings() {
                     <div className="flex items-center space-x-2">
                         {whoopStatus.isConnected ? (
                              <div className="flex items-center space-x-2">
-                                <div className="flex items-center space-x-1 text-green-600 dark:text-green-400">
+                                <div className="flex items-center space-x-1 text-green-400">
                                     <Check className="h-4 w-4" />
                                     <span className="text-sm font-medium">Connected</span>
                                 </div>
@@ -633,68 +645,38 @@ export default function Settings() {
                     </div>
                 </div>
             </div>
-            <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 dark:border-gray-700 mt-4">
+            <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6 mt-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                            <span className="text-gray-400 dark:text-gray-500 text-lg">+</span>
+                        <div className="w-12 h-12 bg-gray-700 rounded-lg flex items-center justify-center">
+                            <span className="text-gray-500 text-lg">+</span>
                         </div>
                         <div>
-                            <h3 className="text-lg font-medium text-gray-900 dark:text-white">More Integrations Coming Soon</h3>
-                            <p className="text-gray-600 dark:text-gray-400">We're working on adding support for the other inferior fitness platforms</p>
+                            <h3 className="text-lg font-medium text-white">More Integrations Coming Soon</h3>
+                            <p className="text-gray-400">We're working on adding support for the other inferior fitness platforms</p>
                         </div>
                     </div>
-                    <button disabled className="px-4 py-2 text-sm bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 rounded-md cursor-not-allowed">Coming Soon</button>
+                    <button disabled className="px-4 py-2 text-sm bg-gray-600 text-gray-400 rounded-md cursor-not-allowed">Coming Soon</button>
                 </div>
             </div>
-            {/* Test Connection Button */}
-            {/**
-            <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                        <SettingsIcon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-                        <div>
-                            <h3 className="font-semibold text-gray-900 dark:text-white">Test WHOOP Connection</h3>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                                Check if your WHOOP account is still connected and functional.
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <button
-                            onClick={handleTestConnection}
-                            disabled={isTesting}
-                            className="text-sm font-medium text-blue-600 hover:text-blue-500 disabled:opacity-50 disabled:cursor-wait"
-                        >
-                            {isTesting ? 'Testing...' : 'Test Connection'}
-                        </button>
-                        {testResult && (
-                            <div className={`mt-2 text-sm p-3 rounded-md ${testResult.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                {testResult.message}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-            */}
         </div>
     );
 
     const renderDatapointsSection = () => (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
+                <h2 className="text-2xl font-semibold text-white mb-2">
                     Datapoints Configuration
                 </h2>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-gray-300">
                     Choose which datapoints to include in your daily logs
                 </p>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
                 <div className="p-6 border-transparent">
                     <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                        <h3 className="text-lg font-medium text-white">
                             Available Datapoints
                         </h3>
                     </div>
@@ -703,16 +685,16 @@ export default function Settings() {
                 <div className="p-6">
                     <div className="space-y-6">
                         {categoryNames.map(({ key, name }) => (
-                            <div key={key} className="border border-gray-200 dark:border-gray-700 rounded-lg">
-                                <div className="p-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+                            <div key={key} className="border border-gray-700 rounded-lg">
+                                <div className="p-4 bg-gray-700 border-b border-gray-600">
                                     <div className="flex items-center justify-between">
-                                        <h4 className="text-lg font-medium text-gray-900 dark:text-white">
+                                        <h4 className="text-lg font-medium text-white">
                                             {name}
                                         </h4>
                                         <div className="flex items-center space-x-3">
                                             <button
                                                 onClick={() => handleToggleCategory(key)}
-                                                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                                                className="text-sm text-blue-400 hover:text-blue-300"
                                             >
                                                 {getCategoryButtonText(key)}
                                             </button>
@@ -729,31 +711,31 @@ export default function Settings() {
 
                                 {/* Custom Datapoint Form for this category */}
                                 {showCustomForm && selectedCategory === key && (
-                                    <div className="p-4 border-b border-gray-200 dark:border-gray-600 bg-blue-50 dark:bg-blue-900/20">
-                                        <h5 className="text-md font-medium text-gray-900 dark:text-white mb-3">
+                                    <div className="p-4 border-b border-gray-600 bg-blue-50 dark:bg-blue-900/20">
+                                        <h5 className="text-md font-medium text-white mb-3">
                                             Add Custom Datapoint to {name}
                                         </h5>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                <label className="block text-sm font-medium text-gray-300 mb-2">
                                                     Label *
                                                 </label>
                                                 <input
                                                     type="text"
                                                     value={newCustomDatapoint.label}
                                                     onChange={(e) => handleCustomDatapointChange('label', e.target.value)}
-                                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                                    className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
                                                     placeholder="e.g., Meditation Minutes"
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                <label className="block text-sm font-medium text-gray-300 mb-2">
                                                     Type *
                                                 </label>
                                                 <select
                                                     value={newCustomDatapoint.type}
                                                     onChange={(e) => handleCustomDatapointChange('type', e.target.value)}
-                                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                                    className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
                                                 >
                                                     <option value="boolean">Yes/No</option>
                                                     <option value="number">Number</option>
@@ -762,50 +744,50 @@ export default function Settings() {
                                                 </select>
                                             </div>
                                             <div className="md:col-span-2">
-                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                <label className="block text-sm font-medium text-gray-300 mb-2">
                                                     Description (optional)
                                                 </label>
                                                 <input
                                                     type="text"
                                                     value={newCustomDatapoint.description}
                                                     onChange={(e) => handleCustomDatapointChange('description', e.target.value)}
-                                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                                    className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
                                                     placeholder="Brief description of what this datapoint tracks"
                                                 />
                                             </div>
                                             {newCustomDatapoint.type === 'number' && (
                                                 <>
                                                     <div>
-                                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                        <label className="block text-sm font-medium text-gray-300 mb-2">
                                                             Minimum Value
                                                         </label>
                                                         <input
                                                             type="number"
                                                             value={newCustomDatapoint.min}
                                                             onChange={(e) => handleCustomDatapointChange('min', parseFloat(e.target.value) || 0)}
-                                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                                            className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                        <label className="block text-sm font-medium text-gray-300 mb-2">
                                                             Maximum Value
                                                         </label>
                                                         <input
                                                             type="number"
                                                             value={newCustomDatapoint.max}
                                                             onChange={(e) => handleCustomDatapointChange('max', parseFloat(e.target.value) || 100)}
-                                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                                            className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                        <label className="block text-sm font-medium text-gray-300 mb-2">
                                                             Step Size
                                                         </label>
                                                         <input
                                                             type="number"
                                                             value={newCustomDatapoint.step}
                                                             onChange={(e) => handleCustomDatapointChange('step', parseFloat(e.target.value) || 1)}
-                                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                                            className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
                                                         />
                                                     </div>
                                                 </>
@@ -817,7 +799,7 @@ export default function Settings() {
                                                     setShowCustomForm(false);
                                                     setSelectedCategory('');
                                                 }}
-                                                className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                                                className="px-4 py-2 text-gray-300 border border-gray-600 rounded-md hover:bg-gray-600 transition-colors"
                                             >
                                                 Cancel
                                             </button>
@@ -848,22 +830,22 @@ export default function Settings() {
                                             }
 
                                             return (
-                                                <div key={datapointKey} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                                <div key={datapointKey} className="flex items-center justify-between p-2 bg-gray-700 rounded-lg">
                                                     <div className="flex items-center space-x-3 flex-1">
                                                         <input
                                                             type="checkbox"
                                                             id={`${key}-${datapointKey}`}
                                                             checked={enabledDatapoints[key]?.[datapointKey] || false}
                                                             onChange={() => handleToggleDatapoint(key, datapointKey)}
-                                                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                                            className="h-4 w-4 text-blue-400 focus:ring-blue-500 border-gray-600 rounded"
                                                         />
                                                         <label
                                                             htmlFor={`${key}-${datapointKey}`}
-                                                            className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer flex-1"
+                                                            className="text-sm text-gray-300 cursor-pointer flex-1"
                                                         >
                                                             {definition.label}
                                                             {isCustom && (
-                                                                <span className="text-xs text-blue-600 dark:text-blue-400 ml-1">
+                                                                <span className="text-xs text-blue-400 ml-1">
                                                                     (custom)
                                                                 </span>
                                                             )}
@@ -872,7 +854,7 @@ export default function Settings() {
                                                     {isCustom && (
                                                         <button
                                                             onClick={() => handleDeleteCustomDatapoint(key, datapointKey)}
-                                                            className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                                                            className="p-1 text-red-400 hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                                                             title="Delete custom datapoint"
                                                         >
                                                             <Trash2 className="h-3 w-3" />
@@ -888,30 +870,19 @@ export default function Settings() {
                     </div>
                 </div>
             </div>
-
-            {/* Save Button */}
-            <div className="flex justify-end pt-6">
-                <button
-                    onClick={handleSaveDatapoints}
-                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-                >
-                    Save Configuration
-                </button>
-            </div>
-
             {/* Summary */}
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mt-6">
+            <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
                 <div className="flex items-start gap-3">
                     <div className="flex-shrink-0">
                         <div className="w-6 h-6 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center">
-                            <span className="text-blue-600 dark:text-blue-400 text-xs font-medium">i</span>
+                            <span className="text-blue-400 text-xs font-medium">i</span>
                         </div>
                     </div>
                     <div>
-                        <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                        <h3 className="text-sm font-medium text-blue-300">
                             Configuration Summary
                         </h3>
-                        <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                        <p className="text-sm text-blue-400 mt-1">
                             You have selected{' '}
                             {Object.values(enabledDatapoints).reduce((total, category) => 
                                 total + Object.values(category || {}).filter(Boolean).length, 0
@@ -921,16 +892,26 @@ export default function Settings() {
                     </div>
                 </div>
             </div>
+            {/* Save Button */}
+            <div className="flex justify-end">
+                <button
+                    onClick={handleSaveDatapoints}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+                >
+                    Save Configuration
+                </button>
+            </div>
+
         </div>
     );
 
     const renderAppearanceSection = () => (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">
+                <h2 className="text-2xl font-semibold text-white mb-2">
                     Appearance
                 </h2>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-gray-300">
                     Customize the look and feel of your application
                 </p>
             </div>
@@ -939,12 +920,12 @@ export default function Settings() {
 
 
                 {/* Font Settings */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
+                    <h3 className="text-lg font-medium text-white mb-4">
                         Typography
                     </h3>
                     <div>
-                        <label htmlFor="font" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label htmlFor="font" className="block text-sm font-medium text-gray-300 mb-2">
                             Font Family
                         </label>
                         <select
@@ -970,7 +951,7 @@ export default function Settings() {
                                 // Save to localStorage
                                 localStorage.setItem('selectedFont', e.target.value);
                             }}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                            className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
                         >
                             <option value="open-sans">Open Sans (Default)</option>
                             <option value="inter">Inter</option>

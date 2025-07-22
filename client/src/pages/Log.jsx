@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { createLog, updateLog, getLogByDate } from '../api/log';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Save, Check, X } from 'lucide-react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { ArrowLeft, Save, Check, X, Lock } from 'lucide-react';
 import { useEnabledDatapoints, getDefaultValues, getCategoryNames } from '../components/Datapoints';
 import { getCurrentCentralDate, formatDateAsCentral, isSameDayInCentral } from '../utils/dateUtils';
 import { fetchWhoopData } from '../api/auth';
@@ -52,6 +52,20 @@ export default function Log() {
     }
     return false;
   };
+
+  // Show login prompt if not authenticated
+  if (!token) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-blue-900 rounded-2xl shadow-2xl p-10 flex flex-col items-center max-w-md w-full animate-fadein">
+          <Lock size={48} className="text-white mb-4" />
+          <div className="text-3xl font-bold mb-2 text-white">Sign in required</div>
+          <div className="text-lg text-white/80 mb-6 text-center">You need to be logged in to access this page. Please log in to continue.</div>
+          <Link to="/login" className="px-8 py-3 bg-black/80 rounded-lg text-white font-semibold text-lg shadow-lg hover:scale-105 transition-transform border border-white/10">Go to Login</Link>
+        </div>
+      </div>
+    );
+  }
 
   // Get date from URL parameter or default to current date
   useEffect(() => {

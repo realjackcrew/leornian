@@ -2,9 +2,24 @@ import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { API_BASE_URL } from '../config';
 import ReactMarkdown from 'react-markdown';
+import { Link } from 'react-router-dom';
+import { Lock } from 'lucide-react';
 
 export default function Chat() {
   const { token } = useContext(AuthContext);
+  // Show login prompt if not authenticated
+  if (!token) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-blue-900 rounded-2xl shadow-2xl p-10 flex flex-col items-center max-w-md w-full animate-fadein">
+          <Lock size={48} className="text-white mb-4" />
+          <div className="text-3xl font-bold mb-2 text-white">Sign in required</div>
+          <div className="text-lg text-white/80 mb-6 text-center">You need to be logged in to access this page. Please log in to continue.</div>
+          <Link to="/login" className="px-8 py-3 bg-black/80 rounded-lg text-white font-semibold text-lg shadow-lg hover:scale-105 transition-transform border border-white/10">Go to Login</Link>
+        </div>
+      </div>
+    );
+  }
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);

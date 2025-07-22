@@ -1,228 +1,57 @@
 import { Link } from 'react-router-dom';
-import { useContext, useEffect, useRef } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import LogoMarquee from '../components/LogoScroll';
 
 export default function Home() {
   const { token, user } = useContext(AuthContext);
-  const canvasRef = useRef(null);
 
-  // Bright streak lines with gravitational bending
   useEffect(() => {
-         const canvas = canvasRef.current;
-     if (!canvas) return;
-     const ctx = canvas.getContext('2d');
-     if (!ctx) return;
-
-         let width = canvas.width = window.innerWidth;
-     let height = canvas.height = window.innerHeight;
-     
-     // Set canvas CSS size to match device pixel ratio for crisp rendering
-     canvas.style.width = width + 'px';
-     canvas.style.height = height + 'px';
-
-    const starPos = { x: width * 0.75 + 12, y: height * 0.5 }; // star center - positioned in right column
-    const lines = [];
-    const G = 30000; // tweak for stronger / weaker bending
-
-    function spawnLine() {
-      const side = Math.floor(Math.random() * 4);
-      let x, y, vx, vy;
-      const speed = 1.5 + Math.random() * 1; // slower motion
-      switch (side) {
-        case 0: // top
-          x = Math.random() * width;
-          y = -20;
-          vx = (Math.random() - 0.5);
-          vy = speed;
-          break;
-        case 1: // bottom
-          x = Math.random() * width;
-          y = height + 20;
-          vx = (Math.random() - 0.5);
-          vy = -speed;
-          break;
-        case 2: // left
-          x = -20;
-          y = Math.random() * height;
-          vx = speed;
-          vy = (Math.random() - 0.5);
-          break;
-        default: // right
-          x = width + 20;
-          y = Math.random() * height;
-          vx = -speed;
-          vy = (Math.random() - 0.5);
-      }
-      lines.push({ x, y, vx, vy, life: 0, length: 0, history: [] });
-    }
-
-    let lastSpawn = 0;
-    const spawnInterval = 120; // ms - slightly slower spawning
-    let prev = performance.now();
-
-         function animate(now) {
-       const dt = (now - prev) / 1000;
-       prev = now;
-
-       // Clear the entire canvas
-       ctx.clearRect(0, 0, width, height);
-
-      // spawn new line regularly
-      if (now - lastSpawn > spawnInterval) {
-        spawnLine();
-        lastSpawn = now;
-      }
-
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-
-      lines.forEach((l) => {
-        // gravitational bending
-        const dx = starPos.x - l.x;
-        const dy = starPos.y - l.y;
-        const distSq = dx * dx + dy * dy;
-        if (distSq < 260 * 260) {
-          const dist = Math.sqrt(distSq);
-          const accel = G / (distSq + 1);
-          l.vx += (dx / dist) * accel * dt;
-          l.vy += (dy / dist) * accel * dt;
-        }
-
-        // Store current position in history
-        l.history.push({ x: l.x, y: l.y });
-        
-        // Keep only recent history (last 50 positions)
-        if (l.history.length > 50) {
-          l.history.shift();
-        }
-        
-        l.x += l.vx;
-        l.y += l.vy;
-        l.length += Math.sqrt(l.vx * l.vx + l.vy * l.vy) * dt;
-
-        // draw comet tail following actual path
-        const trailLength = 200;
-        const maxHistoryPoints = Math.min(l.history.length, 30);
-        
-        for (let i = 0; i < maxHistoryPoints - 1; i++) {
-          const t = i / maxHistoryPoints;
-          const opacity = t * 0.8;
-          const width = t * 5;
-          
-          ctx.lineWidth = width;
-          ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
-          
-          ctx.beginPath();
-          ctx.moveTo(l.history[i].x, l.history[i].y);
-          ctx.lineTo(l.history[i + 1].x, l.history[i + 1].y);
-          ctx.stroke();
-        }
-        
-        l.life += dt;
-      });
-
-      // remove old lines
-      for (let i = lines.length - 1; i >= 0; i--) {
-        const l = lines[i];
-        if (l.x < -200 || l.x > width + 200 || l.y < -200 || l.y > height + 200 || l.life > 8) {
-          lines.splice(i, 1);
-        }
-      }
-
-      requestAnimationFrame(animate);
-    }
-    requestAnimationFrame(animate);
-
-         const handleResize = () => {
-       width = canvas.width = window.innerWidth;
-       height = canvas.height = window.innerHeight;
-       canvas.style.width = width + 'px';
-       canvas.style.height = height + 'px';
-       starPos.x = width * 0.75 + 12;
-       starPos.y = height * 0.5;
-     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.scrollTo(0, 0);
   }, []);
 
   return (
-    <div>
-      <div className="relative w-full min-h-screen flex flex-col">
-        <div className="absolute inset-0">
-          <div className="subtle-grid"></div>
-          <div className="background-gradient"></div>
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none"></canvas>
-          <div className="floating-shapes">
-            <div className="floating-shape shape-bg-1"></div>
-            <div className="floating-shape shape-bg-2"></div>
-            <div className="floating-shape shape-bg-3"></div>
-            <div className="floating-shape shape-bg-4"></div>
-            <div className="floating-shape shape-bg-5"></div>
-            <div className="floating-shape shape-bg-6"></div>
-          </div>
-          <div className="background-particles">
-            {[...Array(15)].map((_, i) => (
-              <div key={i} className={`bg-particle bg-particle-${i + 1}`}></div>
-            ))}
-          </div>
+    <div className="min-h-screen bg-black flex flex-col justify-end items-center">
+      <div className="flex flex-col items-stretch justify-end w-full max-w-4xl px-4 space-y-1" style={{ minHeight: '80vh', marginBottom: '4vh' }}>
+        <h1 className="flex flex-col space-y-4 w-full">
+          <span className="block text-5xl sm:text-7xl md:text-8xl font-extrabold text-left animate-fadein-slow delay-400">
+            <span className="text-white">Know</span>{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">More.</span>
+          </span>
+          <span className="block text-5xl sm:text-7xl md:text-8xl font-extrabold text-center animate-fadein-slow delay-1400">
+            <span className="text-white">Feel</span>{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">Better.</span>
+          </span>
+          <span className="block text-5xl sm:text-7xl md:text-8xl font-extrabold text-right animate-fadein-slow delay-2400">
+            <span className="text-white">Live</span>{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-400">Smarter.</span>
+          </span>
+        </h1>
+        <p className="mt-4 text-xl sm:text-2xl text-gray-300 text-center max-w-2xl mx-auto animate-fadein delay-3400">
+          Your personal wellness companion, powered by AI to help you track and optimize your health journey.
+        </p>
+        <div className="mt-6 animate-fadein delay-4000 text-center">
+          <Link
+            to="/register"
+            className="inline-flex justify-center bg-white text-black font-semibold px-8 py-4 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:scale-105 hover:shadow-xl"
+          >
+            Early Access
+          </Link>
         </div>
-        <div className="relative z-10 flex-1 flex items-center">
-          <div className="w-full max-w-7xl mx-auto px-6 lg:px-8">
-            <div className="grid lg:grid-cols-2 gap-12 items-center h-full">
-              <div className="flex flex-col justify-end space-y-8 pt-20">
-                <div>
-                  <h1 className="text-5xl lg:text-7xl font-bold text-white leading-tight mb-6">
-                    Know <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">More. </span><br />
-                    Feel <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Better.</span>
-                    <br />
-                    Live <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Smarter.</span>
-                  </h1>
-                  <p className="text-xl text-gray-300 mb-8 max-w-lg">
-                    Your personal wellness companion, powered by AI to help you track and optimize your health journey.
-                  </p>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <Link 
-                    to="/register" 
-                    className="inline-flex justify-center bg-white text-black font-semibold px-8 py-4 rounded-lg transition-all duration-300 hover:bg-gray-100 hover:scale-105 hover:shadow-xl"
-                  >
-                    Early Access
-                  </Link>
-                </div>
-              </div>
-              <div className="hidden lg:flex justify-center items-center h-full">
-                <div className="relative w-full max-w-lg h-96">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="central-node"></div>
-                  </div>
-                  <div className="orbit-container orbit-1">
-                    <div className="orbit-path">
-                      <div className="orbit-element element-1"></div>
-                    </div>
-                  </div>
-                  <div className="orbit-container orbit-2">
-                    <div className="orbit-path">
-                      <div className="orbit-element element-2"></div>
-                    </div>
-                  </div>
-                  <div className="orbit-container orbit-3">
-                    <div className="orbit-path">
-                      <div className="orbit-element element-3"></div>
-                    </div>
-                  </div>
-                  <div className="data-points">
-                    {[...Array(12)].map((_, i) => (
-                      <div key={i} className={`data-point data-point-${i + 1}`}></div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent z-20"></div>
       </div>
+      {/* Add fade-in keyframes for animation */}
+      <style>{`
+        .animate-fadein { opacity: 0; animation: fadein 1.5s forwards; }
+        .animate-fadein-slow { opacity: 0; animation: fadein 2.2s forwards; }
+        .delay-400 { animation-delay: 0.4s; }
+        .delay-1400 { animation-delay: 1.4s; }
+        .delay-2400 { animation-delay: 2.4s; }
+        .delay-3400 { animation-delay: 3.4s; }
+        .delay-4000 { animation-delay: 4s; }
+        @keyframes fadein { to { opacity: 1; } }
+      `}</style>
+
+      {/* Restored content after hero section */}
       <div className="bg-black text-white min-h-screen flex items-center relative">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 w-full">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -293,7 +122,6 @@ export default function Home() {
       <div className="bg-black">
         <LogoMarquee />
       </div>
-
       {/* Personalized Recommendations Section */}
       <div className="bg-black text-white min-h-screen flex items-center relative">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 w-full">
@@ -361,7 +189,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-
       {/* Seamless Integration Section */}
       <div className="bg-black text-white min-h-screen flex items-center relative">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 w-full">
@@ -438,7 +265,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-
       {/* Footer */}
       <footer className="bg-black text-gray-400 py-12 px-4">
         <div className="max-w-7xl mx-auto">
