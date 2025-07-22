@@ -10,7 +10,7 @@ import Chat from './pages/Chat'
 import Settings from './pages/Settings';
 import { AuthContext } from './context/AuthContext';
 import { useContext } from 'react';
-
+import WhoopDebugger from './pages/WhoopRaw';
 
 export default function App() {
   const { token, user, logout } = useContext(AuthContext);
@@ -27,6 +27,7 @@ export default function App() {
         <Route path="/log" element={<Log />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/whoop-raw" element={<WhoopDebugger />} />
       </Routes>
     </BrowserRouter>
   );

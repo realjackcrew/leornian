@@ -36,7 +36,7 @@ async function main() {
   try {
     // 1. Fetch the most recent cycle (limit=1)
     const cycleUrls = [
-      'https://api.prod.whoop.com/developer/v2/cycle?limit=1',
+              'https://api.prod.whoop.com/developer/v2/cycle?limit=1',
       'https://api.prod.whoop.com/developer/v1/cycle?limit=1'
     ];
 

@@ -330,8 +330,20 @@ class WhoopAPI {
 
     try {
       console.log(`[WHOOP API] Sending request to: ${this.baseURL}${endpoint}`);
+      console.log(`[WHOOP API] Request config:`, { 
+        url: `${this.baseURL}${endpoint}`,
+        headers: { ...config.headers, Authorization: `Bearer ${this.accessToken?.substring(0, 10)}...` },
+        params: config.params 
+      });
+      
       const response = await axios.get(`${this.baseURL}${endpoint}`, config);
-      console.log(`[WHOOP API] Request successful for ${endpoint}, response status:`, response.status);
+      
+      console.log(`[WHOOP API] Request successful for ${endpoint}`);
+      console.log(`[WHOOP API] Response status:`, response.status);
+      console.log(`[WHOOP API] Response headers:`, response.headers);
+      console.log(`[WHOOP API] Response data type:`, typeof response.data);
+      console.log(`[WHOOP API] Response data:`, JSON.stringify(response.data, null, 2));
+      
       return response.data;
     } catch (error: any) {
       // If the request fails with a 401, try to refresh it and retry the request once.
@@ -355,7 +367,13 @@ class WhoopAPI {
         }
       }
       // For other errors, just re-throw.
-      console.error(`[WHOOP API] Request failed for endpoint ${endpoint}:`, error.response?.data || error.message);
+      console.error(`[WHOOP API] Request failed for endpoint ${endpoint}:`, error.response?.status, error.response?.data || error.message);
+      console.error(`[WHOOP API] Full error:`, error.response ? {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data,
+        headers: error.response.headers
+      } : error.message);
       throw error;
     }
   }
@@ -479,15 +497,70 @@ class WhoopAPI {
    * @returns An array of cycle data objects, or an empty array if none found.
    */
   async getCyclesInDateRange(startDate: string, endDate: string): Promise<any[]> {
+    console.log(`[DEBUG getCyclesInDateRange] Input dates: start=${startDate}, end=${endDate}`);
+    
     try {
-      const response = await this.makeAuthenticatedRequest('/developer/v2/cycle', { start: startDate, end: endDate });
-      return response.records || [];
-    } catch (error: any) {
-      if (error.isAxiosError && error.response?.status === 404) {
-        console.log(`No WHOOP cycle data found for date range: ${startDate} to ${endDate} (404).`);
+      // First try without date parameters to see if user has ANY cycles
+      console.log(`[DEBUG] Step 1: Checking if user has any cycles at all...`);
+      const responseAll = await this.makeAuthenticatedRequest('/developer/v2/cycle', { limit: 25 });
+      
+      console.log(`[DEBUG] All cycles response:`, responseAll);
+      
+      if (responseAll && responseAll.records && Array.isArray(responseAll.records)) {
+        console.log(`[DEBUG] User has ${responseAll.records.length} total cycles available`);
+        
+        if (responseAll.records.length === 0) {
+          console.log(`[DEBUG] User has no cycles at all`);
+          return [];
+        }
+        
+        // Show some sample cycle dates for debugging
+        const sampleCycles = responseAll.records.slice(0, 3).map((c: any) => ({
+          id: c.id,
+          start: c.start,
+          end: c.end
+        }));
+        console.log(`[DEBUG] Sample cycles:`, sampleCycles);
+        
+        // Now try with date filters using proper ISO 8601 format
+        console.log(`[DEBUG] Step 2: Trying with date filters...`);
+        const startDateTime = `${startDate}T00:00:00.000Z`;
+        const endDateTime = `${endDate}T23:59:59.999Z`;
+        
+        console.log(`[DEBUG] Using ISO date-time format: start=${startDateTime}, end=${endDateTime}`);
+        
+        const response = await this.makeAuthenticatedRequest('/developer/v2/cycle', { 
+          start: startDateTime, 
+          end: endDateTime,
+          limit: 25 
+        });
+        
+        console.log(`[DEBUG] Filtered response:`, response);
+        
+        if (response && response.records && Array.isArray(response.records)) {
+          console.log(`[DEBUG] Found ${response.records.length} cycles in specified date range`);
+          return response.records;
+        }
+        
+        console.log(`[DEBUG] No cycles found in specified date range, but user has cycles overall`);
+        return [];
+      } else {
+        console.log(`[DEBUG] Unexpected response format for all cycles:`, responseAll);
         return [];
       }
-      console.error(`Failed to fetch WHOOP cycle data for date range:`, error.response?.data || error.message);
+    } catch (error: any) {
+      console.log(`[DEBUG getCyclesInDateRange] Error caught:`, {
+        isAxiosError: error.isAxiosError,
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+      
+      if (error.isAxiosError && error.response?.status === 404) {
+        console.log(`WHOOP API returned 404 - this might mean the user has no cycles or the endpoint is not available.`);
+        return [];
+      }
+      console.error(`Failed to fetch WHOOP cycle data:`, error.response?.data || error.message);
       throw error;
     }
   }
@@ -518,7 +591,6 @@ class WhoopAPI {
    */
   async getRecoveryForCycle(cycleId: string): Promise<any | null> {
     try {
-      // Note: The v2 docs suggest this is the endpoint, but it might be /v2/activity/recovery/cycle/{cycleId}/recovery
       const response = await this.makeAuthenticatedRequest(`/developer/v2/cycle/${cycleId}/recovery`);
       return response;
     } catch (error: any) {
