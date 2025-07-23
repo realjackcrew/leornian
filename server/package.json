@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "build": "npx prisma generate && npx prisma migrate deploy && npx tsc && npm run copy-assets",
+    "build": "tsc --noEmit && npx prisma generate && npx prisma migrate deploy && npx tsc && npm run copy-assets",
     "copy-assets": "mkdir -p dist/llm && cp src/llm/*.md dist/llm/",
     "start": "npx prisma db push && node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "postinstall": "npx prisma generate",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
@@ -16,9 +17,6 @@
   "description": "",
   "dependencies": {
     "@prisma/client": "^6.8.2",
-    "@types/axios": "^0.9.36",
-    "@types/passport": "^1.0.17",
-    "@types/passport-oauth2": "^1.8.0",
     "axios": "^1.10.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
@@ -34,11 +32,14 @@
     "chalk": "^5.3.0"
   },
   "devDependencies": {
+    "@types/axios": "^0.9.36",
     "@types/bcrypt": "^5.0.2",
     "@types/cors": "^2.8.18",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.15.29",
+    "@types/passport": "^1.0.17",
+    "@types/passport-oauth2": "^1.8.0",
     "@types/simple-oauth2": "^5.0.7",
     "@types/chalk": "^4.1.1",
     "ts-node-dev": "^2.0.0",

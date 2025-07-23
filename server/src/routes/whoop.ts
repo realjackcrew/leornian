@@ -140,22 +140,6 @@ const whoopOptions: StrategyOptionsWithRequest = {
 passport.use('whoop', new OAuth2Strategy(whoopOptions, whoopVerify));
 router.use(passport.initialize());
 
-// Handler for WHOOP OAuth callback with enhanced error handling
-const whoopCallbackAuth = passport.authenticate('whoop', {
-  failureRedirect: `${clientUrl}/settings?whoopAuth=failed`,
-  session: false,
-  failureMessage: true // Enable error messages
-});
-
-// Success handler with logging
-const whoopCallbackSuccess: RequestHandler = (req, res) => {
-  console.log('[WHOOP Callback] Authentication successful', {
-    userId: (req as AuthenticatedRequest).userId,
-    hasProfile: !!req.user
-  });
-  res.redirect(`${clientUrl}/settings?whoopAuth=success`);
-};
-
 // Error handler for WHOOP callback
 const whoopCallbackError: ErrorRequestHandler = (
   err: Error,
@@ -175,7 +159,19 @@ const whoopCallbackError: ErrorRequestHandler = (
 router.get('/auth/whoop', authenticateToken, startWhoopAuth);
 
 // 2) WHOOP callback route with error handling
-router.get('/auth/whoop/callback', whoopCallbackAuth, whoopCallbackSuccess);
+router.get('/auth/whoop/callback', 
+  passport.authenticate('whoop', {
+    failureRedirect: `${clientUrl}/settings?whoopAuth=failed`,
+    session: false
+  }),
+  (req: Request, res: Response) => {
+    console.log('[WHOOP Callback] Authentication successful', {
+      userId: (req as AuthenticatedRequest).userId,
+      hasProfile: !!req.user
+    });
+    res.redirect(`${clientUrl}/settings?whoopAuth=success`);
+  }
+);
 // Error handler for the callback route
 router.use('/auth/whoop/callback', whoopCallbackError);
 
