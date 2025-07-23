@@ -141,7 +141,7 @@ passport.use('whoop', new OAuth2Strategy(whoopOptions, whoopVerify));
 router.use(passport.initialize());
 
 // Handler for WHOOP OAuth callback with enhanced error handling
-const whoopCallbackAuth: RequestHandler = passport.authenticate('whoop', {
+const whoopCallbackAuth = passport.authenticate('whoop', {
   failureRedirect: `${clientUrl}/settings?whoopAuth=failed`,
   session: false,
   failureMessage: true // Enable error messages
