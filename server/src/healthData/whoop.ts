@@ -1,6 +1,16 @@
 import axios from 'axios';
-const simpleOAuth2 = require('simple-oauth2');
 import prisma from '../db/database';
+
+// Import simple-oauth2 dynamically
+let simpleOAuth2: any;
+(async () => {
+  try {
+    simpleOAuth2 = await import('simple-oauth2');
+  } catch (err) {
+    console.error('Failed to import simple-oauth2:', err);
+    process.exit(1);
+  }
+})();
 
 const whoopOauthConfig = {
   client: {
@@ -17,7 +27,13 @@ const whoopOauthConfig = {
   },
 };
 
-const oauth2 = new simpleOAuth2.AuthorizationCode(whoopOauthConfig);
+let oauth2: any;
+try {
+  oauth2 = new simpleOAuth2.AuthorizationCode(whoopOauthConfig);
+} catch (err) {
+  console.error('Failed to initialize OAuth2 client:', err);
+  process.exit(1);
+}
 
 const REDIRECT_URI = process.env.WHOOP_REDIRECT_URI || 'http://localhost:4000/api/auth/whoop/callback';
 
@@ -98,6 +114,27 @@ export async function handleWhoopCallback(code: string, userId: string): Promise
     console.error('Error in handleWhoopCallback:', error);
     throw new Error('Failed to handle Whoop callback and obtain token.');
   }
+}
+
+async function refreshToken(userId: string): Promise<WhoopTokenResponse> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user?.whoopRefreshToken) {
+    throw new Error('No refresh token found. Please reconnect your Whoop account.');
+  }
+
+  const response = await axios.post<WhoopTokenResponse>(whoopOauthConfig.auth.tokenHost + whoopOauthConfig.auth.tokenPath,
+    new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: user.whoopRefreshToken,
+      client_id: process.env.WHOOP_CLIENT_ID!,
+      client_secret: process.env.WHOOP_CLIENT_SECRET!
+    }), {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    }
+  });
+
+  return response.data;
 }
 
 export class WhoopAPI {
