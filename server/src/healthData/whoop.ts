@@ -1,4 +1,5 @@
 import axios from 'axios';
+// @ts-ignore
 import simpleOAuth2, { AccessToken, Token } from 'simple-oauth2';
 import prisma from '../db/database';
 

@@ -24,7 +24,7 @@ const whoopStrategy = new OAuth2Strategy({
     // WHOOP uses plural 'read:cycles' in OAuth docs. Using wrong scope throws invalid_scope error.
     scope: ['offline', 'read:profile', 'read:cycles', 'read:recovery', 'read:sleep', 'read:workout']
   },
-  async (req: Request, accessToken: string, refreshToken: string, results: any, profile: any, done: (err: any, user?: any) => void) => {
+  async (req: Request, accessToken: string, refreshToken: string, params: any, profile: any, done: (err: any, user?: any) => void) => {
     try {
         const state = req.query.state as string;
         if (!state) {
@@ -49,15 +49,13 @@ const whoopStrategy = new OAuth2Strategy({
             data: { 
                 whoopAccessToken: accessToken,
                 whoopRefreshToken: refreshToken,
-                whoopTokenExpiresAt: new Date(Date.now() + results.expires_in * 1000),
+                whoopTokenExpiresAt: new Date(Date.now() + params.expires_in * 1000),
                 whoopUserId: String(whoopUserId),
                 firstName: profile.first_name,
                 lastName: profile.last_name,
             }
         });
 
-        // The "user" passed to `done` is not directly used in the session-less flow,
-        // but it's good practice to return the user profile.
         return done(null, profile);
 
     } catch (error) {
@@ -65,38 +63,6 @@ const whoopStrategy = new OAuth2Strategy({
     }
   }
 );
-
-whoopStrategy.userProfile = (accessToken, done) => {
-    // Note: The 'userProfile' method in passport-oauth2 is a bit of a legacy pattern.
-    // The profile fetched here is mainly used to extract the `whoopUserId` after the initial auth.
-    // We use a separate /v2/user/profile/basic call in the /test-auth route for explicit checks.
-    fetch('https://api.prod.whoop.com/developer/v2/user/profile/basic', {
-        headers: {
-            'Authorization': `Bearer ${accessToken}`
-        }
-    })
-    .then(res => {
-        if (!res.ok) {
-            // Log the error but don't fail the whole auth flow, as the tokens are the main goal.
-            console.error(`WHOOP userProfile fetch failed with status: ${res.status}`);
-            return res.text().then(text => {
-                console.error(`WHOOP userProfile error body: ${text}`);
-                // Return a basic object so the flow can continue to the callback handler.
-                // The main callback handler will store the tokens regardless.
-                return { user_id: 'unknown' };
-            });
-        }
-        return res.json();
-    })
-    .then(profile => {
-        done(null, profile);
-    })
-    .catch(err => {
-        console.error('Error fetching WHOOP user profile during auth:', err);
-        // Allow the auth flow to continue even if profile fetch fails.
-        done(null, { user_id: 'unknown' });
-    });
-};
 
 passport.use('whoop', whoopStrategy);
 
