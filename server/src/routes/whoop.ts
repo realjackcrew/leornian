@@ -10,11 +10,7 @@ import express from 'express';
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 
-// In a real app, you'd want to use express-session to store state,
-// but to keep it simple, we'll pass the JWT token in the state parameter.
-// This is not the most secure method, but it is simple.
-// Note: passport-oauth2 may overwrite the state if `state: true` is set in the strategy options.
-// We are explicitly not setting it.
+
 
 const whoopCallbackUrl = process.env.WHOOP_REDIRECT_URI || process.env.WHOOP_CALLBACK_URL!;
 
@@ -301,17 +297,15 @@ router.get('/whoop/data', authenticateToken, async (req: AuthenticatedRequest, r
         const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
         console.log('[WHOOP] Fetching data for date:', date);
         
-        // The log date from the client is a 'YYYY-MM-DD' string. We need to find the cycle that corresponds to this day.
-        // A WHOOP cycle is defined by when a user goes to sleep and wakes up. The cycle for a given calendar day
-        // is the one where the primary sleep *ends* on that day.
-        const logDate = new Date(`${date}T12:00:00.000Z`); // Use noon to avoid timezone issues.
-        const startDate = new Date(logDate);
-        startDate.setDate(logDate.getDate() - 1); // Widen range to be safe.
-        const endDate = new Date(logDate);
-        endDate.setDate(logDate.getDate() + 1);
+        // Get a broader range of cycles to find the right one
+        // We'll search from 3 days before to 1 day after to ensure we catch all relevant cycles
+        const searchStartDate = new Date(`${date}T00:00:00.000Z`);
+        searchStartDate.setDate(searchStartDate.getDate() - 3);
+        const searchEndDate = new Date(`${date}T23:59:59.999Z`);
+        searchEndDate.setDate(searchEndDate.getDate() + 1);
 
-        const startISO = startDate.toISOString();
-        const endISO = endDate.toISOString();
+        const startISO = searchStartDate.toISOString();
+        const endISO = searchEndDate.toISOString();
         console.log('[WHOOP] Searching for cycles between:', startISO, 'and', endISO);
 
         const cycles = await api.getCyclesInDateRange(startISO, endISO);
@@ -322,23 +316,60 @@ router.get('/whoop/data', authenticateToken, async (req: AuthenticatedRequest, r
             return res.json({ success: true, data: {}, message: 'No WHOOP cycles found for this date range.' });
         }
 
-        //find the cycle where the main sleep ends on the log date
-        const targetCycle = cycles.find((c: any) => c.end && c.end.startsWith(date));
+        console.log('[WHOOP] Available cycles for matching:', cycles.map((c: any) => ({ 
+            id: c.id, 
+            start: c.start, 
+            startDate: c.start ? c.start.split('T')[0] : null,
+            end: c.end,
+            endDate: c.end ? c.end.split('T')[0] : null
+        })));
+
+        // Find the cycle that starts on the requested date, or the closest match
+        // Priority: 
+        // 1. Cycle that starts on the exact date
+        // 2. Most recent cycle that started before the date
+        const targetDate = date;
+        let targetCycle = null;
+
+        // First, try to find a cycle that starts exactly on the target date
+        targetCycle = cycles.find((c: any) => c.start && c.start.startsWith(targetDate));
+        
         if (!targetCycle) {
-            console.log('[WHOOP] No target cycle found for date:', date);
+            // If no exact match, find the most recent cycle that started before or on the target date
+            const validCycles = cycles
+                .filter((c: any) => c.start && c.start.split('T')[0] <= targetDate)
+                .sort((a: any, b: any) => new Date(b.start).getTime() - new Date(a.start).getTime());
+            
+            targetCycle = validCycles[0];
+        }
+
+        if (!targetCycle) {
+            console.log('[WHOOP] No suitable cycle found for date:', date);
             console.log('[WHOOP] Available cycles:', cycles.map((c: any) => ({ id: c.id, start: c.start, end: c.end })));
             return res.json({ success: true, data: {}, message: 'Could not find a matching WHOOP cycle for this date.' });
         }
 
-        console.log('[WHOOP] Found target cycle:', targetCycle.id, 'with end date:', targetCycle.end);
+        console.log('[WHOOP] Found target cycle:', targetCycle.id, 'with start date:', targetCycle.start, 'and end date:', targetCycle.end);
 
-        //fetch sleep, recovery, and workouts using cycle ID and date range
-        console.log('[WHOOP] Fetching sleep, recovery, and workout data...');
-        const [sleepData, recoveryData, workouts] = await Promise.all([
-            api.getSleepForCycle(targetCycle.id),
+        //fetch recovery and workouts using cycle ID and date range
+        console.log('[WHOOP] Fetching recovery and workout data...');
+        let [recoveryData, workouts] = await Promise.all([
             api.getRecoveryForCycle(targetCycle.id),
             api.getWorkoutsInDateRange(startISO, endISO) // Workouts are still best fetched by date range
         ]);
+
+        // Only fetch sleep using sleep_id from recoveryData
+        let sleepData = null;
+        if (recoveryData && recoveryData.sleep_id) {
+            console.log(`[WHOOP] Fetching sleep by sleep_id: ${recoveryData.sleep_id}`);
+            sleepData = await api.getSleepById(recoveryData.sleep_id);
+        } else if (recoveryData && recoveryData.score && recoveryData.score.sleep_id) {
+            // Some API responses nest sleep_id under score
+            console.log(`[WHOOP] Fetching sleep by recoveryData.score.sleep_id: ${recoveryData.score.sleep_id}`);
+            sleepData = await api.getSleepById(recoveryData.score.sleep_id);
+        } else {
+            console.log('[WHOOP] No sleep_id found in recovery data, skipping sleep fetch.');
+        }
 
         console.log('[WHOOP] Sleep data:', sleepData ? 'found' : 'not found');
         console.log('[WHOOP] Recovery data:', recoveryData ? 'found' : 'not found');
@@ -366,14 +397,62 @@ router.get('/whoop/data', authenticateToken, async (req: AuthenticatedRequest, r
         const missingData: string[] = [];
         
         if (sleepData && sleepData.score) {
-            result.bedtime = sleepData.start.substring(11, 16);
-            result.wakeTime = sleepData.end.substring(11, 16);
-            result.sleepEfficiencyPercent = sleepData.score.sleep_efficiency_percentage;
-            result.sleepFulfillmentPercent = sleepData.score.sleep_performance_percentage;
+            // Use local time for bedtime and wakeTime if timezone_offset is available
+            const getLocalTime = (isoString: string, offset: string | undefined) => {
+                if (!isoString) return null;
+                const date = new Date(isoString);
+                if (!offset) return date.toISOString().substring(11, 16); // fallback to UTC
+                // offset is like "+01:00" or "-05:00"
+                const sign = offset[0] === '-' ? -1 : 1;
+                const [hours, minutes] = offset.substring(1).split(':').map(Number);
+                const offsetMinutes = sign * (hours * 60 + minutes);
+                // Subtract the offset to get local time
+                const localDate = new Date(date.getTime());
+                // Format as HH:mm (24-hour)
+                return localDate.toTimeString().substring(0, 5);
+            };
+            result.bedtime = getLocalTime(sleepData.start, sleepData.timezone_offset);
+            result.wakeTime = getLocalTime(sleepData.end, sleepData.timezone_offset);
+            result.sleepEfficiencyPercent = Math.round(sleepData.score.sleep_efficiency_percentage);
+            result.sleepPerformancePercent = sleepData.score.sleep_performance_percentage;
+            result.sleepConsistencyPercent = Math.round(sleepData.score.sleep_consistency_percentage);
+            
+            // Calculate sleep fulfillment properly: (total sleep time) / (baseline needed) * 100
+            let sleepFulfillmentPercent = null;
+            const totalInBedMilli = sleepData.score?.stage_summary?.total_in_bed_time_milli;
+            const totalAwakeMilli = sleepData.score?.stage_summary?.total_awake_time_milli;
+            const baselineMilli = sleepData.score?.sleep_needed?.baseline_milli || sleepData.sleep_needed?.baseline_milli;
+            
+            console.log('[WHOOP] Sleep calculation raw values:', {
+                total_in_bed_time_milli: totalInBedMilli,
+                total_awake_time_milli: totalAwakeMilli,
+                baseline_milli: baselineMilli
+            });
+            
+            if (totalInBedMilli != null && totalAwakeMilli != null && baselineMilli != null) {
+                const totalSleepMilli = totalInBedMilli - totalAwakeMilli;
+                sleepFulfillmentPercent = Math.round((totalSleepMilli / baselineMilli) * 100);
+                console.log('[WHOOP] Calculated sleep fulfillment:', {
+                    totalSleepMilli,
+                    baselineMilli,
+                    fulfillmentPercent: sleepFulfillmentPercent
+                });
+            } else {
+                console.log('[WHOOP] Cannot calculate sleep fulfillment - missing required values');
+            }
+            
+            result.sleepFulfillmentPercent = sleepFulfillmentPercent;
             
             //v2 provides sleep debt in milliseconds
-            if (sleepData.score.sleep_needed?.need_from_sleep_debt_milli) {
-                result.sleepDebtMinutes = Math.round(sleepData.score.sleep_needed.need_from_sleep_debt_milli / 60000);
+            let sleepDebtRaw = null;
+            if (sleepData.score.sleep_needed?.need_from_sleep_debt_milli != null) {
+                sleepDebtRaw = sleepData.score.sleep_needed.need_from_sleep_debt_milli;
+            } else if (sleepData.sleep_needed?.need_from_sleep_debt_milli != null) {
+                sleepDebtRaw = sleepData.sleep_needed.need_from_sleep_debt_milli;
+            }
+            console.log('[WHOOP] Raw sleep debt (ms):', sleepDebtRaw);
+            if (sleepDebtRaw != null) {
+                result.sleepDebtMinutes = Math.round(sleepDebtRaw / 60000);
             } else {
                 result.sleepDebtMinutes = 0;
             }
@@ -384,17 +463,16 @@ router.get('/whoop/data', authenticateToken, async (req: AuthenticatedRequest, r
         if (workouts && workouts.length > 0) {
             result.didStrengthTrainingWorkout = targetWorkouts.some((w: any) => w.sport_name && w.sport_name.toLowerCase().includes('strength'));
             result.wentForRun = targetWorkouts.some((w: any) => w.sport_name && w.sport_name.toLowerCase().includes('run'));
-            //v2 provides energy in kilojoules, convert to calories
-            result.caloriesBurned = Math.round(targetWorkouts.reduce((total: number, w: any) => total + (w.score?.kilojoule || 0), 0) / 4.184);
         } else {
             missingData.push('workouts');
         }
         
+        // Set strain from the cycle's score, not recovery
+        result.whoopStrainScore = targetCycle.score?.strain != null ? Number(targetCycle.score.strain.toFixed(2)) : null;
+
         if (recoveryData && recoveryData.score) {
             result.restingHR = recoveryData.score.resting_heart_rate;
-            result.heartRateVariability = recoveryData.score.hrv_rmssd_milli;
-            // current whoop api does not provide strain... smh
-            result.whoopStrainScore = null; 
+            result.heartRateVariability = recoveryData.score.hrv_rmssd_milli != null ? Math.round(recoveryData.score.hrv_rmssd_milli) : null;
             result.whoopRecoveryScorePercent = recoveryData.score.recovery_score;
         } else {
             missingData.push('recovery');

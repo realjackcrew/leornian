@@ -282,6 +282,7 @@ class WhoopAPI {
       formData.append('refresh_token', this.refreshToken);
       formData.append('client_id', process.env.WHOOP_CLIENT_ID || '');
       formData.append('client_secret', process.env.WHOOP_CLIENT_SECRET || '');
+      formData.append('redirect_uri', REDIRECT_URI); // <-- Add this line
 
       const response = await axios.post<WhoopTokenResponse>(
         'https://api.prod.whoop.com/oauth/oauth2/token',
@@ -524,9 +525,15 @@ class WhoopAPI {
         
         // Now try with date filters using proper ISO 8601 format
         console.log(`[DEBUG] Step 2: Trying with date filters...`);
-        const startDateTime = `${startDate}T00:00:00.000Z`;
-        const endDateTime = `${endDate}T23:59:59.999Z`;
-        
+        let startDateTime = startDate;
+        let endDateTime = endDate;
+        // Only append if not already a full ISO string
+        if (/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+          startDateTime = `${startDate}T00:00:00.000Z`;
+        }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+          endDateTime = `${endDate}T23:59:59.999Z`;
+        }
         console.log(`[DEBUG] Using ISO date-time format: start=${startDateTime}, end=${endDateTime}`);
         
         const response = await this.makeAuthenticatedRequest('/developer/v2/cycle', { 
@@ -693,6 +700,24 @@ class WhoopAPI {
       refresh_token: this.refreshToken,
       expires_in: expiresIn || 0
     };
+  }
+
+  /**
+   * Get sleep data by sleepId
+   * @param sleepId The sleep ID
+   * @returns Sleep data for the given sleepId
+   */
+  async getSleepById(sleepId: string): Promise<any | null> {
+    try {
+      return await this.makeAuthenticatedRequest(`/developer/v2/activity/sleep/${sleepId}`);
+    } catch (error: any) {
+      if (error.isAxiosError && error.response?.status === 404) {
+        console.log(`No WHOOP sleep data found for sleepId ${sleepId} (404).`);
+        return null;
+      }
+      console.error(`Failed to fetch WHOOP sleep data for sleepId ${sleepId}:`, error.response?.data || error.message);
+      throw error;
+    }
   }
 }
 

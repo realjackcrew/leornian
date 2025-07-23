@@ -16,6 +16,8 @@ const masterDatapointDefinitions = {
     watchSunrise: { type: 'boolean', label: 'Watched sunrise' },
     wakeTime: { type: 'time', label: 'This morning\'s wake time' },
     sleepEfficiencyPercent: { type: 'number', label: 'Sleep efficiency (0-100%)', min: 0, max: 100, step: 1 },
+    sleepPerformancePercent: { type: 'number', label: 'Sleep performance (0-100%)', min: 0, max: 100, step: 1 },
+    sleepConsistencyPercent: { type: 'number', label: 'Sleep consistency (0-100%)', min: 0, max: 100, step: 1 },
     sleepFulfillmentPercent: { type: 'number', label: 'Sleep achieved / sleep needed (0-100%)', min: 0, max: 100, step: 1 },
     sleepDebtMinutes: { type: 'number', label: 'Sleep debt (minutes)', min: 0, max: 200, step: 1 }
   },

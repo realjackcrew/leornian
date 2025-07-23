@@ -6,6 +6,7 @@ import { ArrowLeft, Save, Check, X, Lock } from 'lucide-react';
 import { useEnabledDatapoints, getDefaultValues, getCategoryNames } from '../components/Datapoints';
 import { getCurrentCentralDate, formatDateAsCentral, isSameDayInCentral } from '../utils/dateUtils';
 import { fetchWhoopData } from '../api/auth';
+import whoopIcon from '../assets/whoop-icon.png';
 
 export default function Log() {
   const { token } = useContext(AuthContext);
@@ -22,8 +23,7 @@ export default function Log() {
   const [isFutureDate, setIsFutureDate] = useState(false);
   const [isWhoopLoading, setIsWhoopLoading] = useState(false);
   const [whoopError, setWhoopError] = useState(null);
-  const [whoopMissingData, setWhoopMissingData] = useState([]);
-  const [whoopHasAnyData, setWhoopHasAnyData] = useState(false);
+  const [whoopPopulated, setWhoopPopulated] = useState({});
 
   // Helper function to get user-friendly missing data messages
   const getMissingDataMessage = (dataType) => {
@@ -37,20 +37,10 @@ export default function Log() {
 
   // Helper function to check if a specific datapoint is missing from WHOOP
   const isDatapointMissingFromWhoop = (category, datapointKey) => {
-    if (whoopMissingData.includes('sleep') && category === 'sleep') {
-      return true;
+    if (whoopPopulated[category] && whoopPopulated[category][datapointKey] === true) {
+      return false; // Data was populated from WHOOP
     }
-    if (whoopMissingData.includes('recovery') && category === 'physicalHealth') {
-      // Recovery data includes: restingHR, heartRateVariability, whoopRecoveryScorePercent
-      const recoveryFields = ['restingHR', 'heartRateVariability', 'whoopRecoveryScorePercent'];
-      return recoveryFields.includes(datapointKey);
-    }
-    if (whoopMissingData.includes('workouts') && category === 'physicalHealth') {
-      // Workout data includes: didStrengthTrainingWorkout, wentForRun, caloriesBurned
-      const workoutFields = ['didStrengthTrainingWorkout', 'wentForRun', 'caloriesBurned'];
-      return workoutFields.includes(datapointKey);
-    }
-    return false;
+    return true; // Data was NOT populated from WHOOP
   };
 
   // Show login prompt if not authenticated
@@ -112,41 +102,26 @@ export default function Log() {
   const handleLoadFromWhoop = async () => {
     setIsWhoopLoading(true);
     setWhoopError(null);
-    setWhoopMissingData([]);
-    setWhoopHasAnyData(false);
     try {
       const dateString = formatDateAsCentral(selectedDate);
       const whoopResp = await fetchWhoopData(dateString);
       if (whoopResp && whoopResp.success) {
         const whoop = whoopResp.data || {};
-        
-        // Update missing data and hasAnyData state
-        setWhoopMissingData(whoopResp.missingData || []);
-        setWhoopHasAnyData(whoopResp.hasAnyData || false);
-        
+        const populated = {};
         setValues(prevValues => {
           const newValues = JSON.parse(JSON.stringify(prevValues));
-
-          //maps WHOOP fields to log fields
-
-          if (newValues.sleep) {
-            if (whoop.bedtime !== undefined) newValues.sleep.bedtime = whoop.bedtime;
-            if (whoop.wakeTime !== undefined) newValues.sleep.wakeTime = whoop.wakeTime;
-            if (whoop.sleepEfficiencyPercent !== undefined) newValues.sleep.sleepEfficiencyPercent = whoop.sleepEfficiencyPercent;
-            if (whoop.sleepFulfillmentPercent !== undefined) newValues.sleep.sleepFulfillmentPercent = whoop.sleepFulfillmentPercent;
-            if (whoop.sleepDebtMinutes !== undefined) newValues.sleep.sleepDebtMinutes = whoop.sleepDebtMinutes;
-          }
-          if (newValues.physicalHealth) {
-            if (whoop.didStrengthTrainingWorkout !== undefined) newValues.physicalHealth.didStrengthTrainingWorkout = whoop.didStrengthTrainingWorkout;
-            if (whoop.wentForRun !== undefined) newValues.physicalHealth.wentForRun = whoop.wentForRun;
-            if (whoop.caloriesBurned !== undefined) newValues.physicalHealth.caloriesBurned = whoop.caloriesBurned;
-            if (whoop.restingHR !== undefined) newValues.physicalHealth.restingHR = whoop.restingHR;
-            if (whoop.heartRateVariability !== undefined) newValues.physicalHealth.heartRateVariability = whoop.heartRateVariability;
-            if (whoop.whoopStrainScore !== undefined) newValues.physicalHealth.whoopStrainScore = whoop.whoopStrainScore;
-            if (whoop.whoopRecoveryScorePercent !== undefined) newValues.physicalHealth.whoopRecoveryScorePercent = whoop.whoopRecoveryScorePercent;
-          }
+          Object.entries(newValues).forEach(([category, dataPoints]) => {
+            Object.entries(dataPoints).forEach(([key, value]) => {
+              if (whoop[key] !== undefined) {
+                newValues[category][key] = whoop[key];
+                if (!populated[category]) populated[category] = {};
+                populated[category][key] = true;
+              }
+            });
+          });
           return newValues;
         });
+        setWhoopPopulated(populated);
       } else {
         setWhoopError("Failed to load data from Whoop. An unknown issue occurred.");
       }
@@ -223,15 +198,15 @@ export default function Log() {
   };
 
   // Toggle component for boolean values
-  const Toggle = ({ value, onChange, label, isMissingFromWhoop = false }) => (
+  const Toggle = ({ value, onChange, label, isWhoopPopulated = false }) => (
     <div className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-gray-800 last:border-0">
-      <div className="flex items-center space-x-2">
-        <span className="text-gray-900 dark:text-white font-medium">{label}</span>
-        {isMissingFromWhoop && (
-          <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded">
-            No WHOOP data
-          </span>
-        )}
+      <div className="flex items-center">
+        <span className="inline-flex items-center justify-center w-6">
+          {isWhoopPopulated && (
+            <img src={whoopIcon} alt="WHOOP" className="w-4 h-4 opacity-70" />
+          )}
+        </span>
+        <span className="text-gray-900 dark:text-white font-medium ml-2">{label}</span>
       </div>
       <div className="flex space-x-2">
         <button
@@ -255,7 +230,7 @@ export default function Log() {
   );
 
   // Input component for numeric values
-  const NumericInput = ({ value, onChange, label, min, max, step, isMissingFromWhoop = false }) => {
+  const NumericInput = ({ value, onChange, label, min, max, step, isWhoopPopulated = false }) => {
     const [localValue, setLocalValue] = useState(value?.toString() || '');
 
     // Update local value when prop value changes
@@ -270,13 +245,13 @@ export default function Log() {
 
     return (
       <div className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-gray-800 last:border-0">
-        <div className="flex items-center space-x-2">
-          <span className="text-gray-900 dark:text-white font-medium">{label}</span>
-          {isMissingFromWhoop && (
-            <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded">
-              No WHOOP data
-            </span>
-          )}
+        <div className="flex items-center">
+          <span className="inline-flex items-center justify-center w-6">
+            {isWhoopPopulated && (
+              <img src={whoopIcon} alt="WHOOP" className="w-4 h-4 opacity-70" />
+            )}
+          </span>
+          <span className="text-gray-900 dark:text-white font-medium ml-2">{label}</span>
         </div>
         <input
           type="number"
@@ -292,15 +267,15 @@ export default function Log() {
     );
   };
 
-  const TimeInput = ({ value, onChange, label, isMissingFromWhoop = false }) => (
+  const TimeInput = ({ value, onChange, label, isWhoopPopulated = false }) => (
     <div className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-gray-800 last:border-0">
-      <div className="flex items-center space-x-2">
-        <span className="text-gray-900 dark:text-white font-medium">{label}</span>
-        {isMissingFromWhoop && (
-          <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded">
-            No WHOOP data
-          </span>
-        )}
+      <div className="flex items-center">
+        <span className="inline-flex items-center justify-center w-6">
+          {isWhoopPopulated && (
+            <img src={whoopIcon} alt="WHOOP" className="w-4 h-4 opacity-70" />
+          )}
+        </span>
+        <span className="text-gray-900 dark:text-white font-medium ml-2">{label}</span>
       </div>
       <input type="time" value={value} onChange={(e) => onChange(e.target.value)} className="w-30 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-white" />
     </div>
@@ -449,19 +424,6 @@ export default function Log() {
                   <span>{isWhoopLoading ? 'Loading...' : 'Load from Whoop'}</span>
               </button>
               {whoopError && <p className="text-red-500 text-sm mt-2">{whoopError}</p>}
-              {!whoopHasAnyData && whoopMissingData.length > 0 && (
-                <p className="text-amber-600 dark:text-amber-400 text-sm mt-2 text-center">
-                  No WHOOP data available for this date
-                </p>
-              )}
-              {whoopHasAnyData && whoopMissingData.length > 0 && (
-                <div className="text-amber-600 dark:text-amber-400 text-sm mt-2 text-right">
-                  <p className="font-medium">Partial data loaded:</p>
-                  {whoopMissingData.map(dataType => (
-                    <p key={dataType} className="text-xs">• {getMissingDataMessage(dataType)}</p>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -532,14 +494,14 @@ export default function Log() {
                       value={values[selectedCategory][key]}
                       onChange={(value) => updateValue(selectedCategory, key, value)}
                       label={def.label}
-                      isMissingFromWhoop={isDatapointMissingFromWhoop(selectedCategory, key)}
+                      isWhoopPopulated={!!whoopPopulated[selectedCategory]?.[key]}
                     />
                   ) : def.type === 'time' ? (
                     <TimeInput
                       value={values[selectedCategory][key]}
                       onChange={(value) => updateValue(selectedCategory, key, value)}
                       label={def.label}
-                      isMissingFromWhoop={isDatapointMissingFromWhoop(selectedCategory, key)}
+                      isWhoopPopulated={!!whoopPopulated[selectedCategory]?.[key]}
                     />
                   ) : (
                     <NumericInput
@@ -549,7 +511,7 @@ export default function Log() {
                       min={def.min}
                       max={def.max}
                       step={def.step}
-                      isMissingFromWhoop={isDatapointMissingFromWhoop(selectedCategory, key)}
+                      isWhoopPopulated={!!whoopPopulated[selectedCategory]?.[key]}
                     />
                   )}
                 </div>
