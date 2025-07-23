@@ -1,107 +1,98 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import passport from 'passport';
-import { Strategy as OAuth2Strategy } from 'passport-oauth2';
+import { Strategy as OAuth2Strategy, StrategyOptionsWithRequest } from 'passport-oauth2';
 import jwt from 'jsonwebtoken';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import prisma from '../db/database';
 import { whoopAPI } from '../healthData/whoop';
-import express from 'express';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
-
-
-
 const whoopCallbackUrl = process.env.WHOOP_REDIRECT_URI || process.env.WHOOP_CALLBACK_URL!;
 
-const whoopStrategy = new OAuth2Strategy(
-    {
-      authorizationURL: 'https://api.prod.whoop.com/oauth/oauth2/auth',
-      tokenURL: 'https://api.prod.whoop.com/oauth/oauth2/token',
-      clientID: process.env.WHOOP_CLIENT_ID!,
-      clientSecret: process.env.WHOOP_CLIENT_SECRET!,
-      callbackURL: whoopCallbackUrl,
-      passReqToCallback: true,
-      scope: ['offline', 'read:profile', 'read:cycles', 'read:recovery', 'read:sleep', 'read:workout']
-    },
-    async function (
-      req: Request,
-      accessToken: string,
-      refreshToken: string,
-      params: any,
-      profile: any,
-      done: (err: any, user?: any) => void
-    ) {
-      try {
-        const state = req.query.state as string;
-        if (!state) {
-          return done(new Error('State parameter missing'));
-        }
-  
-        let decoded: any;
-        try {
-          decoded = jwt.verify(state, JWT_SECRET);
-        } catch (e) {
-          return done(new Error('Invalid state token'));
-        }
-  
-        const userId = decoded.userId;
-        const whoopUserId = profile.user_id;
-  
-        console.log('\x1b[32m[WHOOP] Access token obtained: ' + accessToken + '\x1b[0m');
-  
-        await prisma.user.update({
-          where: { id: userId },
-          data: {
-            whoopAccessToken: accessToken,
-            whoopRefreshToken: refreshToken,
-            whoopTokenExpiresAt: new Date(Date.now() + (params?.expires_in ?? 0) * 1000),
-            whoopUserId: String(whoopUserId),
-            firstName: profile.first_name,
-            lastName: profile.last_name,
-          }
-        });
-  
-        return done(null, profile);
-      } catch (error) {
-        return done(error as Error);
-      }
+// Define the verify callback as `any` to satisfy TypeScript
+const whoopVerify: any = async (
+  req: Request,
+  accessToken: string,
+  refreshToken: string,
+  params: any,
+  profile: any,
+  done: (err: any, user?: any) => void
+) => {
+  try {
+    const state = req.query.state as string;
+    if (!state) return done(new Error('State parameter missing'));
+
+    let decoded: any;
+    try {
+      decoded = jwt.verify(state, JWT_SECRET);
+    } catch {
+      return done(new Error('Invalid state token'));
     }
-  );
 
-passport.use('whoop', whoopStrategy);
+    const userId = decoded.userId;
+    const whoopUserId = profile.user_id;
+    console.log('[WHOOP] Access token:', accessToken);
 
-// This middleware is necessary to initialize Passport
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        whoopAccessToken: accessToken,
+        whoopRefreshToken: refreshToken,
+        whoopTokenExpiresAt: new Date(Date.now() + (params?.expires_in ?? 0) * 1000),
+        whoopUserId: String(whoopUserId),
+        firstName: profile.first_name,
+        lastName: profile.last_name,
+      },
+    });
+
+    done(null, profile);
+  } catch (err) {
+    done(err);
+  }
+};
+
+const whoopOptions: StrategyOptionsWithRequest = {
+  authorizationURL: 'https://api.prod.whoop.com/oauth/oauth2/auth',
+  tokenURL:         'https://api.prod.whoop.com/oauth/oauth2/token',
+  clientID:         process.env.WHOOP_CLIENT_ID!,
+  clientSecret:     process.env.WHOOP_CLIENT_SECRET!,
+  callbackURL:      whoopCallbackUrl,
+  passReqToCallback: true,
+  scope: [
+    'offline',
+    'read:profile',
+    'read:cycles',
+    'read:recovery',
+    'read:sleep',
+    'read:workout',
+  ],
+};
+
+passport.use('whoop', new OAuth2Strategy(whoopOptions, whoopVerify));
 router.use(passport.initialize());
 
-const isProduction = process.env.NODE_ENV === 'production';
-// In production, we expect CLIENT_URL to be set. For development, we default to localhost.
-const clientUrl = isProduction ? process.env.CLIENT_URL : 'http://localhost:5173';
-
-
-// Redirect to WHOOP for authentication
-// The JWT of the logged-in user is passed as state
-router.get('/auth/whoop', authenticateToken, (req: AuthenticatedRequest, res, next) => {
+// 1) START WHOOP AUTH
+router.get(
+  '/auth/whoop',
+  authenticateToken,
+  (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     const token = req.query.token as string;
-    if (!token) {
-        // This case should be handled by authenticateToken, but as a fallback.
-        return res.status(401).send('Authentication token not found in query parameter.');
-    }
-    console.log(`[WHOOP Auth] Redirecting to WHOOP. Using callback URL: ${whoopCallbackUrl}`);
+    if (!token) return res.status(401).send('Authentication token missing');
     passport.authenticate('whoop', { state: token, session: false })(req, res, next);
-});
+  }
+);
 
-// Callback route for WHOOP to redirect to
-router.get('/auth/whoop/callback',
-    passport.authenticate('whoop', {
-        // We redirect to the client, which can then show a success/failure message.
-        failureRedirect: `${clientUrl}/settings?whoopAuth=failed`,
-        session: false
-    }),
-    (req, res) => {
-        // Successful authentication
-        res.redirect(`${clientUrl}/settings?whoopAuth=success`);
-    }
+// 2) WHOOP CALLBACK
+router.get(
+  '/auth/whoop/callback',
+  passport.authenticate('whoop', {
+    failureRedirect: `${process.env.CLIENT_URL || 'http://localhost:5173'}/settings?whoopAuth=failed`,
+    session: false,
+  }),
+  (req: Request, res: Response) => {
+    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/settings?whoopAuth=success`);
+  }
 );
 
 router.get('/whoop/status', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
