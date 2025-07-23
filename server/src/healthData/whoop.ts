@@ -116,27 +116,6 @@ export async function handleWhoopCallback(code: string, userId: string): Promise
   }
 }
 
-async function refreshToken(userId: string): Promise<WhoopTokenResponse> {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user?.whoopRefreshToken) {
-    throw new Error('No refresh token found. Please reconnect your Whoop account.');
-  }
-
-  const response = await axios.post<WhoopTokenResponse>(whoopOauthConfig.auth.tokenHost + whoopOauthConfig.auth.tokenPath,
-    new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: user.whoopRefreshToken,
-      client_id: process.env.WHOOP_CLIENT_ID!,
-      client_secret: process.env.WHOOP_CLIENT_SECRET!
-    }), {
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
-    }
-  });
-
-  return response.data;
-}
-
 export class WhoopAPI {
   private baseURL = 'https://api.prod.whoop.com';
   private accessToken: string | null = null;
