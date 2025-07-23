@@ -146,7 +146,7 @@ const whoopOptions: StrategyOptionsWithRequest = {
 };
 
 passport.use('whoop', new OAuth2Strategy(whoopOptions, whoopVerify));
-router.use(passport.initialize());
+router.use((passport.initialize() as unknown) as RequestHandler);
 
 // Error handler for WHOOP callback
 const whoopCallbackError: ErrorRequestHandler = (
@@ -216,101 +216,6 @@ router.delete('/whoop/disconnect', authenticateToken, async (req: AuthenticatedR
       console.error('Error disconnecting WHOOP:', error);
       res.status(500).json({ error: 'Failed to disconnect WHOOP' });
     }
-});
-
-router.get('/whoop/test-auth', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const user = await prisma.user.findUnique({
-        where: { id: req.userId! },
-        select: { 
-            whoopAccessToken: true,
-            whoopRefreshToken: true,
-            whoopTokenExpiresAt: true,
-        }
-    });
-
-    if (!user || !user.whoopAccessToken || !user.whoopRefreshToken || !user.whoopTokenExpiresAt) {
-        return res.status(400).json({ success: false, message: 'No WHOOP credentials found for user.' });
-    }
-    
-    let { whoopAccessToken, whoopRefreshToken, whoopTokenExpiresAt } = user;
-    
-    // If token is expired or close to expiring, refresh it
-    if (Date.now() >= whoopTokenExpiresAt.getTime() - 5 * 60 * 1000) { // 5 minutes buffer
-        try {
-            const response = await fetch('https://api.prod.whoop.com/oauth/oauth2/token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    grant_type: 'refresh_token',
-                    refresh_token: whoopRefreshToken,
-                    client_id: process.env.WHOOP_CLIENT_ID!,
-                    client_secret: process.env.WHOOP_CLIENT_SECRET!,
-                })
-            });
-
-            const newTokens = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(newTokens.error_description || 'Failed to refresh token');
-            }
-
-            whoopAccessToken = newTokens.access_token;
-            whoopRefreshToken = newTokens.refresh_token;
-            whoopTokenExpiresAt = new Date(Date.now() + newTokens.expires_in * 1000);
-            
-            await prisma.user.update({
-                where: { id: req.userId! },
-                data: {
-                    whoopAccessToken,
-                    whoopRefreshToken,
-                    whoopTokenExpiresAt,
-                }
-            });
-        } catch (error) {
-            console.error('Failed to refresh WHOOP token during auth test', error);
-            return res.status(401).json({ success: false, message: 'Could not refresh WHOOP session. Please reconnect.' });
-        }
-    }
-    
-    // Use the (potentially new) accessToken to test data endpoints.
-    const api = whoopAPI;
-    api.setTokens(whoopAccessToken, whoopRefreshToken, whoopTokenExpiresAt.getTime());
-
-    // Test with cycles endpoint instead of profile (which doesn't work in v2 yet)
-    const testDate = new Date();
-    const startDate = new Date(testDate.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
-    
-    try {
-      const cycles = await api.getCyclesInDateRange(
-        startDate.toISOString().split('T')[0], 
-        testDate.toISOString().split('T')[0]
-      );
-      
-      // Connection successful if we can call the API without auth errors
-      res.json({ 
-        success: true, 
-        message: `Successfully connected to WHOOP. Found ${cycles.length} cycles in recent data.`,
-        dataAvailable: cycles.length > 0
-      });
-    } catch (dataError: any) {
-      // If we get a 401/403, it's an auth issue. If we get 404 with no data, that's ok.
-      if (dataError.response?.status === 401 || dataError.response?.status === 403) {
-        return res.status(400).json({ success: false, message: 'WHOOP authentication failed. Please reconnect your account.' });
-      } else {
-        // Other errors (like 404 for no data) are not auth failures
-        res.json({ 
-          success: true, 
-          message: 'Successfully connected to WHOOP (no recent data available).',
-          dataAvailable: false
-        });
-      }
-    }
-    
-  } catch (error) {
-    console.error('Error during WHOOP auth test:', error);
-    return res.status(500).json({ success: false, message: 'An unexpected error occurred during the connection test.' });
-  }
 });
 
 router.get('/whoop/data', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
