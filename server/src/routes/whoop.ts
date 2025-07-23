@@ -1,17 +1,53 @@
-import { Router, Request, Response, RequestHandler} from 'express';
+import { Router, Request, Response, RequestHandler, NextFunction, ErrorRequestHandler } from 'express';
 import passport from 'passport';
 import { Strategy as OAuth2Strategy, StrategyOptionsWithRequest } from 'passport-oauth2';
 import jwt from 'jsonwebtoken';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import prisma from '../db/database';
 import { whoopAPI } from '../healthData/whoop';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 const whoopCallbackUrl = process.env.WHOOP_REDIRECT_URI || process.env.WHOOP_CALLBACK_URL!;
 
-// Define the verify callback as `any` to satisfy TypeScript
+// Handler to initiate WHOOP OAuth
+const startWhoopAuth: RequestHandler = (req, res, next) => {
+  const token = (req as any).query.token as string;
+  console.log('[WHOOP Auth] Starting OAuth flow', {
+    callbackUrl: whoopCallbackUrl,
+    hasToken: !!token,
+    userId: (req as AuthenticatedRequest).userId
+  });
+
+  if (!token) {
+    console.error('[WHOOP Auth] Missing token in query params');
+    return res.status(401).send('Authentication token missing');
+  }
+
+  try {
+    // Verify token is valid before redirecting to WHOOP
+    const decoded = jwt.verify(token, JWT_SECRET);
+    console.log('[WHOOP Auth] Token verified, redirecting to WHOOP', {
+      userId: (decoded as any).userId,
+      callbackUrl: whoopCallbackUrl
+    });
+    
+    passport.authenticate('whoop', { 
+      state: token, 
+      session: false,
+      scope: whoopOptions.scope 
+    })(req, res, next);
+  } catch (err) {
+    console.error('[WHOOP Auth] Token verification failed', err);
+    return res.status(401).send('Invalid authentication token');
+  }
+};
+
+// Verify callback with enhanced error handling and logging
 const whoopVerify: any = async (
   req: Request,
   accessToken: string,
@@ -20,35 +56,66 @@ const whoopVerify: any = async (
   profile: any,
   done: (err: any, user?: any) => void
 ) => {
+  console.log('[WHOOP Verify] Starting verification', { 
+    hasAccessToken: !!accessToken,
+    hasRefreshToken: !!refreshToken,
+    hasProfile: !!profile,
+    params: {
+      expires_in: params?.expires_in,
+      scope: params?.scope,
+      token_type: params?.token_type
+    }
+  });
+
   try {
     const state = req.query.state as string;
-    if (!state) return done(new Error('State parameter missing'));
+    if (!state) {
+      console.error('[WHOOP Verify] Missing state parameter');
+      return done(new Error('State parameter missing'));
+    }
 
     let decoded: any;
     try {
       decoded = jwt.verify(state, JWT_SECRET);
-    } catch {
+      console.log('[WHOOP Verify] State token decoded', { userId: decoded.userId });
+    } catch (err) {
+      console.error('[WHOOP Verify] Failed to decode state token', err);
       return done(new Error('Invalid state token'));
     }
 
     const userId = decoded.userId;
     const whoopUserId = profile.user_id;
-    console.log('[WHOOP] Access token:', accessToken);
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        whoopAccessToken: accessToken,
-        whoopRefreshToken: refreshToken,
-        whoopTokenExpiresAt: new Date(Date.now() + (params?.expires_in ?? 0) * 1000),
-        whoopUserId: String(whoopUserId),
-        firstName: profile.first_name,
-        lastName: profile.last_name,
-      },
+    // Log token details (safely)
+    console.log('[WHOOP Verify] Tokens received', {
+      accessToken: `${accessToken.substring(0, 8)}...`,
+      refreshToken: `${refreshToken.substring(0, 8)}...`,
+      expiresIn: params?.expires_in,
+      whoopUserId,
+      userId
     });
+
+    try {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          whoopAccessToken: accessToken,
+          whoopRefreshToken: refreshToken,
+          whoopTokenExpiresAt: new Date(Date.now() + (params?.expires_in ?? 0) * 1000),
+          whoopUserId: String(whoopUserId),
+          firstName: profile.first_name,
+          lastName: profile.last_name,
+        },
+      });
+      console.log('[WHOOP Verify] User updated with WHOOP credentials', { userId, whoopUserId });
+    } catch (dbErr) {
+      console.error('[WHOOP Verify] Failed to update user with WHOOP credentials', dbErr);
+      return done(new Error('Failed to store WHOOP credentials'));
+    }
 
     done(null, profile);
   } catch (err) {
+    console.error('[WHOOP Verify] Unexpected error during verification', err);
     done(err);
   }
 };
@@ -73,32 +140,42 @@ const whoopOptions: StrategyOptionsWithRequest = {
 passport.use('whoop', new OAuth2Strategy(whoopOptions, whoopVerify));
 router.use(passport.initialize());
 
-router.get(
-    '/auth/whoop',
-    authenticateToken,
-    ((req, res, next) => {
-      const token = (req as any).query.token as string;
-      if (!token) return res.status(401).send('Authentication token missing');
-      passport.authenticate('whoop', { state: token, session: false })(req, res, next);
-    }) as RequestHandler
-  );
-  
-  // 2) WHOOP CALLBACK
-  const whoopCallbackAuth = passport.authenticate(
-    'whoop',
-    {
-      failureRedirect: `${clientUrl}/settings?whoopAuth=failed`,
-      session: false,
-    }
-  ) as RequestHandler;
-  
-  router.get(
-    '/auth/whoop/callback',
-    whoopCallbackAuth,
-    (req: Request, res: Response) => {
-      res.redirect(`${clientUrl}/settings?whoopAuth=success`);
-    }
-  );
+// Handler for WHOOP OAuth callback with enhanced error handling
+const whoopCallbackAuth: RequestHandler = passport.authenticate('whoop', {
+  failureRedirect: `${clientUrl}/settings?whoopAuth=failed`,
+  session: false,
+  failureMessage: true // Enable error messages
+});
+
+// Success handler with logging
+const whoopCallbackSuccess: RequestHandler = (req, res) => {
+  console.log('[WHOOP Callback] Authentication successful', {
+    userId: (req as AuthenticatedRequest).userId,
+    hasProfile: !!req.user
+  });
+  res.redirect(`${clientUrl}/settings?whoopAuth=success`);
+};
+
+// Error handler for WHOOP callback
+const whoopCallbackError: ErrorRequestHandler = (
+  err: Error,
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  console.error('[WHOOP Callback] Authentication error', {
+    error: err.message,
+    stack: err.stack,
+    userId: (req as AuthenticatedRequest).userId
+  });
+  res.redirect(`${clientUrl}/settings?whoopAuth=failed&reason=${encodeURIComponent(err.message)}`);
+};
+
+// 1) Redirect to WHOOP for authentication
+router.get('/auth/whoop', authenticateToken, startWhoopAuth);
+
+// 2) WHOOP callback route with error handling
+router.get('/auth/whoop/callback', whoopCallbackAuth, whoopCallbackSuccess, whoopCallbackError);
 
 router.get('/whoop/status', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
     try {
