@@ -133,14 +133,11 @@ router.post('/chat', authenticateToken, async (req: AuthenticatedRequest, res) =
     };
 
     console.log('Sending response:', responseData);
-    res.json(responseData);
+    return res.json(responseData);
 
   } catch (error) {
-    console.error('Chat error:', error);
-    res.status(500).json({ 
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-      success: false 
-    });
+    console.error('Error in chat endpoint:', error);
+    return res.status(500).json({ error: 'Failed to process chat request' });
   }
 });
 

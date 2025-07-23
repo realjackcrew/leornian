@@ -265,11 +265,13 @@ class WhoopAPI {
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
   private tokenExpiry: number | null = null;
-  // Scopes requested when redirecting to WHOOP
-  private scopes = ['offline', 'read:profile', 'read:cycles', 'read:recovery', 'read:sleep', 'read:workout'];
 
   private isTokenValid(): boolean {
-    return this.tokenExpiry ? Date.now() < this.tokenExpiry : false;
+    return !!(
+      this.accessToken &&
+      this.tokenExpiry &&
+      Date.now() < this.tokenExpiry
+    );
   }
 
   public async refreshAccessToken(): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
@@ -721,20 +723,6 @@ class WhoopAPI {
     }
   }
 }
-
-// Helper to get a recent date range for fetching latest data
-const getRecentDateRange = () => {
-  const now = new Date();
-  const threeDaysAgo = new Date();
-  threeDaysAgo.setDate(now.getDate() - 2); // Covers today, yesterday, and the day before
-
-  const formatDate = (date: Date) => date.toISOString().split('T')[0];
-  
-  return {
-    start: formatDate(threeDaysAgo),
-    end: formatDate(now)
-  };
-};
 
 export const whoopAPI = new WhoopAPI();
 export default WhoopAPI;

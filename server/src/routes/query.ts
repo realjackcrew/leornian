@@ -23,23 +23,20 @@ router.post('/query', async (req, res) => {
       result = await execute_sql_query(query);
     }
     
-    res.json({ 
+    return res.json({ 
       success: true, 
       data: result,
       query: query 
     });
     
   } catch (error) {
-    console.error('Query execution error:', error);
-    res.status(400).json({ 
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-      success: false 
-    });
+    console.error('Error in query endpoint:', error);
+    return res.status(500).json({ error: 'Failed to process query' });
   }
 });
 
 //example queries that can be executed
-router.get('/query/examples', (req, res) => {
+router.get('/query/examples', (_req, res) => {
   res.json({
     examples: [
         //basic queries

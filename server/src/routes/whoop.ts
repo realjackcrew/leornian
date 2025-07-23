@@ -24,7 +24,6 @@ const startWhoopAuth: RequestHandler = (req, res, next) => {
   });
 
   if (!token) {
-    console.error('[WHOOP Auth] Missing token in query params');
     return res.status(401).send('Authentication token missing');
   }
 
@@ -36,7 +35,7 @@ const startWhoopAuth: RequestHandler = (req, res, next) => {
       callbackUrl: whoopCallbackUrl
     });
     
-    passport.authenticate('whoop', { 
+    return passport.authenticate('whoop', { 
       state: token, 
       session: false,
       scope: whoopOptions.scope 
@@ -45,6 +44,15 @@ const startWhoopAuth: RequestHandler = (req, res, next) => {
     console.error('[WHOOP Auth] Token verification failed', err);
     return res.status(401).send('Invalid authentication token');
   }
+};
+
+// Success handler with logging
+const whoopCallbackSuccess: RequestHandler = (req, res, _next) => {
+  console.log('[WHOOP Callback] Authentication successful', {
+    userId: (req as AuthenticatedRequest).userId,
+    hasProfile: !!req.user
+  });
+  res.redirect(`${clientUrl}/settings?whoopAuth=success`);
 };
 
 // Verify callback with enhanced error handling and logging
@@ -145,7 +153,7 @@ const whoopCallbackError: ErrorRequestHandler = (
   err: Error,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ) => {
   console.error('[WHOOP Callback] Authentication error', {
     error: err.message,
@@ -159,19 +167,11 @@ const whoopCallbackError: ErrorRequestHandler = (
 router.get('/auth/whoop', authenticateToken, startWhoopAuth);
 
 // 2) WHOOP callback route with error handling
-router.get('/auth/whoop/callback', 
-  passport.authenticate('whoop', {
-    failureRedirect: `${clientUrl}/settings?whoopAuth=failed`,
-    session: false
-  }),
-  (req: Request, res: Response) => {
-    console.log('[WHOOP Callback] Authentication successful', {
-      userId: (req as AuthenticatedRequest).userId,
-      hasProfile: !!req.user
-    });
-    res.redirect(`${clientUrl}/settings?whoopAuth=success`);
-  }
-);
+router.get('/auth/whoop/callback', passport.authenticate('whoop', {
+  failureRedirect: `${clientUrl}/settings?whoopAuth=failed`,
+  session: false
+}), whoopCallbackSuccess);
+
 // Error handler for the callback route
 router.use('/auth/whoop/callback', whoopCallbackError);
 
@@ -440,8 +440,8 @@ router.get('/whoop/data', authenticateToken, async (req: AuthenticatedRequest, r
         
         if (sleepData && sleepData.score) {
             // Use local time for bedtime and wakeTime if timezone_offset is available
-            const getLocalTime = (isoString: string, offset: string | undefined) => {
-                if (!isoString) return null;
+            const getLocalTime = (isoString: string, offset: string | undefined): string => {
+                if (!isoString) return '';
                 const date = new Date(isoString);
                 if (!offset) return date.toISOString().substring(11, 16); // fallback to UTC
                 // offset is like "+01:00" or "-05:00"
@@ -449,7 +449,7 @@ router.get('/whoop/data', authenticateToken, async (req: AuthenticatedRequest, r
                 const [hours, minutes] = offset.substring(1).split(':').map(Number);
                 const offsetMinutes = sign * (hours * 60 + minutes);
                 // Subtract the offset to get local time
-                const localDate = new Date(date.getTime());
+                const localDate = new Date(date.getTime() - offsetMinutes * 60000);
                 // Format as HH:mm (24-hour)
                 return localDate.toTimeString().substring(0, 5);
             };

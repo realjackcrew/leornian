@@ -173,7 +173,7 @@ router.put('/chat-settings', authenticateToken, async (req: Request, res: Respon
 });
 
 // GET /api/user/chat-options - Get available voice and verbosity options
-router.get('/chat-options', (req: Request, res: Response): void => {
+router.get('/chat-options', (_req, res) => {
   try {
     res.json({
       voices: getAvailableVoices(),

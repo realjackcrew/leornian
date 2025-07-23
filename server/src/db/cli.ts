@@ -1,6 +1,6 @@
 import { execute_sql_query } from './queries';
 
-export function bigIntToString(key: string, value: any) {
+export function bigIntToString(value: any) {
   if (typeof value === 'bigint') {
     return value.toString();
   }
