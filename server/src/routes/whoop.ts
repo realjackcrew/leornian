@@ -14,54 +14,60 @@ const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 
 const whoopCallbackUrl = process.env.WHOOP_REDIRECT_URI || process.env.WHOOP_CALLBACK_URL!;
 
-const whoopStrategy = new OAuth2Strategy({
-    authorizationURL: 'https://api.prod.whoop.com/oauth/oauth2/auth',
-    tokenURL: 'https://api.prod.whoop.com/oauth/oauth2/token',
-    clientID: process.env.WHOOP_CLIENT_ID!,
-    clientSecret: process.env.WHOOP_CLIENT_SECRET!,
-    callbackURL: whoopCallbackUrl,
-    passReqToCallback: true,
-    // WHOOP uses plural 'read:cycles' in OAuth docs. Using wrong scope throws invalid_scope error.
-    scope: ['offline', 'read:profile', 'read:cycles', 'read:recovery', 'read:sleep', 'read:workout']
-  },
-  function(req: Request, accessToken: string, refreshToken: string, results: any, profile: any, done: (err: any, user?: any) => void) {
-    try {
-      const state = req.query.state as string;
-      if (!state) {
-        return done(new Error('State parameter missing'));
-      }
-
-      let decoded: any;
+const whoopStrategy = new OAuth2Strategy(
+    {
+      authorizationURL: 'https://api.prod.whoop.com/oauth/oauth2/auth',
+      tokenURL: 'https://api.prod.whoop.com/oauth/oauth2/token',
+      clientID: process.env.WHOOP_CLIENT_ID!,
+      clientSecret: process.env.WHOOP_CLIENT_SECRET!,
+      callbackURL: whoopCallbackUrl,
+      passReqToCallback: true,
+      scope: ['offline', 'read:profile', 'read:cycles', 'read:recovery', 'read:sleep', 'read:workout']
+    },
+    async function (
+      req: Request,
+      accessToken: string,
+      refreshToken: string,
+      params: any,
+      profile: any,
+      done: (err: any, user?: any) => void
+    ) {
       try {
-        decoded = jwt.verify(state, JWT_SECRET);
-      } catch (e) {
-        return done(new Error('Invalid state token'));
-      }
-
-      const userId = decoded.userId;
-      const whoopUserId = profile.user_id;
-
-      // Persist tokens in DB and log the retrieved access token for visibility.
-      console.log('\x1b[32m[WHOOP] Access token obtained: ' + accessToken + '\x1b[0m');
-
-      prisma.user.update({
-        where: { id: userId },
-        data: {
-          whoopAccessToken: accessToken,
-          whoopRefreshToken: refreshToken,
-          whoopTokenExpiresAt: new Date(Date.now() + results.expires_in * 1000),
-          whoopUserId: String(whoopUserId),
-          firstName: profile.first_name,
-          lastName: profile.last_name,
+        const state = req.query.state as string;
+        if (!state) {
+          return done(new Error('State parameter missing'));
         }
-      })
-      .then(() => done(null, profile))
-      .catch((error) => done(error));
-    } catch (error) {
-      return done(error);
+  
+        let decoded: any;
+        try {
+          decoded = jwt.verify(state, JWT_SECRET);
+        } catch (e) {
+          return done(new Error('Invalid state token'));
+        }
+  
+        const userId = decoded.userId;
+        const whoopUserId = profile.user_id;
+  
+        console.log('\x1b[32m[WHOOP] Access token obtained: ' + accessToken + '\x1b[0m');
+  
+        await prisma.user.update({
+          where: { id: userId },
+          data: {
+            whoopAccessToken: accessToken,
+            whoopRefreshToken: refreshToken,
+            whoopTokenExpiresAt: new Date(Date.now() + (params?.expires_in ?? 0) * 1000),
+            whoopUserId: String(whoopUserId),
+            firstName: profile.first_name,
+            lastName: profile.last_name,
+          }
+        });
+  
+        return done(null, profile);
+      } catch (error) {
+        return done(error as Error);
+      }
     }
-  }
-);
+  );
 
 passport.use('whoop', whoopStrategy);
 
