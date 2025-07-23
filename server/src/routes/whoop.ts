@@ -163,14 +163,17 @@ const whoopCallbackError: ErrorRequestHandler = (
   res.redirect(`${clientUrl}/settings?whoopAuth=failed&reason=${encodeURIComponent(err.message)}`);
 };
 
+// Type-safe middleware composition
+const whoopAuthMiddleware = passport.authenticate('whoop', {
+  failureRedirect: `${clientUrl}/settings?whoopAuth=failed`,
+  session: false
+});
+
 // 1) Redirect to WHOOP for authentication
 router.get('/auth/whoop', authenticateToken, startWhoopAuth);
 
 // 2) WHOOP callback route with error handling
-router.get('/auth/whoop/callback', passport.authenticate('whoop', {
-  failureRedirect: `${clientUrl}/settings?whoopAuth=failed`,
-  session: false
-}), whoopCallbackSuccess);
+router.get('/auth/whoop/callback', whoopAuthMiddleware, whoopCallbackSuccess);
 
 // Error handler for the callback route
 router.use('/auth/whoop/callback', whoopCallbackError);
@@ -306,7 +309,7 @@ router.get('/whoop/test-auth', authenticateToken, async (req: AuthenticatedReque
     
   } catch (error) {
     console.error('Error during WHOOP auth test:', error);
-    res.status(500).json({ success: false, message: 'An unexpected error occurred during the connection test.' });
+    return res.status(500).json({ success: false, message: 'An unexpected error occurred during the connection test.' });
   }
 });
 
@@ -523,7 +526,7 @@ router.get('/whoop/data', authenticateToken, async (req: AuthenticatedRequest, r
         console.log('[WHOOP] Final result:', result);
         console.log('[WHOOP] Missing data types:', missingData);
         
-        res.json({ 
+        return res.json({ 
             success: true, 
             data: result,
             missingData: missingData,
@@ -531,7 +534,7 @@ router.get('/whoop/data', authenticateToken, async (req: AuthenticatedRequest, r
         });
     } catch (error) {
         console.error('Error fetching WHOOP data for log:', error);
-        res.status(500).json({ error: 'Failed to fetch WHOOP data' });
+        return res.status(500).json({ error: 'Failed to fetch WHOOP data' });
     }
 });
 
@@ -571,7 +574,7 @@ router.get('/whoop/raw', authenticateToken, async (req: AuthenticatedRequest, re
         // Fetch all workouts for the range
         const workouts = await api.getWorkoutsInDateRange(start, end);
 
-        res.json({
+        return res.json({
             cycles,
             sleep: sleep.filter(Boolean),
             recovery: recovery.filter(Boolean),
@@ -579,7 +582,7 @@ router.get('/whoop/raw', authenticateToken, async (req: AuthenticatedRequest, re
         });
     } catch (error) {
         console.error('Error fetching raw WHOOP data:', error);
-        res.status(500).json({ error: 'Failed to fetch raw WHOOP data' });
+        return res.status(500).json({ error: 'Failed to fetch raw WHOOP data' });
     }
 });
 
@@ -805,11 +808,11 @@ router.get('/whoop/debug', authenticateToken, async (req: AuthenticatedRequest, 
             });
         }
 
-        res.json(debugInfo);
+        return res.json(debugInfo);
 
     } catch (error: any) {
         console.error('[DEBUG] Error in WHOOP debug endpoint:', error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             step: 'debug_endpoint_error',
             message: 'Error in debug endpoint',
@@ -877,7 +880,7 @@ router.get('/whoop/profile', authenticateToken, async (req: AuthenticatedRequest
             });
         }
 
-        res.json(profile);
+        return res.json(profile);
 
     } catch (error: any) {
         console.error(`[PROFILE] Error fetching WHOOP profile:`, error);
@@ -898,7 +901,7 @@ router.get('/whoop/profile', authenticateToken, async (req: AuthenticatedRequest
             });
         }
 
-        res.status(500).json({
+        return res.status(500).json({
             error: 'Failed to fetch WHOOP profile',
             details: error.message,
             status: error.response?.status

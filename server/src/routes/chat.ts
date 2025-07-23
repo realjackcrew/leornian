@@ -7,7 +7,7 @@ import database from '../db/database';
 
 const router = express.Router();
 
-function bigIntToString(key: string, value: any) {
+function bigIntToString(value: any) {
   if (typeof value === 'bigint') {
     return value.toString();
   }
