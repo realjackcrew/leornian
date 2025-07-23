@@ -1,16 +1,12 @@
-import { Router, Request, Response, NextFunction, RequestHandler} from 'express';
+import { Router, Request, Response, RequestHandler} from 'express';
 import passport from 'passport';
 import { Strategy as OAuth2Strategy, StrategyOptionsWithRequest } from 'passport-oauth2';
 import jwt from 'jsonwebtoken';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import prisma from '../db/database';
 import { whoopAPI } from '../healthData/whoop';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 const whoopCallbackUrl = process.env.WHOOP_REDIRECT_URI || process.env.WHOOP_CALLBACK_URL!;
@@ -80,28 +76,25 @@ router.use(passport.initialize());
 router.get(
     '/auth/whoop',
     authenticateToken,
-    // wrap passport.authenticate in an arrow so TS sees a RequestHandler
-    (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-      const token = req.query.token as string;
-      if (!token) {
-        return res.status(401).send('Authentication token missing');
-      }
-      passport
-        .authenticate('whoop', { state: token, session: false })
-        (req, res, next);
-    }
+    ((req, res, next) => {
+      const token = (req as any).query.token as string;
+      if (!token) return res.status(401).send('Authentication token missing');
+      passport.authenticate('whoop', { state: token, session: false })(req, res, next);
+    }) as RequestHandler
   );
+  
+  // 2) WHOOP CALLBACK
+  const whoopCallbackAuth = passport.authenticate(
+    'whoop',
+    {
+      failureRedirect: `${clientUrl}/settings?whoopAuth=failed`,
+      session: false,
+    }
+  ) as RequestHandler;
   
   router.get(
     '/auth/whoop/callback',
-    (req: Request, res: Response, next: NextFunction) => {
-      passport
-        .authenticate('whoop', {
-          failureRedirect: `${clientUrl}/settings?whoopAuth=failed`,
-          session: false,
-        })
-        (req, res, next);
-    },
+    whoopCallbackAuth,
     (req: Request, res: Response) => {
       res.redirect(`${clientUrl}/settings?whoopAuth=success`);
     }
