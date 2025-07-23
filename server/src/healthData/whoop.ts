@@ -1,16 +1,6 @@
 import axios from 'axios';
 import prisma from '../db/database';
-
-// Import simple-oauth2 dynamically
-let simpleOAuth2: any;
-(async () => {
-  try {
-    simpleOAuth2 = await import('simple-oauth2');
-  } catch (err) {
-    console.error('Failed to import simple-oauth2:', err);
-    process.exit(1);
-  }
-})();
+import { AuthorizationCode } from 'simple-oauth2';
 
 const whoopOauthConfig = {
   client: {
@@ -27,13 +17,8 @@ const whoopOauthConfig = {
   },
 };
 
-let oauth2: any;
-try {
-  oauth2 = new simpleOAuth2.AuthorizationCode(whoopOauthConfig);
-} catch (err) {
-  console.error('Failed to initialize OAuth2 client:', err);
-  process.exit(1);
-}
+const oauth2 = new AuthorizationCode(whoopOauthConfig);
+
 
 const REDIRECT_URI = process.env.WHOOP_REDIRECT_URI || 'http://localhost:4000/api/auth/whoop/callback';
 
