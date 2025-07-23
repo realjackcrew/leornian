@@ -175,7 +175,9 @@ const whoopCallbackError: ErrorRequestHandler = (
 router.get('/auth/whoop', authenticateToken, startWhoopAuth);
 
 // 2) WHOOP callback route with error handling
-router.get('/auth/whoop/callback', whoopCallbackAuth, whoopCallbackSuccess, whoopCallbackError);
+router.get('/auth/whoop/callback', whoopCallbackAuth, whoopCallbackSuccess);
+// Error handler for the callback route
+router.use('/auth/whoop/callback', whoopCallbackError);
 
 router.get('/whoop/status', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
     try {
