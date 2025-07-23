@@ -24,7 +24,7 @@ const whoopStrategy = new OAuth2Strategy({
     // WHOOP uses plural 'read:cycles' in OAuth docs. Using wrong scope throws invalid_scope error.
     scope: ['offline', 'read:profile', 'read:cycles', 'read:recovery', 'read:sleep', 'read:workout']
   },
-  function(req: Request, accessToken: string, refreshToken: string, params: any, profile: any, done: (err: any, user?: any) => void) {
+  function(req: Request, accessToken: string, refreshToken: string, results: any, profile: any, done: (err: any, user?: any) => void) {
     try {
       const state = req.query.state as string;
       if (!state) {
@@ -49,7 +49,7 @@ const whoopStrategy = new OAuth2Strategy({
         data: {
           whoopAccessToken: accessToken,
           whoopRefreshToken: refreshToken,
-          whoopTokenExpiresAt: new Date(Date.now() + params.expires_in * 1000),
+          whoopTokenExpiresAt: new Date(Date.now() + results.expires_in * 1000),
           whoopUserId: String(whoopUserId),
           firstName: profile.first_name,
           lastName: profile.last_name,
