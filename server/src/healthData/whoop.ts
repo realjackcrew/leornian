@@ -1,6 +1,5 @@
 import axios from 'axios';
-// @ts-ignore
-import simpleOAuth2, { AccessToken, Token } from 'simple-oauth2';
+import { AuthorizationCode, AccessToken, Token } from 'simple-oauth2';
 import prisma from '../db/database';
 
 
@@ -19,7 +18,7 @@ const whoopOauthConfig = {
   },
 };
 
-const oauth2 = new simpleOAuth2.AuthorizationCode(whoopOauthConfig);
+const oauth2 = new AuthorizationCode(whoopOauthConfig);
 
 const REDIRECT_URI = process.env.WHOOP_REDIRECT_URI || 'http://localhost:4000/api/auth/whoop/callback';
 
