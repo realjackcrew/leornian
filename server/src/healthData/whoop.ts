@@ -1,7 +1,6 @@
 import axios from 'axios';
-import { AuthorizationCode, AccessToken, Token } from 'simple-oauth2';
+const simpleOAuth2 = require('simple-oauth2');
 import prisma from '../db/database';
-
 
 const whoopOauthConfig = {
   client: {
@@ -18,7 +17,7 @@ const whoopOauthConfig = {
   },
 };
 
-const oauth2 = new AuthorizationCode(whoopOauthConfig);
+const oauth2 = new simpleOAuth2.AuthorizationCode(whoopOauthConfig);
 
 const REDIRECT_URI = process.env.WHOOP_REDIRECT_URI || 'http://localhost:4000/api/auth/whoop/callback';
 
@@ -39,38 +38,60 @@ export function getWhoopAuthUrl(state: string): string {
   return authorizationUri;
 }
 
+interface WhoopTokenResponse {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+}
+
+interface WhoopProfile {
+  user_id: string;
+  first_name?: string;
+  last_name?: string;
+}
+
 export async function handleWhoopCallback(code: string, userId: string): Promise<void> {
   try {
-    const result = await oauth2.getToken({
-      code,
-      redirect_uri: REDIRECT_URI,
+    // Exchange code for tokens
+    const tokenResponse = await axios.post<WhoopTokenResponse>(whoopOauthConfig.auth.tokenHost + whoopOauthConfig.auth.tokenPath, 
+      new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: REDIRECT_URI,
+        client_id: process.env.WHOOP_CLIENT_ID!,
+        client_secret: process.env.WHOOP_CLIENT_SECRET!
+      }), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
     });
 
-    const accessToken = oauth2.createToken(result as unknown as Token);
+    const { access_token, refresh_token, expires_in } = tokenResponse.data;
 
-    const { token } = accessToken;
-
-    if (!token.access_token || !token.refresh_token) {
+    if (!access_token || !refresh_token) {
       throw new Error('Failed to obtain access token or refresh token from Whoop.');
     }
 
-    // Since credentials are on the User model, we update the user directly.
+    // Store tokens in database
     await prisma.user.update({
       where: { id: userId },
       data: {
-        whoopAccessToken: token.access_token,
-        whoopRefreshToken: token.refresh_token,
-        whoopTokenExpiresAt: new Date(Date.now() + (token.expires_in as number) * 1000),
+        whoopAccessToken: access_token,
+        whoopRefreshToken: refresh_token,
+        whoopTokenExpiresAt: new Date(Date.now() + expires_in * 1000),
       },
     });
 
-    // Fetch and store the Whoop User ID
-    const profile = await makeAuthenticatedRequest(userId, { method: 'GET', url: 'https://api.prod.whoop.com/developer/v2/user/profile/basic' });
-    if (profile.user_id) {
-        await prisma.user.update({
-            where: { id: userId },
-            data: { whoopUserId: profile.user_id.toString() },
-        });
+    // Fetch and store Whoop User ID
+    const profileResponse = await axios.get<WhoopProfile>('https://api.prod.whoop.com/developer/v2/user/profile/basic', {
+      headers: { Authorization: `Bearer ${access_token}` }
+    });
+
+    if (profileResponse.data.user_id) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { whoopUserId: profileResponse.data.user_id.toString() }
+      });
     }
 
   } catch (error) {
@@ -79,187 +100,28 @@ export async function handleWhoopCallback(code: string, userId: string): Promise
   }
 }
 
-async function refreshWhoopToken(userId: string): Promise<AccessToken> {
-    console.log('[Whoop] Access token expired or invalid. Attempting to refresh.');
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user || !user.whoopRefreshToken) {
-        throw new Error('No refresh token found for user. Please reconnect Whoop account.');
+async function refreshToken(userId: string): Promise<WhoopTokenResponse> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user?.whoopRefreshToken) {
+    throw new Error('No refresh token found. Please reconnect your Whoop account.');
+  }
+
+  const response = await axios.post<WhoopTokenResponse>(whoopOauthConfig.auth.tokenHost + whoopOauthConfig.auth.tokenPath,
+    new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: user.whoopRefreshToken,
+      client_id: process.env.WHOOP_CLIENT_ID!,
+      client_secret: process.env.WHOOP_CLIENT_SECRET!
+    }), {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
     }
-
-    try {
-        console.log('[Whoop] Preparing to refresh token. Parameters:');
-        const params = new URLSearchParams();
-        params.append('grant_type', 'refresh_token');
-        params.append('refresh_token', user.whoopRefreshToken);
-        params.append('client_id', whoopOauthConfig.client.id);
-        params.append('client_secret', whoopOauthConfig.client.secret);
-        params.append('scope', 'offline');
-        
-        console.log({
-            grant_type: 'refresh_token',
-            refresh_token: 'REDACTED',
-            client_id: whoopOauthConfig.client.id,
-            client_secret: 'REDACTED',
-            scope: 'offline'
-        });
-
-        const refreshResponse = await axios.post(
-            whoopOauthConfig.auth.tokenHost + whoopOauthConfig.auth.tokenPath,
-            params,
-            {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-            }
-        );
-
-        const newAccessTokenData = refreshResponse.data;
-        const newAccessToken = oauth2.createToken(newAccessTokenData as unknown as Token);
-
-        await prisma.user.update({
-            where: { id: userId },
-            data: {
-                whoopAccessToken: newAccessToken.token.access_token as string,
-                whoopRefreshToken: newAccessToken.token.refresh_token as string,
-                whoopTokenExpiresAt: new Date(newAccessToken.token.expires_at as number),
-            },
-        });
-        console.log('[Whoop] Successfully refreshed token.');
-        return newAccessToken;
-    } catch (error: any) {
-        console.error('[Whoop] Full error during token refresh:');
-        if (error.response) {
-            console.error('Status:', error.response.status);
-            console.error('Data:', JSON.stringify(error.response.data, null, 2));
-            console.error('Headers:', JSON.stringify(error.response.headers, null, 2));
-            const errorMessage = (error.response.data?.error_description || error.response.data?.error || JSON.stringify(error.response.data));
-            throw new Error(`Token refresh failed with status ${error.response.status}: ${errorMessage}`);
-        } else {
-            console.error(error.message);
-            throw new Error(`Token refresh failed: ${error.message}`);
-        }
-    }
-}
-
-async function getAccessToken(userId: string): Promise<AccessToken> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
   });
 
-  if (!user || !user.whoopAccessToken || !user.whoopRefreshToken || !user.whoopTokenExpiresAt) {
-    throw new Error('No Whoop credentials found for this user.');
-  }
-
-  let accessToken = oauth2.createToken({
-    access_token: user.whoopAccessToken,
-    refresh_token: user.whoopRefreshToken,
-    expires_at: user.whoopTokenExpiresAt.getTime(),
-  } as Token);
-
-  if (accessToken.expired()) {
-    console.log('[Whoop] Token has expired. Calling refresh function.');
-    return await refreshWhoopToken(userId);
-  }
-
-  console.log('[Whoop] Token is valid and not expired.');
-  return accessToken;
+  return response.data;
 }
 
-
-export async function makeAuthenticatedRequest(userId: string, options: any): Promise<any> {
-    let accessToken = await getAccessToken(userId);
-
-    const doRequest = async (token: AccessToken) => {
-        const requestConfig = {
-            ...options,
-            headers: {
-                ...options.headers,
-                Authorization: `Bearer ${token.token.access_token}`,
-            },
-        };
-        console.log(`[Whoop] Making authenticated request to: ${options.url}`);
-        return axios(requestConfig);
-    };
-
-    try {
-        const response = await doRequest(accessToken);
-        console.log(`[Whoop] Request to ${options.url} successful.`);
-        return response.data;
-    } catch (error: any) {
-        if (error.response?.status === 401) {
-            console.log('[Whoop] Initial request failed with 401. Attempting token refresh and retry.');
-            try {
-                const newAccessToken = await refreshWhoopToken(userId);
-                const retryResponse = await doRequest(newAccessToken);
-                console.log('[Whoop] Retry request successful.');
-                return retryResponse.data;
-            } catch (retryError: any) {
-                console.error(`[Whoop] Request failed even after token refresh.`);
-                throw new Error(`Whoop request failed after retry: ${retryError.message}`);
-            }
-        }
-        console.error(`[Whoop] Non-401 error during authenticated request to ${options.url}:`, error.message);
-        throw new Error(`Whoop request failed: ${error.message}`);
-    }
-}
-
-interface WhoopTokenResponse {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  token_type: string;
-}
-
-interface WhoopSleepData {
-  id: string;
-  start: string;
-  end: string;
-  score: {
-    recovery_score: number;
-    sleep_performance_score: number;
-    sleep_consistency_score: number;
-  };
-  sleep: {
-    sleep_need_baseline: number;
-    sleep_debt: number;
-    sleep_efficiency: number;
-    sleep_latency: number;
-    sleep_onset: string;
-    sleep_quality: number;
-    sleep_quality_score: number;
-    sleep_rem: number;
-    sleep_requirement: number;
-    sleep_slow_wave: number;
-    sleep_time_in_bed: number;
-    sleep_time_sleep: number;
-    sleep_wake: string;
-  };
-}
-
-interface WhoopPhysicalData {
-  id: string;
-  start: string;
-  end: string;
-  score: {
-    strain_score: number;
-    cardiovascular_strain: number;
-    muscular_strain: number;
-  };
-  workout: {
-    workout_id: string;
-    sport_id: number;
-    sport_name: string;
-    workout_start: string;
-    workout_end: string;
-    duration: number;
-    distance: number;
-    calories: number;
-    average_heart_rate: number;
-    max_heart_rate: number;
-  };
-}
-
-class WhoopAPI {
+export class WhoopAPI {
   private baseURL = 'https://api.prod.whoop.com';
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
@@ -273,110 +135,41 @@ class WhoopAPI {
     );
   }
 
-  public async refreshAccessToken(): Promise<{ access_token: string; refresh_token: string; expires_in: number }> {
-    if (!this.refreshToken) {
-      throw new Error('No refresh token available');
-    }
-
-    try {
-      const formData = new URLSearchParams();
-      formData.append('grant_type', 'refresh_token');
-      formData.append('refresh_token', this.refreshToken);
-      formData.append('client_id', process.env.WHOOP_CLIENT_ID || '');
-      formData.append('client_secret', process.env.WHOOP_CLIENT_SECRET || '');
-      formData.append('redirect_uri', REDIRECT_URI); // <-- Add this line
-
-      const response = await axios.post<WhoopTokenResponse>(
-        'https://api.prod.whoop.com/oauth/oauth2/token',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-        }
-      );
-
-      this.accessToken = response.data.access_token;
-      this.refreshToken = response.data.refresh_token;
-      this.tokenExpiry = Date.now() + (response.data.expires_in * 1000);
-      
-      return {
-        access_token: response.data.access_token,
-        refresh_token: response.data.refresh_token,
-        expires_in: response.data.expires_in
-      };
-    } catch (error) {
-      console.error('Failed to refresh WHOOP access token:', error);
-      throw error;
-    }
+  setTokens(accessToken: string, refreshToken: string, tokenExpiry: number) {
+    this.accessToken = accessToken;
+    this.refreshToken = refreshToken;
+    this.tokenExpiry = tokenExpiry;
   }
 
-  private async makeAuthenticatedRequest(endpoint: string, params?: any): Promise<any> {
-    console.log(`[WHOOP API] Making request to: ${endpoint}`, params ? `with params: ${JSON.stringify(params)}` : '');
-    
+  getTokens(): { access_token: string; refresh_token: string; expires_in: number } | null {
+    if (!this.accessToken || !this.refreshToken || !this.tokenExpiry) {
+      return null;
+    }
+    return {
+      access_token: this.accessToken,
+      refresh_token: this.refreshToken,
+      expires_in: Math.floor((this.tokenExpiry - Date.now()) / 1000)
+    };
+  }
+
+  async makeAuthenticatedRequest<T = any>(endpoint: string, params?: any): Promise<T> {
     if (!this.accessToken || !this.isTokenValid()) {
-      if (this.refreshToken) {
-        console.log('[WHOOP API] Token is expired or invalid, attempting refresh before request.');
-        await this.refreshAccessToken();
-      } else {
-        throw new Error('No valid authentication token or refresh token available.');
-      }
+      throw new Error('No valid authentication token available.');
     }
 
-    const config = {
-      headers: {
-        'Authorization': `Bearer ${this.accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      params,
-    };
-
     try {
-      console.log(`[WHOOP API] Sending request to: ${this.baseURL}${endpoint}`);
-      console.log(`[WHOOP API] Request config:`, { 
-        url: `${this.baseURL}${endpoint}`,
-        headers: { ...config.headers, Authorization: `Bearer ${this.accessToken?.substring(0, 10)}...` },
-        params: config.params 
+      const response = await axios.get<T>(`${this.baseURL}${endpoint}`, {
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        params,
       });
-      
-      const response = await axios.get(`${this.baseURL}${endpoint}`, config);
-      
-      console.log(`[WHOOP API] Request successful for ${endpoint}`);
-      console.log(`[WHOOP API] Response status:`, response.status);
-      console.log(`[WHOOP API] Response headers:`, response.headers);
-      console.log(`[WHOOP API] Response data type:`, typeof response.data);
-      console.log(`[WHOOP API] Response data:`, JSON.stringify(response.data, null, 2));
-      
       return response.data;
     } catch (error: any) {
-      // If the request fails with a 401, try to refresh it and retry the request once.
-      if (error.isAxiosError && error.response?.status === 401) {
-        console.log('[WHOOP API] Request failed with 401. Attempting token refresh...');
-        if (this.refreshToken) {
-          try {
-            await this.refreshAccessToken();
-            // Retry the request with the new token.
-            console.log('[WHOOP API] Token refreshed successfully. Retrying original request...');
-            const retryConfig = { ...config, headers: { ...config.headers, Authorization: `Bearer ${this.accessToken}` } };
-            const response = await axios.get(`${this.baseURL}${endpoint}`, retryConfig);
-            console.log(`[WHOOP API] Retry request successful for ${endpoint}`);
-            return response.data;
-          } catch (refreshError) {
-            console.error('[WHOOP API] Failed to refresh token after a 401 error:', refreshError);
-            throw new Error('Authorization failed. Could not refresh token. Please reconnect your WHOOP account.');
-          }
-        } else {
-          throw new Error('Authorization failed. No refresh token available.');
-        }
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please reconnect your WHOOP account.');
       }
-      // For other errors, just re-throw.
-      console.error(`[WHOOP API] Request failed for endpoint ${endpoint}:`, error.response?.status, error.response?.data || error.message);
-      console.error(`[WHOOP API] Full error:`, error.response ? {
-        status: error.response.status,
-        statusText: error.response.statusText,
-        data: error.response.data,
-        headers: error.response.headers
-      } : error.message);
       throw error;
     }
   }
@@ -426,7 +219,7 @@ class WhoopAPI {
    * @param cycleId The cycle ID
    * @returns Sleep data for the cycle
    */
-  async getSleepDataForCycle(cycleId: string): Promise<WhoopSleepData | null> {
+  async getSleepDataForCycle(cycleId: string): Promise<any | null> {
     try {
       return await this.makeAuthenticatedRequest(`/developer/v2/cycle/${cycleId}/sleep`);
     } catch (error) {
@@ -440,7 +233,7 @@ class WhoopAPI {
    * @param cycleId The cycle ID
    * @returns Physical activity data for the cycle
    */
-  async getPhysicalDataForCycle(cycleId: string): Promise<WhoopPhysicalData | null> {
+  async getPhysicalDataForCycle(cycleId: string): Promise<any | null> {
     try {
       return await this.makeAuthenticatedRequest(`/developer/v2/cycle/${cycleId}/workout`);
     } catch (error) {
@@ -469,7 +262,7 @@ class WhoopAPI {
    * @param endDate End date in ISO format (YYYY-MM-DD)
    * @returns Array of sleep data
    */
-  async getSleepData(startDate: string, endDate: string): Promise<WhoopSleepData[]> {
+  async getSleepData(startDate: string, endDate: string): Promise<any[]> {
     try {
       // First get the cycle data for the date range
       const cycles = await this.getCyclesInDateRange(startDate, endDate);
@@ -673,35 +466,6 @@ class WhoopAPI {
    */
   getTokenExpiry(): number | null {
     return this.tokenExpiry;
-  }
-
-  /**
-   * Set the access, refresh tokens, and expiry from user credentials
-   * @param accessToken The access token
-   * @param refreshToken The refresh token
-   * @param tokenExpiry The expiry timestamp (ms since epoch)
-   */
-  setTokens(accessToken: string, refreshToken: string, tokenExpiry: number | null) {
-    this.accessToken = accessToken;
-    this.refreshToken = refreshToken;
-    this.tokenExpiry = tokenExpiry;
-  }
-
-  /**
-   * Get current tokens as an object (for database storage)
-   * @returns Object with access_token, refresh_token, and expires_in
-   */
-  getTokens(): { access_token: string; refresh_token: string; expires_in: number } | null {
-    if (!this.accessToken || !this.refreshToken) {
-      return null;
-    }
-    
-    const expiresIn = this.tokenExpiry ? Math.floor((this.tokenExpiry - Date.now()) / 1000) : null;
-    return {
-      access_token: this.accessToken,
-      refresh_token: this.refreshToken,
-      expires_in: expiresIn || 0
-    };
   }
 
   /**
