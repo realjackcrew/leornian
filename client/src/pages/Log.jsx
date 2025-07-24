@@ -128,8 +128,10 @@ export default function Log() {
     } catch (whoopErr) {
       console.warn('Could not prepopulate with WHOOP data:', whoopErr);
       if (whoopErr.message && whoopErr.message.includes('WHOOP credentials have expired')) {
+        alert('WHOOP connection has expired.\n\nYou can reconnect your WHOOP account in Settings > Integrations.');
         setWhoopError('WHOOP connection has expired. You can reconnect your WHOOP account in Settings > Integrations.');
       } else {
+        alert('Failed to load data from Whoop. An unknown issue occurred.');
         setWhoopError(whoopErr.message || 'An unknown error occurred while fetching Whoop data.');
       }
     } finally {
@@ -423,7 +425,7 @@ export default function Log() {
                   <img src="/src/assets/whoop-icon.png" alt="whoop" className="w-5 h-5 mr-2"/>
                   <span>{isWhoopLoading ? 'Loading...' : 'Load from Whoop'}</span>
               </button>
-              {whoopError && <p className="text-red-500 text-sm mt-2">{whoopError}</p>}
+              {/* {whoopError && <p className="text-red-500 text-sm mt-2">{whoopError}</p>} */}
             </div>
           </div>
         </div>

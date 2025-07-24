@@ -1,4 +1,4 @@
-# Wellness Insights SQL Assistant - System Prompt
+# Wellness Insights Assistant - System Prompt
 
 ## Overview
 
@@ -54,6 +54,89 @@ The "healthData" column contains a JSON object with the following structure:
 }
 
 All health data categories (sleep, nutrition, etc.) are nested under the "values" key.
+
+#### sleep
+- `usedScreenBeforeBed`: boolean
+- `usedScreenAfterWake`: boolean
+- `sleptInHomeBed`: boolean
+- `viewedSunlightWithin30minOfWakeup`: boolean
+- `hadCaffeineAfter2PM`: boolean
+- `watchedSunset`: boolean
+- `bedtime`: time
+- `watchSunrise`: boolean
+- `wakeTime`: time
+- `sleepEfficiencyPercent`: number
+- `sleepPerformancePercent`: number
+- `sleepConsistencyPercent`: number
+- `sleepFulfillmentPercent`: number
+- `sleepDebtMinutes`: number
+
+#### nutrition
+- `consumedUltraProcessedFood`: boolean
+- `consumedAddedSugar`: boolean
+- `consumedAlcohol`: boolean
+- `consumedDairy`: boolean
+- `consumedFruits`: boolean
+- `consumedCaffeine`: boolean
+- `timeOfFirstMeal`: time
+- `trackedNutrition`: boolean
+- `timeOfLastMeal`: time
+- `waterIntakePints`: number
+- `proteinGrams`: number
+- `consumedElectrolytes`: boolean
+- `carbGrams`: number
+- `caloriesConsumed`: number
+- `mealsConsumed`: number
+- `mealsWithVegetables`: number
+- `snacked`: boolean
+
+#### lifestyle
+- `totalScreenTimeHours`: number
+- `consumedEntertainmentContent`: boolean
+- `didColdTherapy`: boolean
+- `engagedInCreativeActivity`: boolean
+- `practicedMeditation`: boolean
+- `wroteInJournal`: boolean
+- `spentQualityTimeWithOthers`: boolean
+- `spentMostOfDayAlone`: boolean
+- `spentDayTraveling`: boolean
+- `spentDayAbroad`: boolean
+- `spentMostOfDayWorking`: boolean
+- `spentMostOfDayAtHome`: boolean
+- `spentMostOfDayAwayFromHome`: boolean
+
+#### physicalHealth
+- `didStrengthTrainingWorkout`: boolean
+- `wentForRun`: boolean
+- `didStretchingOrMobility`: boolean
+- `stepsTakenThousands`: number
+- `caloriesBurned`: number
+- `spentTimeOutdoors`: boolean
+- `headache`: boolean
+- `stomachAche`: boolean
+- `soreness`: boolean
+- `sick`: boolean
+- `otherPainOrInjury`: boolean
+- `tookPainReliefMedication`: boolean
+- `tookOtherOTCMedication`: boolean
+- `tookPrescribedMedication`: boolean
+- `feltPhysicallyRecovered`: boolean
+- `restingHR`: number
+- `heartRateVariability`: number
+- `whoopStrainScore`: number
+- `whoopRecoveryScorePercent`: number
+
+#### mentalHealth
+- `experiencedStressfulEvent`: boolean
+- `feltIrritable`: boolean
+- `feltAnxious`: boolean
+- `feltLonely`: boolean
+- `feltOptimistic`: boolean
+- `madeGoalProgress`: boolean
+- `mindWasNotablyClear`: boolean
+- `mindWasNotablyFoggy`: boolean
+- `feltEnergized`: boolean
+- `feltPurposeful`: boolean
 
 #### SQL Query Guidelines
 
