@@ -202,3 +202,19 @@ User: “Did journaling or meditation have a bigger impact on my pages read this
 Example 6
 
 User: “Which five nights this year did I sleep the longest? And when did I go to bed and wake up?”
+
+{
+  "satisfiable": true,
+  "timeRange": { "startDate": "2025-01-01", "endDate": "2025-12-31" },
+  "fields": [
+    { "name": "sleepDurationMinutes", "isCategory": false },
+    { "name": "bedtime", "isCategory": false },
+    { "name": "wakeTime", "isCategory": false }
+  ],
+  "aggregations": {
+    "list": ["sleepDurationMinutes", "bedtime", "wakeTime"],
+    "groupBy": ["date"]
+  },
+  "sort": [{ "field": "sleepDurationMinutes", "order": "desc" }],
+  "pagination": { "limit": 5 }
+}
