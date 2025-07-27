@@ -502,9 +502,6 @@ export default function Settings() {
                         AI Model
                     </h3>
                     <div>
-                        <label htmlFor="model" className="block text-sm font-medium text-gray-300 mb-2">
-                            Select Model
-                        </label>
                         <select
                             id="model"
                             value={chatSettings.model}
@@ -528,9 +525,6 @@ export default function Settings() {
                         Response Style
                     </h3>
                     <div>
-                        <label htmlFor="verbosity" className="block text-sm font-medium text-gray-300 mb-2">
-                            Response Verbosity
-                        </label>
                         <select
                             id="verbosity"
                             value={chatSettings.verbosity}
@@ -542,6 +536,7 @@ export default function Settings() {
                                     {verbosity.charAt(0).toUpperCase() + verbosity.slice(1).replace('-', ' ')}
                                 </option>
                             ))}
+                            {/* <option value="dinosaur">I actually don't want to learn about my health. Give me random dinosaur facts.</option> */}
                         </select>
                     </div>
                 </div>
@@ -552,33 +547,17 @@ export default function Settings() {
                         Chat Voice
                     </h3>
                     <div>
-                        <label htmlFor="voice" className="block text-sm font-medium text-gray-300 mb-2">
-                            Select Voice
-                        </label>
                         <select
                             id="voice"
                             value={chatSettings.voice}
                             onChange={(e) => handleChatSettingChange('voice', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
                         >
-                            {chatOptions.voices.map(voice => {
-                                const voiceLabels = {
-                                    'default': 'Default',
-                                    'cowboy': '🤠 Cowboy',
-                                    'vampire': '🧛 Vampire',
-                                    'alien': '👽 Alien',
-                                    'pirate': '🏴‍☠️ Pirate',
-                                    'robot': '🤖 Robot',
-                                    'wizard': '🧙 Wizard',
-                                    'surfer': '🏄 Surfer',
-                                    'detective': '🕵️ Detective'
-                                };
-                                return (
-                                    <option key={voice} value={voice}>
-                                        {voiceLabels[voice] || voice}
-                                    </option>
-                                );
-                            })}
+                            {chatOptions.voices.map(voice => (
+                                <option key={voice} value={voice}>
+                                    {voice}
+                                </option>
+                            ))}
                         </select>
                     </div>
                 </div>
