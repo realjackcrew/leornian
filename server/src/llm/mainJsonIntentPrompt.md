@@ -43,25 +43,7 @@ DailyLog:
 
 Available Datapoints by Category:
 
-**sleep**
-
-- usedScreenBeforeBed, usedScreenAfterWake, sleptInHomeBed, viewedSunlightWithin30minOfWakeup, hadCaffeineAfter2PM, watchedSunset, bedtime (time), wakeTime (time), watchSunrise, sleepEfficiencyPercent, sleepPerformancePercent, sleepConsistencyPercent, sleepFulfillmentPercent, sleepDebtMinutes, sleepDurationMinutes
-
-**nutrition**
-
-- consumedUltraProcessedFood, consumedAddedSugar, consumedAlcohol, consumedDairy, consumedFruits, consumedCaffeine, timeOfFirstMeal (time), trackedNutrition, timeOfLastMeal (time), waterIntakePints, proteinGrams, consumedElectrolytes, carbGrams, caloriesConsumed, mealsConsumed, mealsWithVegetables, snacked
-
-**lifestyle**
-
-- totalScreenTimeHours, consumedEntertainmentContent, didColdTherapy, engagedInCreativeActivity, practicedMeditation, wroteInJournal, spentQualityTimeWithOthers, spentMostOfDayAlone, spentDayTraveling, spentDayAbroad, spentMostOfDayWorking, spentMostOfDayAtHome, spentMostOfDayAwayFromHome
-
-**physicalHealth**
-
-- didStrengthTrainingWorkout, wentForRun, didStretchingOrMobility, stepsTakenThousands, caloriesBurned, spentTimeOutdoors, headache, stomachAche, soreness, sick, otherPainOrInjury, tookPainReliefMedication, tookOtherOTCMedication, tookPrescribedMedication, feltPhysicallyRecovered, restingHR, heartRateVariability, whoopStrainScore, whoopRecoveryScorePercent
-
-**mentalHealth**
-
-- experiencedStressfulEvent, feltIrritable, feltAnxious, feltLonely, feltOptimistic, madeGoalProgress, mindWasNotablyClear, mindWasNotablyFoggy, feltEnergized, feltPurposeful
+{{AVAILABLE_DATAPOINTS}}
 
 ## JSON Query Intent Structure
 
@@ -98,7 +80,7 @@ interface QueryIntent {
     count?: Array<{
       alias: string;
       field: string;
-      filter?: { op: "==" | "!=" | ">" | "<" | ">=" | "<="; value: any };
+      filter?: { op: "==" | "!=" | ">" | "<" | ">=" | "<="; value: boolean | numeric | time };
     }>;
     list?: string[];
     groupBy?: string[]; // datapoint names or temporal tokens: date, weekday, isoWeek, month, year, __all__
@@ -122,17 +104,15 @@ interface QueryIntent {
 - Only reference datapoints explicitly listed in the provided schema.
 - Aggregations (average, sum, count, list) always require an associated `groupBy`.
 - Default logical operator for filters is "AND" unless specified otherwise via `filtersMode`.
-- Filter values must strictly match datatype:
-  - Boolean fields → true/false
-  - Numeric fields → number
-  - Time fields → "HH\:MM"
-- Explicitly state `reason` when a request is not satisfiable (`satisfiable: false`).
+- If user does not specify time range, default to the last 30 days. Today is {{TODAYS_DATE}}
+- Get creative with how to create the object. Assume there is a way to translate the question until you have exhausted every option
+- Explicitly state `reason` in the unlikely event a request is not satisfiable (`satisfiable: false`).
 
 ## Examples
 
 Example 1
 
-User: “How many days this year did I sleep less than 7 hours?”
+User: "How many days this year did I sleep less than 7 hours?"
 
 {
   "satisfiable": true,
@@ -149,7 +129,7 @@ User: “How many days this year did I sleep less than 7 hours?”
 
 Example 2
 
-User: “List dates when I consumed caffeine after 2 PM and still had a sleep efficiency over 85%.”
+User: "List dates when I consumed caffeine after 2 PM and still had a sleep efficiency over 85%."
 
 {
   "satisfiable": true,
@@ -165,7 +145,7 @@ User: “List dates when I consumed caffeine after 2 PM and still had a sleep ef
 
 Example 3
 
-User: “What is my weekly average calorie intake for the past three months?”
+User: "What is my weekly average calorie intake for the past three months?"
 
 {
   "satisfiable": true,
@@ -177,7 +157,7 @@ User: “What is my weekly average calorie intake for the past three months?”
 
 Example 4
 
-User: “Show me the top 10 days I took the most steps this year.”
+User: "Show me the top 10 days I took the most steps this year."
 
 {
   "satisfiable": true,
@@ -190,7 +170,7 @@ User: “Show me the top 10 days I took the most steps this year.”
 
 Example 5
 
-User: “Did journaling or meditation have a bigger impact on my pages read this month?”
+User: "Did journaling or meditation have a bigger impact on my pages read this month?"
 
 {
   "satisfiable": false,
@@ -201,7 +181,7 @@ User: “Did journaling or meditation have a bigger impact on my pages read this
 
 Example 6
 
-User: “Which five nights this year did I sleep the longest? And when did I go to bed and wake up?”
+User: "Which five nights this year did I sleep the longest? And when did I go to bed and wake up?"
 
 {
   "satisfiable": true,

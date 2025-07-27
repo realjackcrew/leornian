@@ -13,16 +13,16 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-black flex flex-col justify-end items-center">
       <div className="flex flex-col items-stretch justify-end w-full max-w-4xl px-4 space-y-1" style={{ minHeight: '80vh', marginBottom: '4vh' }}>
-        <h1 className="flex flex-col space-y-4 w-full">
+        <h1 className="flex flex-col space-y-4 w-full max-w-5xl mx-auto px-4">
           <span className="block text-5xl sm:text-7xl md:text-8xl font-extrabold text-left animate-fadein-slow delay-400">
             <span className="text-white">Know</span>{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">More.</span>
           </span>
-          <span className="block text-5xl sm:text-7xl md:text-8xl font-extrabold text-center animate-fadein-slow delay-1400">
+          <span className="block text-5xl sm:text-7xl md:text-8xl font-extrabold text-left animate-fadein-slow delay-1400 ml-12 sm:ml-16 md:ml-24">
             <span className="text-white">Feel</span>{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">Better.</span>
           </span>
-          <span className="block text-5xl sm:text-7xl md:text-8xl font-extrabold text-right animate-fadein-slow delay-2400">
+          <span className="block text-5xl sm:text-7xl md:text-8xl font-extrabold text-left animate-fadein-slow delay-2400 ml-24 sm:ml-32 md:ml-48">
             <span className="text-white">Live</span>{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-400">Smarter.</span>
           </span>
@@ -201,12 +201,12 @@ export default function Home() {
                 </span>
               </h2>
               <p className="text-xl text-gray-300 leading-relaxed">
-                Connect all your health devices and apps in one place.<sup>*</sup> From wearables to medical devices, we bring your data together for a complete health picture.
+                Connect all your WHOOP devices and apps in one place. From WHOOP wearables to WHOOP medical devices, we bring your WHOOP data together for a complete health picture.
               </p>
               <div className="space-y-4">
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                  <span className="text-gray-300">1+ device integrations</span>
+                  <span className="text-gray-300">1+ platform integrations</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-pink-400 rounded-full"></div>
@@ -216,9 +216,6 @@ export default function Home() {
                   <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
                   <span className="text-gray-300">Secure data handling</span>
                 </div>
-                <p className="text-gray-300 text-xs opacity-50">
-                  <sup>*</sup> Only applies if you are a fellow WHOOP supremacist.
-                </p>
               </div>
             </div>
             <div className="relative">
@@ -286,14 +283,7 @@ export default function Home() {
               </p>
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
-                  <span className="text-gray-500">📧</span>
-                  <a href="mailto:jack@jackcrew.net" className="text-blue-400 hover:text-blue-300 transition-colors font-medium">
-                    jack@jackcrew.net
-                  </a>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-gray-500">💬</span>
-                  <span className="text-gray-400">Questions? We actually read our emails!</span>
+                  <span className="text-gray-500">📧  jack [at] jackcrew [dot] net</span>
                 </div>
               </div>
             </div>

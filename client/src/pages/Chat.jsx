@@ -72,7 +72,7 @@ export default function Chat() {
           const botMessage = { 
             text: data.response, 
             sender: 'bot',
-            functionCalled: data.functionCalled 
+            jsonIntent: data.jsonIntent 
           };
           setMessages(prev => [...prev, botMessage]);
         } else {
@@ -94,6 +94,24 @@ export default function Chat() {
       } finally {
         setIsLoading(false);
       }
+    }
+  };
+
+  const formatJsonResponse = (text) => {
+    try {
+      // Try to parse as JSON and format it nicely
+      const jsonObj = JSON.parse(text);
+      return (
+        <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700/50 font-mono text-sm">
+          <div className="text-gray-400 mb-2">JSON Query Intent:</div>
+          <pre className="text-green-400 overflow-x-auto whitespace-pre-wrap">
+            {JSON.stringify(jsonObj, null, 2)}
+          </pre>
+        </div>
+      );
+    } catch (e) {
+      // If it's not valid JSON, return as regular markdown
+      return <ReactMarkdown>{text}</ReactMarkdown>;
     }
   };
 
@@ -140,17 +158,17 @@ export default function Chat() {
                 </div>
               ) : (
                 <div
-                  className={`markdown-message w-full p-3 ${
+                  className={`w-full p-3 ${
                     message.isError
                       ? 'bg-red-800/30 text-red-200 rounded-lg'
                       : 'bg-transparent text-white'
                   }`}
                   style={{ overflowX: 'auto' }}
                 >
-                  <ReactMarkdown>{message.text}</ReactMarkdown>
-                  {message.functionCalled && !message.isError && (
+                  {message.jsonIntent ? formatJsonResponse(message.text) : <ReactMarkdown>{message.text}</ReactMarkdown>}
+                  {message.jsonIntent && !message.isError && (
                     <div className="text-xs text-gray-400 mt-1">
-                      📊 Used database query
+                      🔍 Generated query intent
                     </div>
                   )}
                 </div>

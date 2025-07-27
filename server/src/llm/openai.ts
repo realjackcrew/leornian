@@ -49,7 +49,7 @@ export async function chatWithFunctionCalling(messages: any[]) {
     console.log('Messages being sent to OpenAI:', messages);
     
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'o4-mini',
       messages,
       functions,
       function_call: 'auto',
@@ -70,7 +70,7 @@ export async function chatWithFunctionCalling(messages: any[]) {
 export async function chatCompletion(messages: any[]) {
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'o4-mini',
       messages,
     });
 
