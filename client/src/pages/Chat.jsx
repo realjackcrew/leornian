@@ -72,7 +72,11 @@ export default function Chat() {
           const botMessage = { 
             text: data.response, 
             sender: 'bot',
-            jsonIntent: data.jsonIntent 
+            jsonIntent: data.jsonIntent,
+            parsedIntent: data.parsedIntent,
+            parseError: data.parseError,
+            validationErrors: data.validationErrors,
+            validationWarnings: data.validationWarnings
           };
           setMessages(prev => [...prev, botMessage]);
         } else {
@@ -97,16 +101,92 @@ export default function Chat() {
     }
   };
 
-  const formatJsonResponse = (text) => {
+  const formatJsonResponse = (text, parsedIntent, parseError, validationErrors, validationWarnings) => {
     try {
       // Try to parse as JSON and format it nicely
       const jsonObj = JSON.parse(text);
       return (
-        <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700/50 font-mono text-sm">
-          <div className="text-gray-400 mb-2">JSON Query Intent:</div>
-          <pre className="text-green-400 overflow-x-auto whitespace-pre-wrap">
-            {JSON.stringify(jsonObj, null, 2)}
-          </pre>
+        <div className="space-y-4">
+          <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700/50 font-mono text-sm">
+            <div className="text-gray-400 mb-2">JSON Query Intent:</div>
+            <pre className="text-green-400 overflow-x-auto whitespace-pre-wrap">
+              {JSON.stringify(jsonObj, null, 2)}
+            </pre>
+          </div>
+          
+          {parseError && (
+            <div className="bg-red-900/30 p-4 rounded-lg border border-red-700/50">
+              <div className="text-red-400 mb-2">Parse Error:</div>
+              <div className="text-red-200">{parseError}</div>
+            </div>
+          )}
+          
+          {validationErrors && validationErrors.length > 0 && (
+            <div className="bg-red-900/30 p-4 rounded-lg border border-red-700/50">
+              <div className="text-red-400 mb-2">Validation Errors:</div>
+              <ul className="text-red-200 list-disc list-inside">
+                {validationErrors.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {validationWarnings && validationWarnings.length > 0 && (
+            <div className="bg-yellow-900/30 p-4 rounded-lg border border-yellow-700/50">
+              <div className="text-yellow-400 mb-2">Validation Warnings:</div>
+              <ul className="text-yellow-200 list-disc list-inside">
+                {validationWarnings.map((warning, index) => (
+                  <li key={index}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {parsedIntent && !parseError && (!validationErrors || validationErrors.length === 0) && (
+            <div className="bg-blue-900/30 p-4 rounded-lg border border-blue-700/50">
+              <div className="text-blue-400 mb-2">Parsed Query Intent:</div>
+              <div className="text-blue-200 space-y-2">
+                <div><strong>Satisfiable:</strong> {parsedIntent.isSatisfiable ? 'Yes' : 'No'}</div>
+                {!parsedIntent.isSatisfiable && parsedIntent.reason && (
+                  <div><strong>Reason:</strong> {parsedIntent.reason}</div>
+                )}
+                <div><strong>Time Range:</strong> {parsedIntent.timeRange.startDate} to {parsedIntent.timeRange.endDate}</div>
+                <div><strong>Selected Fields:</strong> {parsedIntent.selectedFields.join(', ') || 'None'}</div>
+                <div><strong>Selected Categories:</strong> {parsedIntent.selectedCategories.join(', ') || 'None'}</div>
+                <div><strong>Filters:</strong> {parsedIntent.filters.length > 0 ? 
+                  parsedIntent.filters.map(f => `${f.fieldName} ${f.operator} ${f.value}`).join(', ') : 'None'}</div>
+                <div><strong>Filters Mode:</strong> {parsedIntent.filtersMode}</div>
+                <div><strong>Aggregations:</strong> {
+                  [
+                    parsedIntent.aggregations.averages.length > 0 && `Averages: ${parsedIntent.aggregations.averages.join(', ')}`,
+                    parsedIntent.aggregations.sums.length > 0 && `Sums: ${parsedIntent.aggregations.sums.join(', ')}`,
+                    parsedIntent.aggregations.counts.length > 0 && `Counts: ${parsedIntent.aggregations.counts.map(c => c.alias).join(', ')}`,
+                    parsedIntent.aggregations.lists.length > 0 && `Lists: ${parsedIntent.aggregations.lists.join(', ')}`,
+                    parsedIntent.aggregations.groupBy.length > 0 && `Group By: ${parsedIntent.aggregations.groupBy.join(', ')}`
+                  ].filter(Boolean).join('; ') || 'None'
+                }</div>
+                <div><strong>Sorting:</strong> {parsedIntent.sorting.length > 0 ? 
+                  parsedIntent.sorting.map(s => `${s.field} ${s.order}`).join(', ') : 'None'}</div>
+                <div><strong>Pagination:</strong> {parsedIntent.pagination.limit > 0 ? 
+                  `Limit: ${parsedIntent.pagination.limit}, Offset: ${parsedIntent.pagination.offset}` : 'None'}</div>
+                
+                {/* Field Paths Section */}
+                {parsedIntent.fieldPaths && Object.keys(parsedIntent.fieldPaths).length > 0 && (
+                  <div className="mt-4">
+                    <div className="text-blue-300 mb-2"><strong>Field Paths:</strong></div>
+                    <div className="bg-gray-800/50 p-3 rounded border border-gray-600/50 font-mono text-xs">
+                      {Object.entries(parsedIntent.fieldPaths).map(([fieldName, path]) => (
+                        <div key={fieldName} className="mb-1">
+                          <span className="text-yellow-300">{fieldName}:</span> <span className="text-green-300">{path}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       );
     } catch (e) {
@@ -165,7 +245,10 @@ export default function Chat() {
                   }`}
                   style={{ overflowX: 'auto' }}
                 >
-                  {message.jsonIntent ? formatJsonResponse(message.text) : <ReactMarkdown>{message.text}</ReactMarkdown>}
+                  {message.jsonIntent ? 
+                    formatJsonResponse(message.text, message.parsedIntent, message.parseError, message.validationErrors, message.validationWarnings) : 
+                    <ReactMarkdown>{message.text}</ReactMarkdown>
+                  }
                   {message.jsonIntent && !message.isError && (
                     <div className="text-xs text-gray-400 mt-1">
                       🔍 Generated query intent

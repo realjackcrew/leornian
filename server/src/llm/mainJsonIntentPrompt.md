@@ -80,7 +80,7 @@ interface QueryIntent {
     count?: Array<{
       alias: string;
       field: string;
-      filter?: { op: "==" | "!=" | ">" | "<" | ">=" | "<="; value: boolean | numeric | time };
+      filter?: { op: "==" | "!=" | ">" | "<" | ">=" | "<="; value: boolean | number | "HH:MM" | string };
     }>;
     list?: string[];
     groupBy?: string[]; // datapoint names or temporal tokens: date, weekday, isoWeek, month, year, __all__
@@ -98,6 +98,34 @@ interface QueryIntent {
 }
 ```
 
+## CRITICAL VALIDATION RULES
+
+**FIELD DECLARATION REQUIREMENT**: ALL fields used in filters, aggregations, and sorting MUST be declared in the initial `fields` array. This includes:
+- Any field referenced in `filters[].name`
+- Any field referenced in `aggregations.average[]`, `aggregations.sum[]`, `aggregations.list[]`
+- Any field referenced in `aggregations.count[].field`
+- Any field referenced in `sort[].field`
+
+**FIELD VALIDATION**: 
+- Only use datapoint names and category names from the provided schema
+- Each field must be either a valid datapoint name OR a valid category name
+- Set `isCategory: true` for categories, `isCategory: false` for datapoints
+
+**FILTER VALUE TYPES**: Filter values must be one of:
+- `boolean`: true or false
+- `number`: any numeric value (integers or decimals)
+- `string` in format "YYYY-MM-DD": for date comparisons
+- `string` in format "HH:MM": for time comparisons (24-hour format)
+- `string`: any other non-empty string value
+
+**AGGREGATION RULES**:
+- If ANY aggregation is used (average, sum, count, list), a `groupBy` array is REQUIRED
+- Valid `groupBy` values: datapoint names, category names, or temporal tokens (date, weekday, isoWeek, month, year, __all__)
+
+**DATE RANGE**:
+- Always provide both `startDate` and `endDate` in YYYY-MM-DD format
+- If user doesn't specify, default to reasonable ranges (e.g., last 30 days, this year, etc.)
+
 ## Behavior & Restrictions
 
 - Output valid JSON only. No other content.
@@ -107,6 +135,7 @@ interface QueryIntent {
 - If user does not specify time range, default to the last 30 days. Today is {{TODAYS_DATE}}
 - Get creative with how to create the object. Assume there is a way to translate the question until you have exhausted every option
 - Explicitly state `reason` in the unlikely event a request is not satisfiable (`satisfiable: false`).
+- ALWAYS declare ALL fields that will be used anywhere in the query in the initial `fields` array
 
 ## Examples
 
@@ -134,7 +163,10 @@ User: "List dates when I consumed caffeine after 2 PM and still had a sleep effi
 {
   "satisfiable": true,
   "timeRange": { "startDate": "2025-01-01", "endDate": "2025-12-31" },
-  "fields": [{ "name": "sleepEfficiencyPercent", "isCategory": false }],
+  "fields": [
+    { "name": "hadCaffeineAfter2PM", "isCategory": false },
+    { "name": "sleepEfficiencyPercent", "isCategory": false }
+  ],
   "filters": [
     { "name": "hadCaffeineAfter2PM", "filter": { "op": "==", "value": true } },
     { "name": "sleepEfficiencyPercent", "filter": { "op": ">", "value": 85 } }
