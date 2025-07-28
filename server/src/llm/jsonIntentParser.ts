@@ -1,4 +1,4 @@
-import { getFieldPath, isCategory, isDatapoint, getCategoryFields, getDatapointCategory } from './datapointPaths';
+import { getFieldPath, isCategory, isDatapoint, getCategoryFields } from './datapointPaths';
 import database from '../db/database';
 
 export interface QueryIntent {

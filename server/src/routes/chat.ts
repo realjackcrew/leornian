@@ -2,6 +2,7 @@ import express from 'express';
 import { chatCompletion } from '../llm/openai';
 import { buildJsonIntentPrompt } from '../llm/jsonIntentPromptBuilder';
 import { parseJsonIntent, validateQueryIntent, ParsedQueryIntent } from '../llm/jsonIntentParser';
+import { executeQueryFromIntent, QueryExecutionResult, formatQueryResults } from '../llm/queryExecutor';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 
 const router = express.Router();
@@ -36,8 +37,7 @@ router.post('/chat', authenticateToken, async (req: AuthenticatedRequest, res) =
     // Parse the JSON intent from the response
     let parsedIntent: ParsedQueryIntent | null = null;
     let parseError: string | null = null;
-    let validationErrors: string[] = [];
-    let validationWarnings: string[] = [];
+    let queryResult: QueryExecutionResult | null = null;
     
     try {
       if (!response.content) {
@@ -46,30 +46,38 @@ router.post('/chat', authenticateToken, async (req: AuthenticatedRequest, res) =
       parsedIntent = parseJsonIntent(response.content);
       console.log('Parsed query intent:', parsedIntent);
       
-      // Validate the parsed intent
-      const validation = await validateQueryIntent(parsedIntent, userId);
-      if (!validation.isValid) {
-        console.error('Query intent validation failed:', validation.errors);
-        validationErrors = validation.errors;
-      }
-      validationWarnings = validation.warnings;
+      // Execute the query
+      queryResult = await executeQueryFromIntent(parsedIntent, userId, { includeCount: true });
+      console.log('Query execution result:', queryResult);
       
-      if (validation.warnings.length > 0) {
-        console.log('Query intent validation warnings:', validation.warnings);
-      }
     } catch (error) {
       console.error('Failed to parse JSON intent:', error);
       parseError = `Failed to parse JSON intent: ${error instanceof Error ? error.message : 'Unknown error'}`;
     }
 
+    // Format the response based on whether we have query results
+    let formattedResponse = response.content || '';
+    
+    if (queryResult && queryResult.success) {
+      // If we have successful query results, format them for the user
+      formattedResponse = formatQueryResults(queryResult);
+    } else if (queryResult && !queryResult.success) {
+      // If query failed, show the error
+      formattedResponse = `I couldn't execute your query: ${queryResult.error}`;
+    } else if (parseError) {
+      // If parsing failed, show the parse error
+      formattedResponse = `I couldn't understand your request: ${parseError}`;
+    }
+
     const responseData = {
       success: true,
-      response: response.content || '',
+      response: formattedResponse,
       jsonIntent: true,
-      parsedIntent: parseError || validationErrors.length > 0 ? null : parsedIntent,
+      parsedIntent: parsedIntent,
+      queryResult: queryResult,
       parseError,
-      validationErrors: validationErrors.length > 0 ? validationErrors : undefined,
-      validationWarnings: validationWarnings.length > 0 ? validationWarnings : undefined
+      // Keep the raw LLM response for debugging
+      rawLlmResponse: response.content
     };
 
     console.log('Sending response:', responseData);

@@ -74,9 +74,9 @@ export default function Chat() {
             sender: 'bot',
             jsonIntent: data.jsonIntent,
             parsedIntent: data.parsedIntent,
+            queryResult: data.queryResult,
             parseError: data.parseError,
-            validationErrors: data.validationErrors,
-            validationWarnings: data.validationWarnings
+            rawLlmResponse: data.rawLlmResponse
           };
           setMessages(prev => [...prev, botMessage]);
         } else {
@@ -101,9 +101,167 @@ export default function Chat() {
     }
   };
 
-  const formatJsonResponse = (text, parsedIntent, parseError, validationErrors, validationWarnings) => {
+  const formatJsonResponse = (text, parsedIntent, queryResult, parseError, rawLlmResponse) => {
+    // If we have a successful query result, just show the formatted response
+    if (queryResult && queryResult.success) {
+      return (
+        <div className="space-y-4">
+          {/* Main Response */}
+                                  <div className="bg-gradient-to-br from-blue-900/20 to-purple-900/20 p-4 rounded-lg border border-blue-700/30">
+                            <ReactMarkdown components={{
+                                p: ({children}) => <p className="text-white">{children}</p>,
+                                h1: ({children}) => <h1 className="text-white text-2xl font-bold mb-4">{children}</h1>,
+                                h2: ({children}) => <h2 className="text-white text-xl font-bold mb-3">{children}</h2>,
+                                h3: ({children}) => <h3 className="text-white text-lg font-bold mb-2">{children}</h3>,
+                                ul: ({children}) => <ul className="text-white list-disc list-inside mb-4">{children}</ul>,
+                                ol: ({children}) => <ol className="text-white list-decimal list-inside mb-4">{children}</ol>,
+                                li: ({children}) => <li className="text-white mb-1">{children}</li>,
+                                strong: ({children}) => <strong className="text-white font-bold">{children}</strong>,
+                                em: ({children}) => <em className="text-white italic">{children}</em>,
+                                code: ({children}) => <code className="text-green-400 bg-gray-800 px-1 rounded">{children}</code>,
+                                pre: ({children}) => <pre className="text-green-400 bg-gray-800 p-2 rounded overflow-x-auto">{children}</pre>,
+                                blockquote: ({children}) => <blockquote className="text-gray-300 border-l-4 border-blue-500 pl-4 italic">{children}</blockquote>
+                            }}>
+                                {text}
+                            </ReactMarkdown>
+                        </div>
+
+          {/* Query Results Section */}
+          <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700/50">
+            <div className="text-gray-400 mb-3 font-semibold">📊 Query Results</div>
+            
+            {/* Data Count */}
+            <div className="mb-3 text-sm text-gray-300">
+              Found {queryResult.data?.length || 0} records
+              {queryResult.totalCount && queryResult.totalCount !== queryResult.data?.length && 
+                ` (showing ${queryResult.data?.length} of ${queryResult.totalCount} total)`
+              }
+            </div>
+
+            {/* Warnings */}
+            {queryResult.warnings && queryResult.warnings.length > 0 && (
+              <div className="bg-yellow-900/30 p-3 rounded border border-yellow-700/50 mb-3">
+                <div className="text-yellow-400 text-sm font-semibold mb-1">⚠️ Warnings:</div>
+                <ul className="text-yellow-200 text-sm list-disc list-inside">
+                  {queryResult.warnings.map((warning, index) => (
+                    <li key={index}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Aggregations */}
+            {queryResult.aggregations && Object.keys(queryResult.aggregations).length > 0 && (
+              <div className="bg-blue-900/30 p-3 rounded border border-blue-700/50 mb-3">
+                <div className="text-blue-400 text-sm font-semibold mb-2">📈 Aggregations:</div>
+                <div className="space-y-1 text-sm">
+                  {Object.entries(queryResult.aggregations).map(([key, value]) => (
+                    <div key={key} className="text-blue-200">
+                      <span className="text-blue-300 font-mono">{key}:</span> {typeof value === 'number' ? value.toFixed(2) : value}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Data Table (for small result sets) */}
+            {queryResult.data && queryResult.data.length > 0 && queryResult.data.length <= 10 && (
+              <div className="bg-gray-800/50 p-3 rounded border border-gray-600/50">
+                <div className="text-gray-300 text-sm font-semibold mb-2">📋 Data:</div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-600/50">
+                        {queryResult.data[0] && Object.keys(queryResult.data[0])
+                          .filter(key => !['id', 'userId', 'createdAt', 'updatedAt'].includes(key))
+                          .map(key => (
+                            <th key={key} className="text-left py-2 px-3 text-gray-400 font-medium">
+                              {key}
+                            </th>
+                          ))
+                        }
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {queryResult.data.map((row, index) => (
+                        <tr key={index} className="border-b border-gray-700/30">
+                          {Object.entries(row)
+                            .filter(([key]) => !['id', 'userId', 'createdAt', 'updatedAt'].includes(key))
+                            .map(([key, value]) => (
+                              <td key={key} className="py-2 px-3 text-gray-200">
+                                {typeof value === 'object' && value !== null 
+                                  ? `{${Object.keys(value).slice(0, 3).join(', ')}}` 
+                                  : String(value)
+                                }
+                              </td>
+                            ))
+                          }
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Large result sets summary */}
+            {queryResult.data && queryResult.data.length > 10 && (
+              <div className="bg-gray-800/50 p-3 rounded border border-gray-600/50 text-sm text-gray-300">
+                Large result set ({queryResult.data.length} records). Use pagination or filters to see specific data.
+              </div>
+            )}
+          </div>
+
+          {/* Debug Section (collapsible) */}
+          <details className="bg-gray-900/30 rounded-lg border border-gray-700/30">
+            <summary className="p-3 cursor-pointer text-gray-400 text-sm hover:text-gray-300">
+              🔧 Debug Info (click to expand)
+            </summary>
+            <div className="p-3 pt-0 space-y-3">
+              {rawLlmResponse && (
+                <div>
+                  <div className="text-gray-400 text-xs mb-1">Raw LLM Response:</div>
+                  <pre className="text-green-400 text-xs overflow-x-auto whitespace-pre-wrap bg-gray-800/50 p-2 rounded">
+                    {rawLlmResponse}
+                  </pre>
+                </div>
+              )}
+              
+              {parsedIntent && (
+                <div>
+                  <div className="text-gray-400 text-xs mb-1">Parsed Intent:</div>
+                  <pre className="text-blue-400 text-xs overflow-x-auto whitespace-pre-wrap bg-gray-800/50 p-2 rounded">
+                    {JSON.stringify(parsedIntent, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          </details>
+        </div>
+      );
+    }
+
+    // If query failed, show error with debug info
+    if (queryResult && !queryResult.success) {
+      return (
+        <div className="space-y-4">
+          <div className="bg-red-900/30 p-4 rounded-lg border border-red-700/50">
+            <div className="text-red-400 mb-2">❌ Query Error:</div>
+            <div className="text-red-200">{queryResult.error}</div>
+          </div>
+          
+          {parseError && (
+            <div className="bg-red-900/30 p-4 rounded-lg border border-red-700/50">
+              <div className="text-red-400 mb-2">Parse Error:</div>
+              <div className="text-red-200">{parseError}</div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Fallback: try to parse as JSON (legacy format)
     try {
-      // Try to parse as JSON and format it nicely
       const jsonObj = JSON.parse(text);
       return (
         <div className="space-y-4">
@@ -120,78 +278,24 @@ export default function Chat() {
               <div className="text-red-200">{parseError}</div>
             </div>
           )}
-          
-          {validationErrors && validationErrors.length > 0 && (
-            <div className="bg-red-900/30 p-4 rounded-lg border border-red-700/50">
-              <div className="text-red-400 mb-2">Validation Errors:</div>
-              <ul className="text-red-200 list-disc list-inside">
-                {validationErrors.map((error, index) => (
-                  <li key={index}>{error}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          
-          {validationWarnings && validationWarnings.length > 0 && (
-            <div className="bg-yellow-900/30 p-4 rounded-lg border border-yellow-700/50">
-              <div className="text-yellow-400 mb-2">Validation Warnings:</div>
-              <ul className="text-yellow-200 list-disc list-inside">
-                {validationWarnings.map((warning, index) => (
-                  <li key={index}>{warning}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          
-          {parsedIntent && !parseError && (!validationErrors || validationErrors.length === 0) && (
-            <div className="bg-blue-900/30 p-4 rounded-lg border border-blue-700/50">
-              <div className="text-blue-400 mb-2">Parsed Query Intent:</div>
-              <div className="text-blue-200 space-y-2">
-                <div><strong>Satisfiable:</strong> {parsedIntent.isSatisfiable ? 'Yes' : 'No'}</div>
-                {!parsedIntent.isSatisfiable && parsedIntent.reason && (
-                  <div><strong>Reason:</strong> {parsedIntent.reason}</div>
-                )}
-                <div><strong>Time Range:</strong> {parsedIntent.timeRange.startDate} to {parsedIntent.timeRange.endDate}</div>
-                <div><strong>Selected Fields:</strong> {parsedIntent.selectedFields.join(', ') || 'None'}</div>
-                <div><strong>Selected Categories:</strong> {parsedIntent.selectedCategories.join(', ') || 'None'}</div>
-                <div><strong>Filters:</strong> {parsedIntent.filters.length > 0 ? 
-                  parsedIntent.filters.map(f => `${f.fieldName} ${f.operator} ${f.value}`).join(', ') : 'None'}</div>
-                <div><strong>Filters Mode:</strong> {parsedIntent.filtersMode}</div>
-                <div><strong>Aggregations:</strong> {
-                  [
-                    parsedIntent.aggregations.averages.length > 0 && `Averages: ${parsedIntent.aggregations.averages.join(', ')}`,
-                    parsedIntent.aggregations.sums.length > 0 && `Sums: ${parsedIntent.aggregations.sums.join(', ')}`,
-                    parsedIntent.aggregations.counts.length > 0 && `Counts: ${parsedIntent.aggregations.counts.map(c => c.alias).join(', ')}`,
-                    parsedIntent.aggregations.lists.length > 0 && `Lists: ${parsedIntent.aggregations.lists.join(', ')}`,
-                    parsedIntent.aggregations.groupBy.length > 0 && `Group By: ${parsedIntent.aggregations.groupBy.join(', ')}`
-                  ].filter(Boolean).join('; ') || 'None'
-                }</div>
-                <div><strong>Sorting:</strong> {parsedIntent.sorting.length > 0 ? 
-                  parsedIntent.sorting.map(s => `${s.field} ${s.order}`).join(', ') : 'None'}</div>
-                <div><strong>Pagination:</strong> {parsedIntent.pagination.limit > 0 ? 
-                  `Limit: ${parsedIntent.pagination.limit}, Offset: ${parsedIntent.pagination.offset}` : 'None'}</div>
-                
-                {/* Field Paths Section */}
-                {parsedIntent.fieldPaths && Object.keys(parsedIntent.fieldPaths).length > 0 && (
-                  <div className="mt-4">
-                    <div className="text-blue-300 mb-2"><strong>Field Paths:</strong></div>
-                    <div className="bg-gray-800/50 p-3 rounded border border-gray-600/50 font-mono text-xs">
-                      {Object.entries(parsedIntent.fieldPaths).map(([fieldName, path]) => (
-                        <div key={fieldName} className="mb-1">
-                          <span className="text-yellow-300">{fieldName}:</span> <span className="text-green-300">{path}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       );
     } catch (e) {
-      // If it's not valid JSON, return as regular markdown
-      return <ReactMarkdown>{text}</ReactMarkdown>;
+                  // If it's not valid JSON, return as regular markdown
+            return <ReactMarkdown components={{
+                p: ({children}) => <p className="text-white">{children}</p>,
+                h1: ({children}) => <h1 className="text-white text-2xl font-bold mb-4">{children}</h1>,
+                h2: ({children}) => <h2 className="text-white text-xl font-bold mb-3">{children}</h2>,
+                h3: ({children}) => <h3 className="text-white text-lg font-bold mb-2">{children}</h3>,
+                ul: ({children}) => <ul className="text-white list-disc list-inside mb-4">{children}</ul>,
+                ol: ({children}) => <ol className="text-white list-decimal list-inside mb-4">{children}</ol>,
+                li: ({children}) => <li className="text-white mb-1">{children}</li>,
+                strong: ({children}) => <strong className="text-white font-bold">{children}</strong>,
+                em: ({children}) => <em className="text-white italic">{children}</em>,
+                code: ({children}) => <code className="text-green-400 bg-gray-800 px-1 rounded">{children}</code>,
+                pre: ({children}) => <pre className="text-green-400 bg-gray-800 p-2 rounded overflow-x-auto">{children}</pre>,
+                blockquote: ({children}) => <blockquote className="text-gray-300 border-l-4 border-blue-500 pl-4 italic">{children}</blockquote>
+            }}>{text}</ReactMarkdown>;
     }
   };
 
@@ -246,8 +350,21 @@ export default function Chat() {
                   style={{ overflowX: 'auto' }}
                 >
                   {message.jsonIntent ? 
-                    formatJsonResponse(message.text, message.parsedIntent, message.parseError, message.validationErrors, message.validationWarnings) : 
-                    <ReactMarkdown>{message.text}</ReactMarkdown>
+                    formatJsonResponse(message.text, message.parsedIntent, message.queryResult, message.parseError, message.rawLlmResponse) : 
+                    <ReactMarkdown components={{
+                        p: ({children}) => <p className="text-white">{children}</p>,
+                        h1: ({children}) => <h1 className="text-white text-2xl font-bold mb-4">{children}</h1>,
+                        h2: ({children}) => <h2 className="text-white text-xl font-bold mb-3">{children}</h2>,
+                        h3: ({children}) => <h3 className="text-white text-lg font-bold mb-2">{children}</h3>,
+                        ul: ({children}) => <ul className="text-white list-disc list-inside mb-4">{children}</ul>,
+                        ol: ({children}) => <ol className="text-white list-decimal list-inside mb-4">{children}</ol>,
+                        li: ({children}) => <li className="text-white mb-1">{children}</li>,
+                        strong: ({children}) => <strong className="text-white font-bold">{children}</strong>,
+                        em: ({children}) => <em className="text-white italic">{children}</em>,
+                        code: ({children}) => <code className="text-green-400 bg-gray-800 px-1 rounded">{children}</code>,
+                        pre: ({children}) => <pre className="text-green-400 bg-gray-800 p-2 rounded overflow-x-auto">{children}</pre>,
+                        blockquote: ({children}) => <blockquote className="text-gray-300 border-l-4 border-blue-500 pl-4 italic">{children}</blockquote>
+                    }}>{message.text}</ReactMarkdown>
                   }
                   {message.jsonIntent && !message.isError && (
                     <div className="text-xs text-gray-400 mt-1">
