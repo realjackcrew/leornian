@@ -230,3 +230,35 @@ User: "Which five nights this year did I sleep the longest? And when did I go to
   "sort": [{ "field": "sleepDurationMinutes", "order": "desc" }],
   "pagination": { "limit": 5 }
 }
+
+Example 7
+
+User: "What is my average recovery on nights where I go to sleep later than 11pm"
+
+{
+  "satisfiable": true,
+  "timeRange": {
+    "startDate": "2025-01-01",
+    "endDate": "2025-12-31"
+  },
+  "fields": [
+    { "name": "bedtime", "isCategory": false },
+    { "name": "whoopRecoveryScorePercent", "isCategory": false }
+  ],
+  "filters": {
+    "or": [
+      {
+        "name": "bedtime",
+        "filter": { "op": ">", "value": "23:00" }
+      },
+      {
+        "name": "bedtime",
+        "filter": { "op": "<", "value": "05:00" }
+      }
+    ]
+  },
+  "aggregations": {
+    "average": [ "whoopRecoveryScorePercent" ],
+    "groupBy": [ "isoWeek" ]
+  }
+}
