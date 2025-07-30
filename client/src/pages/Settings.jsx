@@ -36,7 +36,8 @@ export default function Settings() {
     const [chatSettings, setChatSettings] = useState({
         voice: 'default',
         verbosity: 'balanced',
-        model: 'gpt-4o'
+        model: 'gpt-4o-mini',
+        useDirectSQL: false
     });
     const [chatOptions, setChatOptions] = useState({
         voices: [],
@@ -95,7 +96,22 @@ export default function Settings() {
                 setUserProfile(profile);
                 setWhoopStatus(whoop);
                 setDataPointDefinitions(definitions);
-                setChatSettings(chatSettingsData);
+                // Load useDirectSQL from localStorage if available
+                const savedChatSettings = localStorage.getItem('chatSettings');
+                let useDirectSQL = false;
+                if (savedChatSettings) {
+                    try {
+                        const settings = JSON.parse(savedChatSettings);
+                        useDirectSQL = settings.useDirectSQL || false;
+                    } catch (e) {
+                        useDirectSQL = false;
+                    }
+                }
+                
+                setChatSettings({
+                    ...chatSettingsData,
+                    useDirectSQL
+                });
                 setChatOptions(chatOptionsData);
                 setCustomDatapoints(customData);
                 
@@ -259,6 +275,10 @@ export default function Settings() {
     const handleSaveChatSettings = async () => {
         try {
             await updateChatSettings(chatSettings);
+            // Save useDirectSQL to localStorage for the chat page
+            localStorage.setItem('chatSettings', JSON.stringify({
+                useDirectSQL: chatSettings.useDirectSQL
+            }));
             alert('Chat settings saved successfully!');
         } catch (err) {
             console.error('Failed to save chat settings:', err);
@@ -559,6 +579,39 @@ export default function Settings() {
                                 </option>
                             ))}
                         </select>
+                    </div>
+                </div>
+
+                {/* Direct SQL Mode Toggle */}
+                <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
+                    <h3 className="text-lg font-medium text-white mb-4">
+                        Query System
+                    </h3>
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <div className="text-sm font-medium text-white">Direct SQL Mode</div>
+                                <div className="text-xs text-gray-400">
+                                    Use direct SQL generation instead of JSON intent parsing
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => handleChatSettingChange('useDirectSQL', !chatSettings.useDirectSQL)}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                    chatSettings.useDirectSQL ? 'bg-gradient-to-r from-green-600 to-emerald-600' : 'bg-gray-600'
+                                }`}
+                            >
+                                <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                        chatSettings.useDirectSQL ? 'translate-x-6' : 'translate-x-1'
+                                    }`}
+                                />
+                            </button>
+                        </div>
+                        <div className="text-xs text-gray-500">
+                            <strong>JSON Intent Mode (Off):</strong> Structured queries with detailed result formatting<br/>
+                            <strong>Direct SQL Mode (On):</strong> Flexible SQL generation with function calling
+                        </div>
                     </div>
                 </div>
 

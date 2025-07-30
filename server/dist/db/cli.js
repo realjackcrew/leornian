@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.bigIntToString = bigIntToString;
 const queries_1 = require("./queries");
-function bigIntToString(key, value) {
+function bigIntToString(value) {
     if (typeof value === 'bigint') {
         return value.toString();
     }

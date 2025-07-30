@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.chatWithFunctionCalling = chatWithFunctionCalling;
+exports.chatWithForcedFunctionCalling = chatWithForcedFunctionCalling;
 exports.chatCompletion = chatCompletion;
 const openai_1 = __importDefault(require("openai"));
 const openai = new openai_1.default({
@@ -47,12 +48,12 @@ const functions = [
         }
     }
 ];
-async function chatWithFunctionCalling(messages) {
+async function chatWithFunctionCalling(messages, model = 'gpt-4o-mini') {
     try {
         console.log('OpenAI API Key exists:', !!process.env.OPENAI_API_KEY);
         console.log('Messages being sent to OpenAI:', messages);
         const response = await openai.chat.completions.create({
-            model: 'gpt-4o',
+            model,
             messages,
             functions,
             function_call: 'auto',
@@ -69,10 +70,32 @@ async function chatWithFunctionCalling(messages) {
         throw new Error(`Failed to get response from OpenAI: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 }
-async function chatCompletion(messages) {
+async function chatWithForcedFunctionCalling(messages, model = 'gpt-4o-mini') {
+    try {
+        console.log('OpenAI API Key exists:', !!process.env.OPENAI_API_KEY);
+        console.log('Messages being sent to OpenAI with forced function call:', messages);
+        const response = await openai.chat.completions.create({
+            model,
+            messages,
+            functions,
+            function_call: { name: 'execute_sql_query_with_params' },
+        });
+        console.log('OpenAI response received successfully');
+        return response.choices[0].message;
+    }
+    catch (error) {
+        console.error('OpenAI API error details:', {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            name: error instanceof Error ? error.name : 'Unknown',
+            stack: error instanceof Error ? error.stack : undefined
+        });
+        throw new Error(`Failed to get response from OpenAI: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+}
+async function chatCompletion(messages, model = 'gpt-4o-mini') {
     try {
         const response = await openai.chat.completions.create({
-            model: 'gpt-4o',
+            model,
             messages,
         });
         return response.choices[0].message;

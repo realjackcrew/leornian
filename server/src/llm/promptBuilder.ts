@@ -12,6 +12,10 @@ export function buildDynamicPrompt(settings: PromptSettings = {}): string {
   const voice = settings.voice || 'default';
   const verbosity = settings.verbosity || 'balanced';
   
+  // Calculate current date
+  const now = new Date();
+  const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+  
   const voicePersonality = getVoicePersonality(voice);
   const responseLength = getResponseLength(verbosity);
   const responseExample = responseLength.examples[voice] || responseLength.examples.default;
@@ -29,7 +33,8 @@ export function buildDynamicPrompt(settings: PromptSettings = {}): string {
     .replace('{{example_filtered_analysis}}', example_filtered_analysis)
     .replace('{{example_trend_analysis}}', example_trend_analysis)
     .replace('{{example_no_results}}', example_no_results)
-    .replace('{{example_invalid_request}}', example_invalid_request);
+    .replace('{{example_invalid_request}}', example_invalid_request)
+    .replace('{{CURRENT_DATE}}', currentDate);
 
   // Insert the personality and response length section at the top (after Overview)
   const personalitySection = `\n## PERSONALITY & COMMUNICATION STYLE\n\n**Voice Personality: ${voicePersonality.name}**\n${voicePersonality.personality}\n\n**Communication Examples:**\n${voicePersonality.examples}\n\n**Response Length: ${responseLength.name} (${responseLength.characterRange})**\n${responseLength.instructions}\n\n**Response Length Example in Your Voice:**\n${responseExample}\n\n---\n`;

@@ -24,6 +24,19 @@ export default function Chat() {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [includeHistory, setIncludeHistory] = useState(false);
+  const [useDirectSQL, setUseDirectSQL] = useState(() => {
+    // Get the setting from localStorage, default to false
+    const saved = localStorage.getItem('chatSettings');
+    if (saved) {
+      try {
+        const settings = JSON.parse(saved);
+        return settings.useDirectSQL || false;
+      } catch (e) {
+        return false;
+      }
+    }
+    return false;
+  });
 
   const handleInputChange = (e) => {
     setInput(e.target.value);
@@ -50,7 +63,8 @@ export default function Chat() {
               role: msg.sender === 'user' ? 'user' : 'assistant',
               content: msg.text
             })) : [],
-            includeHistory
+            includeHistory,
+            useDirectSQL
           })
         });
 
@@ -73,10 +87,17 @@ export default function Chat() {
             text: data.response, 
             sender: 'bot',
             jsonIntent: data.jsonIntent,
+            directSQL: data.directSQL,
             parsedIntent: data.parsedIntent,
             queryResult: data.queryResult,
             parseError: data.parseError,
-            rawLlmResponse: data.rawLlmResponse
+            rawLlmResponse: data.rawLlmResponse,
+            // Direct SQL specific fields
+            sqlQuery: data.sqlQuery,
+            sqlParams: data.sqlParams,
+            sqlResult: data.sqlResult,
+            sqlError: data.sqlError,
+            finalLlmResponse: data.finalLlmResponse
           };
           setMessages(prev => [...prev, botMessage]);
         } else {
@@ -99,6 +120,67 @@ export default function Chat() {
         setIsLoading(false);
       }
     }
+  };
+
+  const formatDirectSQLResponse = (text, sqlQuery, sqlParams, sqlResult, sqlError, rawLlmResponse, finalLlmResponse) => {
+    return (
+      <div className="space-y-4">
+        {/* Main Response Only */}
+        <div >
+          <ReactMarkdown components={{
+            p: ({children}) => <p className="text-white">{children}</p>,
+            h1: ({children}) => <h1 className="text-white text-2xl font-bold mb-4">{children}</h1>,
+            h2: ({children}) => <h2 className="text-white text-xl font-bold mb-3">{children}</h2>,
+            h3: ({children}) => <h3 className="text-white text-lg font-bold mb-2">{children}</h3>,
+            ul: ({children}) => <ul className="text-white list-disc list-inside mb-4">{children}</ul>,
+            ol: ({children}) => <ol className="text-white list-decimal list-inside mb-4">{children}</ol>,
+            li: ({children}) => <li className="text-white mb-1">{children}</li>,
+            strong: ({children}) => <strong className="text-white font-bold">{children}</strong>,
+            em: ({children}) => <em className="text-white italic">{children}</em>,
+            code: ({children}) => <code className="text-green-400 bg-gray-800 px-1 rounded">{children}</code>,
+            pre: ({children}) => <pre className="text-green-400 bg-gray-800 p-2 rounded overflow-x-auto">{children}</pre>,
+            blockquote: ({children}) => <blockquote className="text-gray-300 border-l-4 border-green-500 pl-4 italic">{children}</blockquote>
+          }}>
+            {text}
+          </ReactMarkdown>
+        </div>
+
+        {/* Debug Section (collapsible) - only show if there are errors */}
+        {(sqlError || rawLlmResponse) && (
+          <details className="bg-gray-900/30 rounded-lg border border-gray-700/30">
+            <summary className="p-3 cursor-pointer text-gray-400 text-sm hover:text-gray-300">
+              🔧 Debug Info (click to expand)
+            </summary>
+            <div className="p-3 pt-0 space-y-3">
+              {sqlError && (
+                <div className="bg-red-900/30 p-3 rounded border border-red-700/50">
+                  <div className="text-red-400 text-sm font-semibold mb-1">❌ SQL Error:</div>
+                  <div className="text-red-200 text-sm">{sqlError}</div>
+                </div>
+              )}
+              
+              {rawLlmResponse && (
+                <div>
+                  <div className="text-gray-400 text-xs mb-1">Initial LLM Response:</div>
+                  <pre className="text-green-400 text-xs overflow-x-auto whitespace-pre-wrap bg-gray-800/50 p-2 rounded">
+                    {rawLlmResponse}
+                  </pre>
+                </div>
+              )}
+              
+              {finalLlmResponse && (
+                <div>
+                  <div className="text-gray-400 text-xs mb-1">Final LLM Response:</div>
+                  <pre className="text-blue-400 text-xs overflow-x-auto whitespace-pre-wrap bg-gray-800/50 p-2 rounded">
+                    {finalLlmResponse}
+                  </pre>
+                </div>
+              )}
+            </div>
+          </details>
+        )}
+      </div>
+    );
   };
 
   const formatJsonResponse = (text, parsedIntent, queryResult, parseError, rawLlmResponse) => {
@@ -349,26 +431,33 @@ export default function Chat() {
                   }`}
                   style={{ overflowX: 'auto' }}
                 >
-                  {message.jsonIntent ? 
-                    formatJsonResponse(message.text, message.parsedIntent, message.queryResult, message.parseError, message.rawLlmResponse) : 
-                    <ReactMarkdown components={{
-                        p: ({children}) => <p className="text-white">{children}</p>,
-                        h1: ({children}) => <h1 className="text-white text-2xl font-bold mb-4">{children}</h1>,
-                        h2: ({children}) => <h2 className="text-white text-xl font-bold mb-3">{children}</h2>,
-                        h3: ({children}) => <h3 className="text-white text-lg font-bold mb-2">{children}</h3>,
-                        ul: ({children}) => <ul className="text-white list-disc list-inside mb-4">{children}</ul>,
-                        ol: ({children}) => <ol className="text-white list-decimal list-inside mb-4">{children}</ol>,
-                        li: ({children}) => <li className="text-white mb-1">{children}</li>,
-                        strong: ({children}) => <strong className="text-white font-bold">{children}</strong>,
-                        em: ({children}) => <em className="text-white italic">{children}</em>,
-                        code: ({children}) => <code className="text-green-400 bg-gray-800 px-1 rounded">{children}</code>,
-                        pre: ({children}) => <pre className="text-green-400 bg-gray-800 p-2 rounded overflow-x-auto">{children}</pre>,
-                        blockquote: ({children}) => <blockquote className="text-gray-300 border-l-4 border-blue-500 pl-4 italic">{children}</blockquote>
-                    }}>{message.text}</ReactMarkdown>
+                  {message.directSQL ? 
+                    formatDirectSQLResponse(message.text, message.sqlQuery, message.sqlParams, message.sqlResult, message.sqlError, message.rawLlmResponse, message.finalLlmResponse) :
+                    message.jsonIntent ? 
+                      formatJsonResponse(message.text, message.parsedIntent, message.queryResult, message.parseError, message.rawLlmResponse) : 
+                      <ReactMarkdown components={{
+                          p: ({children}) => <p className="text-white">{children}</p>,
+                          h1: ({children}) => <h1 className="text-white text-2xl font-bold mb-4">{children}</h1>,
+                          h2: ({children}) => <h2 className="text-white text-xl font-bold mb-3">{children}</h2>,
+                          h3: ({children}) => <h3 className="text-white text-lg font-bold mb-2">{children}</h3>,
+                          ul: ({children}) => <ul className="text-white list-disc list-inside mb-4">{children}</ul>,
+                          ol: ({children}) => <ol className="text-white list-decimal list-inside mb-4">{children}</ol>,
+                          li: ({children}) => <li className="text-white mb-1">{children}</li>,
+                          strong: ({children}) => <strong className="text-white font-bold">{children}</strong>,
+                          em: ({children}) => <em className="text-white italic">{children}</em>,
+                          code: ({children}) => <code className="text-green-400 bg-gray-800 px-1 rounded">{children}</code>,
+                          pre: ({children}) => <pre className="text-green-400 bg-gray-800 p-2 rounded overflow-x-auto">{children}</pre>,
+                          blockquote: ({children}) => <blockquote className="text-gray-300 border-l-4 border-blue-500 pl-4 italic">{children}</blockquote>
+                      }}>{message.text}</ReactMarkdown>
                   }
                   {message.jsonIntent && !message.isError && (
                     <div className="text-xs text-gray-400 mt-1">
                       🔍 Generated query intent
+                    </div>
+                  )}
+                  {message.directSQL && !message.isError && (
+                    <div className="text-xs text-gray-400 mt-1">
+                      ⚡ Direct SQL generation
                     </div>
                   )}
                 </div>

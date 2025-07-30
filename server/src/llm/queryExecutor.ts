@@ -1,5 +1,5 @@
 import { parseJsonIntent, validateQueryIntent, ParsedQueryIntent } from './jsonIntentParser';
-import { executeQueryIntent, QueryResult } from './queryBuilder';
+import { executeQueryIntent } from './queryBuilder';
 
 export interface QueryExecutionResult {
   success: boolean;

@@ -9,7 +9,10 @@ const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 function authenticateToken(req, res, next) {
     const authReq = req;
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer <token>
+    let token = authHeader && authHeader.split(' ')[1];
+    if (!token && req.query.token && typeof req.query.token === 'string') {
+        token = req.query.token;
+    }
     if (!token) {
         res.status(401).json({ error: 'No token provided' });
         return;

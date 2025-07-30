@@ -1,5 +1,5 @@
 import { ParsedQueryIntent } from './jsonIntentParser';
-import { getFieldPath, getCategoryFields, isCategory } from './datapointPaths';
+import { getCategoryFields } from './datapointPaths';
 import prisma from '../db/database';
 
 export interface QueryResult {
@@ -308,7 +308,6 @@ export class QueryBuilder {
   private buildAggregationSQL(intent: ParsedQueryIntent): string {
     const selectClauses: string[] = [];
     const groupByClauses: string[] = [];
-    let paramIndex = 1;
 
     // Add groupBy fields first
     intent.aggregations.groupBy.forEach(field => {
@@ -340,14 +339,14 @@ export class QueryBuilder {
     intent.aggregations.averages.forEach(field => {
       const fieldPath = intent.fieldPaths[field];
       if (fieldPath) {
-        selectClauses.push(`AVG(${fieldPath}::numeric) as "avg_${field}"`);
+        selectClauses.push(`AVG(CAST(${fieldPath} AS NUMERIC)) as "avg_${field}"`);
       }
     });
 
     intent.aggregations.sums.forEach(field => {
       const fieldPath = intent.fieldPaths[field];
       if (fieldPath) {
-        selectClauses.push(`SUM(${fieldPath}::numeric) as "sum_${field}"`);
+        selectClauses.push(`SUM(CAST(${fieldPath} AS NUMERIC)) as "sum_${field}"`);
       }
     });
 
@@ -547,7 +546,6 @@ export class QueryBuilder {
               }
 
               // Check for proper parameter count
-              const paramPlaceholders = (sql.match(/\$/g) || []).length;
               const uniqueParams = new Set(sql.match(/\$\d+/g) || []).size;
               
               if (uniqueParams !== params.length) {

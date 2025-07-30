@@ -95,7 +95,7 @@ router.get('/chat-settings', authenticateToken, async (req: Request, res: Respon
     const chatSettings = {
       voice: settings.voice || 'default',
       verbosity: settings.verbosity || 'balanced',
-      model: settings.model || 'gpt-4o'
+      model: settings.model || 'gpt-4o-mini'
     };
 
     res.json(chatSettings);
@@ -162,7 +162,7 @@ router.put('/chat-settings', authenticateToken, async (req: Request, res: Respon
     const chatSettings = {
       voice: settings.voice || 'default',
       verbosity: settings.verbosity || 'balanced',
-      model: settings.model || 'gpt-4o'
+      model: settings.model || 'gpt-4o-mini'
     };
 
     res.json(chatSettings);

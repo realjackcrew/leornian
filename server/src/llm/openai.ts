@@ -43,13 +43,13 @@ const functions = [
   }
 ];
 
-export async function chatWithFunctionCalling(messages: any[]) {
+export async function chatWithFunctionCalling(messages: any[], model: string = 'gpt-4o-mini') {
   try {
     console.log('OpenAI API Key exists:', !!process.env.OPENAI_API_KEY);
     console.log('Messages being sent to OpenAI:', messages);
     
     const response = await openai.chat.completions.create({
-      model: 'o4-mini',
+      model,
       messages,
       functions,
       function_call: 'auto',
@@ -67,10 +67,34 @@ export async function chatWithFunctionCalling(messages: any[]) {
   }
 }
 
-export async function chatCompletion(messages: any[]) {
+export async function chatWithForcedFunctionCalling(messages: any[], model: string = 'gpt-4o-mini') {
+  try {
+    console.log('OpenAI API Key exists:', !!process.env.OPENAI_API_KEY);
+    console.log('Messages being sent to OpenAI with forced function call:', messages);
+    
+    const response = await openai.chat.completions.create({
+      model,
+      messages,
+      functions,
+      function_call: { name: 'execute_sql_query_with_params' },
+    });
+
+    console.log('OpenAI response received successfully');
+    return response.choices[0].message;
+  } catch (error) {
+    console.error('OpenAI API error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      name: error instanceof Error ? error.name : 'Unknown',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    throw new Error(`Failed to get response from OpenAI: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+export async function chatCompletion(messages: any[], model: string = 'gpt-4o-mini') {
   try {
     const response = await openai.chat.completions.create({
-      model: 'o4-mini',
+      model,
       messages,
     });
 

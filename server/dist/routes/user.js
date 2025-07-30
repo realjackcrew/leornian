@@ -88,7 +88,7 @@ router.get('/chat-settings', auth_1.authenticateToken, async (req, res) => {
         const chatSettings = {
             voice: settings.voice || 'default',
             verbosity: settings.verbosity || 'balanced',
-            model: settings.model || 'gpt-4o'
+            model: settings.model || 'gpt-4o-mini'
         };
         res.json(chatSettings);
     }
@@ -146,7 +146,7 @@ router.put('/chat-settings', auth_1.authenticateToken, async (req, res) => {
         const chatSettings = {
             voice: settings.voice || 'default',
             verbosity: settings.verbosity || 'balanced',
-            model: settings.model || 'gpt-4o'
+            model: settings.model || 'gpt-4o-mini'
         };
         res.json(chatSettings);
     }
@@ -156,7 +156,7 @@ router.put('/chat-settings', auth_1.authenticateToken, async (req, res) => {
     }
 });
 // GET /api/user/chat-options - Get available voice and verbosity options
-router.get('/chat-options', (req, res) => {
+router.get('/chat-options', (_req, res) => {
     try {
         res.json({
             voices: (0, promptBuilder_1.getAvailableVoices)(),
