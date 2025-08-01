@@ -7,6 +7,7 @@ import { buildDynamicPrompt } from '../llm/promptBuilder';
 import { execute_sql_query_with_params } from '../db/queries';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import database from '../db/database';
+import { summarizeQueryResults, SummarizationRequest } from '../llm/summarizationService';
 
 const router = express.Router();
 
@@ -77,30 +78,99 @@ async function handleJsonIntentMode(_req: AuthenticatedRequest, res: express.Res
       parseError = `Failed to parse JSON intent: ${error instanceof Error ? error.message : 'Unknown error'}`;
     }
 
-    // Format the response based on whether we have query results
-    let formattedResponse = response.content || '';
+    // Always use summarization for client-facing responses
+    let clientResponse = '';
+    let debugInfo: any = {};
     
     if (queryResult && queryResult.success) {
-      // If we have successful query results, format them for the user
-      formattedResponse = formatQueryResults(queryResult);
+      // If we have successful query results, use the summarization service
+      try {
+        const summarizationRequest: SummarizationRequest = {
+          originalQuestion: message,
+          queryResults: queryResult,
+          userId: userId,
+          settings: chatSettings
+        };
+        
+        const summarizationResult = await summarizeQueryResults(summarizationRequest);
+        
+        if (summarizationResult.success) {
+          clientResponse = summarizationResult.summary;
+        } else {
+          console.error('Summarization failed:', summarizationResult.error);
+          // Fall back to basic formatting if summarization fails
+          clientResponse = formatQueryResults(queryResult);
+        }
+      } catch (error) {
+        console.error('Error in summarization:', error);
+        // Fall back to basic formatting if summarization fails
+        clientResponse = formatQueryResults(queryResult);
+      }
     } else if (queryResult && !queryResult.success) {
-      // If query failed, show the error
-      formattedResponse = `I couldn't execute your query: ${queryResult.error}`;
+      // If query failed, use summarization with error data
+      try {
+        const summarizationRequest: SummarizationRequest = {
+          originalQuestion: message,
+          queryResults: { success: false, error: queryResult.error },
+          userId: userId,
+          settings: chatSettings
+        };
+        
+        const summarizationResult = await summarizeQueryResults(summarizationRequest);
+        
+        if (summarizationResult.success) {
+          clientResponse = summarizationResult.summary;
+        } else {
+          clientResponse = `I couldn't execute your query: ${queryResult.error}`;
+        }
+      } catch (error) {
+        clientResponse = `I couldn't execute your query: ${queryResult.error}`;
+      }
     } else if (parseError) {
-      // If parsing failed, show the parse error
-      formattedResponse = `I couldn't understand your request: ${parseError}`;
+      // If parsing failed, use summarization with parse error
+      try {
+        const summarizationRequest: SummarizationRequest = {
+          originalQuestion: message,
+          queryResults: { success: false, error: parseError },
+          userId: userId,
+          settings: chatSettings
+        };
+        
+        const summarizationResult = await summarizeQueryResults(summarizationRequest);
+        
+        if (summarizationResult.success) {
+          clientResponse = summarizationResult.summary;
+        } else {
+          clientResponse = `I couldn't understand your request: ${parseError}`;
+        }
+      } catch (error) {
+        clientResponse = `I couldn't understand your request: ${parseError}`;
+      }
     }
 
-    const responseData = {
+    // Check if debug mode is enabled
+    const isDebugMode = process.env.DEBUG_MODE === 'true';
+    
+    if (isDebugMode) {
+      debugInfo = {
+        jsonIntent: parsedIntent,
+        executedQuery: queryResult?.executedQuery || null,
+        queryParams: queryResult?.queryParams || null,
+        queryError: queryResult?.error || parseError || null,
+        rawLlmResponse: response.content
+      };
+    }
+
+    const responseData: any = {
       success: true,
-      response: formattedResponse,
-      jsonIntent: true,
-      parsedIntent: parsedIntent,
-      queryResult: queryResult,
-      parseError,
-      // Keep the raw LLM response for debugging
-      rawLlmResponse: response.content
+      response: clientResponse,
+      jsonIntent: true
     };
+
+    // Include debug information if debug mode is enabled
+    if (isDebugMode) {
+      responseData.debug = debugInfo;
+    }
 
     console.log('Sending response:', responseData);
     return res.json(responseData);

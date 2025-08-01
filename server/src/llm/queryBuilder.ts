@@ -6,6 +6,8 @@ export interface QueryResult {
   data: any[];
   totalCount?: number;
   aggregations?: Record<string, any>;
+  executedQuery?: string;
+  queryParams?: any[];
 }
 
 export interface QueryBuilderOptions {
@@ -73,7 +75,9 @@ export class QueryBuilder {
       return {
         data: transformedData,
         totalCount,
-        aggregations: this.hasAggregations(intent) ? this.extractAggregations(result, intent) : undefined
+        aggregations: this.hasAggregations(intent) ? this.extractAggregations(result, intent) : undefined,
+        executedQuery: sql,
+        queryParams: params
       };
     } catch (error) {
       console.error('Error executing raw SQL query:', error);

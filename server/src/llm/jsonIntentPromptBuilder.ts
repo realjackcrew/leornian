@@ -78,7 +78,7 @@ export async function buildJsonIntentPrompt(settings: JsonIntentPromptSettings):
   });
 
   // Read the prompt template
-  const promptPath = join(__dirname, 'mainJsonIntentPrompt.md');
+  const promptPath = join(__dirname, 'prompts', 'mainJsonIntentPrompt.md');
   let prompt = readFileSync(promptPath, 'utf8');
 
   // Replace placeholders

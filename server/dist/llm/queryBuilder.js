@@ -55,7 +55,9 @@ class QueryBuilder {
             return {
                 data: transformedData,
                 totalCount,
-                aggregations: this.hasAggregations(intent) ? this.extractAggregations(result, intent) : undefined
+                aggregations: this.hasAggregations(intent) ? this.extractAggregations(result, intent) : undefined,
+                executedQuery: sql,
+                queryParams: params
             };
         }
         catch (error) {

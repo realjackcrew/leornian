@@ -9,6 +9,8 @@ export interface QueryExecutionResult {
   error?: string;
   warnings?: string[];
   intent?: ParsedQueryIntent;
+  executedQuery?: string;
+  queryParams?: any[];
 }
 
 /**
@@ -43,7 +45,9 @@ export async function executeQueryFromJson(
       totalCount: result.totalCount,
       aggregations: result.aggregations,
       warnings: validation.warnings.length > 0 ? validation.warnings : undefined,
-      intent: parsed
+      intent: parsed,
+      executedQuery: result.executedQuery,
+      queryParams: result.queryParams
     };
     
   } catch (error) {
@@ -84,7 +88,9 @@ export async function executeQueryFromIntent(
       totalCount: result.totalCount,
       aggregations: result.aggregations,
       warnings: validation.warnings.length > 0 ? validation.warnings : undefined,
-      intent
+      intent,
+      executedQuery: result.executedQuery,
+      queryParams: result.queryParams
     };
     
   } catch (error) {

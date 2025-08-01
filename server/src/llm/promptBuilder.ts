@@ -1,7 +1,7 @@
 import { getVoicePersonality } from './voicePrompts';
 import { getResponseLength } from './responsePrompts';
-import { promptTemplate } from './promptTemplate';
-import { promptExamples } from './examples';
+import { promptTemplate } from './prompts/promptTemplate';
+import { promptExamples } from './prompts/examples';
 
 export interface PromptSettings {
   voice?: string;
@@ -18,7 +18,6 @@ export function buildDynamicPrompt(settings: PromptSettings = {}): string {
   
   const voicePersonality = getVoicePersonality(voice);
   const responseLength = getResponseLength(verbosity);
-  const responseExample = responseLength.examples[voice] || responseLength.examples.default;
 
   // Get all example blocks for this voice
   const example_small_result = promptExamples.smallResult[voice] || promptExamples.smallResult.default;
@@ -37,7 +36,7 @@ export function buildDynamicPrompt(settings: PromptSettings = {}): string {
     .replace('{{CURRENT_DATE}}', currentDate);
 
   // Insert the personality and response length section at the top (after Overview)
-  const personalitySection = `\n## PERSONALITY & COMMUNICATION STYLE\n\n**Voice Personality: ${voicePersonality.name}**\n${voicePersonality.personality}\n\n**Communication Examples:**\n${voicePersonality.examples}\n\n**Response Length: ${responseLength.name} (${responseLength.characterRange})**\n${responseLength.instructions}\n\n**Response Length Example in Your Voice:**\n${responseExample}\n\n---\n`;
+  const personalitySection = `\n## PERSONALITY & COMMUNICATION STYLE\n\n**Voice Personality: ${voicePersonality.name}**\n${voicePersonality.personality}\n\n**Communication Examples:**\n${voicePersonality.examples}\n\n**Response Length: ${responseLength.name} (${responseLength.characterRange})**\n${responseLength.instructions}\n\n---\n`;
 
   // Insert after Overview section
   const overviewEnd = prompt.indexOf('---');
@@ -51,7 +50,7 @@ export function buildDynamicPrompt(settings: PromptSettings = {}): string {
 }
 
 export function getAvailableVoices(): string[] {
-  return ['default', 'cowboy', 'vampire', 'alien', 'pirate', 'robot', 'wizard', 'surfer', 'detective'];
+  return ['default', 'cowboy', 'shakespeare', 'alien', 'pirate', 'robot', 'wizard', 'surfer', 'detective'];
 }
 
 export function getAvailableVerbosities(): string[] {

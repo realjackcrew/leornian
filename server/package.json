@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "build": "npx prisma generate && npx prisma migrate deploy && npx tsc && npm run copy-assets",
-    "copy-assets": "mkdir -p dist/llm && cp src/llm/*.md dist/llm/",
+    "copy-assets": "mkdir -p dist/llm/prompts && cp src/llm/prompts/*.md dist/llm/prompts/",
     "start": "npx prisma db push && node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "postinstall": "npx prisma generate",

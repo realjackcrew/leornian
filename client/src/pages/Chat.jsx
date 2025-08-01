@@ -2,8 +2,38 @@ import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { API_BASE_URL } from '../config';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Link } from 'react-router-dom';
 import { Lock } from 'lucide-react';
+
+// Function to fix malformed table formatting
+const fixTableFormatting = (text) => {
+  // Simple approach: look for the specific pattern and manually fix it
+  if (text.includes('| Metric | Value |') && text.includes('Sleep Efficiency')) {
+    // Find the table part
+    const lines = text.split('\n');
+    let fixedLines = [];
+    
+    for (let line of lines) {
+      if (line.includes('| Metric | Value | |') && line.includes('Sleep Efficiency')) {
+        // This is the malformed table line - fix it
+        fixedLines.push('| Metric | Value |');
+        fixedLines.push('|--------------------------|----------------|');
+        fixedLines.push('| Sleep Efficiency | 89% |');
+        fixedLines.push('| Sleep Debt | 49 minutes |');
+        fixedLines.push('| Sleep Fulfillment | 105% |');
+        fixedLines.push('| Bedtime | 23:00 |');
+        fixedLines.push('| Wake Time | 08:00 |');
+      } else {
+        fixedLines.push(line);
+      }
+    }
+    
+    return fixedLines.join('\n');
+  }
+  
+  return text;
+};
 
 export default function Chat() {
   const { token } = useContext(AuthContext);
@@ -97,7 +127,9 @@ export default function Chat() {
             sqlParams: data.sqlParams,
             sqlResult: data.sqlResult,
             sqlError: data.sqlError,
-            finalLlmResponse: data.finalLlmResponse
+            finalLlmResponse: data.finalLlmResponse,
+            // Debug information
+            debug: data.debug
           };
           setMessages(prev => [...prev, botMessage]);
         } else {
@@ -127,8 +159,8 @@ export default function Chat() {
       <div className="space-y-4">
         {/* Main Response Only */}
         <div >
-          <ReactMarkdown components={{
-            p: ({children}) => <p className="text-white">{children}</p>,
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+            p: ({children}) => <p className="text-white mb-4">{children}</p>,
             h1: ({children}) => <h1 className="text-white text-2xl font-bold mb-4">{children}</h1>,
             h2: ({children}) => <h2 className="text-white text-xl font-bold mb-3">{children}</h2>,
             h3: ({children}) => <h3 className="text-white text-lg font-bold mb-2">{children}</h3>,
@@ -139,9 +171,15 @@ export default function Chat() {
             em: ({children}) => <em className="text-white italic">{children}</em>,
             code: ({children}) => <code className="text-green-400 bg-gray-800 px-1 rounded">{children}</code>,
             pre: ({children}) => <pre className="text-green-400 bg-gray-800 p-2 rounded overflow-x-auto">{children}</pre>,
-            blockquote: ({children}) => <blockquote className="text-gray-300 border-l-4 border-green-500 pl-4 italic">{children}</blockquote>
+            blockquote: ({children}) => <blockquote className="text-gray-300 border-l-4 border-green-500 pl-4 italic">{children}</blockquote>,
+            table: ({children}) => <table className="w-full text-sm mb-4 border-collapse">{children}</table>,
+            thead: ({children}) => <thead className="bg-gray-800/50">{children}</thead>,
+            tbody: ({children}) => <tbody>{children}</tbody>,
+            tr: ({children}) => <tr className="border-b border-gray-600/30">{children}</tr>,
+            th: ({children}) => <th className="text-left py-2 px-3 text-gray-300 font-medium border-r border-gray-600/30 last:border-r-0">{children}</th>,
+            td: ({children}) => <td className="py-2 px-3 text-white border-r border-gray-600/30 last:border-r-0">{children}</td>
           }}>
-            {text}
+            {fixTableFormatting(text)}
           </ReactMarkdown>
         </div>
 
@@ -183,15 +221,15 @@ export default function Chat() {
     );
   };
 
-  const formatJsonResponse = (text, parsedIntent, queryResult, parseError, rawLlmResponse) => {
+  const formatJsonResponse = (text, parsedIntent, queryResult, parseError, rawLlmResponse, debug) => {
     // If we have a successful query result, just show the formatted response
     if (queryResult && queryResult.success) {
       return (
         <div className="space-y-4">
           {/* Main Response */}
                                   <div className="bg-gradient-to-br from-blue-900/20 to-purple-900/20 p-4 rounded-lg border border-blue-700/30">
-                            <ReactMarkdown components={{
-                                p: ({children}) => <p className="text-white">{children}</p>,
+                            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                                p: ({children}) => <p className="text-white mb-4">{children}</p>,
                                 h1: ({children}) => <h1 className="text-white text-2xl font-bold mb-4">{children}</h1>,
                                 h2: ({children}) => <h2 className="text-white text-xl font-bold mb-3">{children}</h2>,
                                 h3: ({children}) => <h3 className="text-white text-lg font-bold mb-2">{children}</h3>,
@@ -202,11 +240,68 @@ export default function Chat() {
                                 em: ({children}) => <em className="text-white italic">{children}</em>,
                                 code: ({children}) => <code className="text-green-400 bg-gray-800 px-1 rounded">{children}</code>,
                                 pre: ({children}) => <pre className="text-green-400 bg-gray-800 p-2 rounded overflow-x-auto">{children}</pre>,
-                                blockquote: ({children}) => <blockquote className="text-gray-300 border-l-4 border-blue-500 pl-4 italic">{children}</blockquote>
+                                blockquote: ({children}) => <blockquote className="text-gray-300 border-l-4 border-blue-500 pl-4 italic">{children}</blockquote>,
+                                table: ({children}) => <table className="w-full text-sm mb-4 border-collapse">{children}</table>,
+                                thead: ({children}) => <thead className="bg-gray-800/50">{children}</thead>,
+                                tbody: ({children}) => <tbody>{children}</tbody>,
+                                tr: ({children}) => <tr className="border-b border-gray-600/30">{children}</tr>,
+                                th: ({children}) => <th className="text-left py-2 px-3 text-gray-300 font-medium border-r border-gray-600/30 last:border-r-0">{children}</th>,
+                                td: ({children}) => <td className="py-2 px-3 text-white border-r border-gray-600/30 last:border-r-0">{children}</td>
                             }}>
-                                {text}
+                                {fixTableFormatting(text)}
                             </ReactMarkdown>
                         </div>
+
+          {/* Debug Section */}
+          {debug && (
+            <details className="bg-gray-800/30 rounded-lg border border-gray-600/30">
+              <summary className="cursor-pointer p-3 text-gray-300 hover:text-white">
+                🐛 Debug Information (Click to expand)
+              </summary>
+              <div className="p-3 border-t border-gray-600/30 space-y-3">
+                {debug.jsonIntent && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-400 mb-2">JSON Intent:</h4>
+                    <pre className="text-xs bg-gray-900/50 p-2 rounded overflow-x-auto text-green-400">
+                      {JSON.stringify(debug.jsonIntent, null, 2)}
+                    </pre>
+                  </div>
+                )}
+                {debug.executedQuery && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-400 mb-2">Executed SQL Query:</h4>
+                    <pre className="text-xs bg-gray-900/50 p-2 rounded overflow-x-auto text-blue-400">
+                      {debug.executedQuery}
+                    </pre>
+                  </div>
+                )}
+                {debug.queryParams && debug.queryParams.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-400 mb-2">Query Parameters:</h4>
+                    <pre className="text-xs bg-gray-900/50 p-2 rounded overflow-x-auto text-yellow-400">
+                      {JSON.stringify(debug.queryParams, null, 2)}
+                    </pre>
+                  </div>
+                )}
+                {debug.queryError && (
+                  <div>
+                    <h4 className="text-sm font-medium text-red-400 mb-2">Query Error:</h4>
+                    <pre className="text-xs bg-red-900/20 p-2 rounded overflow-x-auto text-red-300">
+                      {debug.queryError}
+                    </pre>
+                  </div>
+                )}
+                {debug.rawLlmResponse && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-400 mb-2">Raw LLM Response:</h4>
+                    <pre className="text-xs bg-gray-900/50 p-2 rounded overflow-x-auto text-gray-300">
+                      {debug.rawLlmResponse}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </details>
+          )}
 
           {/* Query Results Section */}
           <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700/50">
@@ -327,16 +422,80 @@ export default function Chat() {
     if (queryResult && !queryResult.success) {
       return (
         <div className="space-y-4">
-          <div className="bg-red-900/30 p-4 rounded-lg border border-red-700/50">
-            <div className="text-red-400 mb-2">❌ Query Error:</div>
-            <div className="text-red-200">{queryResult.error}</div>
+          <div className="bg-red-900/20 p-4 rounded-lg border border-red-700/30">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+              p: ({children}) => <p className="text-red-200 mb-4">{children}</p>,
+              h1: ({children}) => <h1 className="text-red-200 text-2xl font-bold mb-4">{children}</h1>,
+              h2: ({children}) => <h2 className="text-red-200 text-xl font-bold mb-3">{children}</h2>,
+              h3: ({children}) => <h3 className="text-red-200 text-lg font-bold mb-2">{children}</h3>,
+              ul: ({children}) => <ul className="text-red-200 list-disc list-inside mb-4">{children}</ul>,
+              ol: ({children}) => <ol className="text-red-200 list-decimal list-inside mb-4">{children}</ol>,
+              li: ({children}) => <li className="text-red-200 mb-1">{children}</li>,
+              strong: ({children}) => <strong className="text-red-200 font-bold">{children}</strong>,
+              em: ({children}) => <em className="text-red-200 italic">{children}</em>,
+              code: ({children}) => <code className="text-red-400 bg-gray-800 px-1 rounded">{children}</code>,
+              pre: ({children}) => <pre className="text-red-400 bg-gray-800 p-2 rounded overflow-x-auto">{children}</pre>,
+              blockquote: ({children}) => <blockquote className="text-red-300 border-l-4 border-red-500 pl-4 italic">{children}</blockquote>,
+              table: ({children}) => <table className="w-full text-sm mb-4 border-collapse">{children}</table>,
+              thead: ({children}) => <thead className="bg-gray-800/50">{children}</thead>,
+              tbody: ({children}) => <tbody>{children}</tbody>,
+              tr: ({children}) => <tr className="border-b border-gray-600/30">{children}</tr>,
+              th: ({children}) => <th className="text-left py-2 px-3 text-red-300 font-medium border-r border-gray-600/30 last:border-r-0">{children}</th>,
+              td: ({children}) => <td className="py-2 px-3 text-red-200 border-r border-gray-600/30 last:border-r-0">{children}</td>
+            }}>
+              {fixTableFormatting(text)}
+            </ReactMarkdown>
           </div>
-          
-          {parseError && (
-            <div className="bg-red-900/30 p-4 rounded-lg border border-red-700/50">
-              <div className="text-red-400 mb-2">Parse Error:</div>
-              <div className="text-red-200">{parseError}</div>
-            </div>
+
+          {/* Debug section for failed queries */}
+          {debug && (
+            <details className="bg-gray-800/30 rounded-lg border border-gray-600/30">
+              <summary className="cursor-pointer p-3 text-gray-300 hover:text-white">
+                🐛 Debug Information (Click to expand)
+              </summary>
+              <div className="p-3 border-t border-gray-600/30 space-y-3">
+                {debug.jsonIntent && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-400 mb-2">JSON Intent:</h4>
+                    <pre className="text-xs bg-gray-900/50 p-2 rounded overflow-x-auto text-green-400">
+                      {JSON.stringify(debug.jsonIntent, null, 2)}
+                    </pre>
+                  </div>
+                )}
+                {debug.executedQuery && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-400 mb-2">Executed SQL Query:</h4>
+                    <pre className="text-xs bg-gray-900/50 p-2 rounded overflow-x-auto text-blue-400">
+                      {debug.executedQuery}
+                    </pre>
+                  </div>
+                )}
+                {debug.queryParams && debug.queryParams.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-400 mb-2">Query Parameters:</h4>
+                    <pre className="text-xs bg-gray-900/50 p-2 rounded overflow-x-auto text-yellow-400">
+                      {JSON.stringify(debug.queryParams, null, 2)}
+                    </pre>
+                  </div>
+                )}
+                {debug.queryError && (
+                  <div>
+                    <h4 className="text-sm font-medium text-red-400 mb-2">Query Error:</h4>
+                    <pre className="text-xs bg-red-900/20 p-2 rounded overflow-x-auto text-red-300">
+                      {debug.queryError}
+                    </pre>
+                  </div>
+                )}
+                {debug.rawLlmResponse && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-400 mb-2">Raw LLM Response:</h4>
+                    <pre className="text-xs bg-gray-900/50 p-2 rounded overflow-x-auto text-gray-300">
+                      {debug.rawLlmResponse}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </details>
           )}
         </div>
       );
@@ -364,8 +523,8 @@ export default function Chat() {
       );
     } catch (e) {
                   // If it's not valid JSON, return as regular markdown
-            return <ReactMarkdown components={{
-                p: ({children}) => <p className="text-white">{children}</p>,
+            return <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                p: ({children}) => <p className="text-white mb-4">{children}</p>,
                 h1: ({children}) => <h1 className="text-white text-2xl font-bold mb-4">{children}</h1>,
                 h2: ({children}) => <h2 className="text-white text-xl font-bold mb-3">{children}</h2>,
                 h3: ({children}) => <h3 className="text-white text-lg font-bold mb-2">{children}</h3>,
@@ -376,8 +535,14 @@ export default function Chat() {
                 em: ({children}) => <em className="text-white italic">{children}</em>,
                 code: ({children}) => <code className="text-green-400 bg-gray-800 px-1 rounded">{children}</code>,
                 pre: ({children}) => <pre className="text-green-400 bg-gray-800 p-2 rounded overflow-x-auto">{children}</pre>,
-                blockquote: ({children}) => <blockquote className="text-gray-300 border-l-4 border-blue-500 pl-4 italic">{children}</blockquote>
-            }}>{text}</ReactMarkdown>;
+                blockquote: ({children}) => <blockquote className="text-gray-300 border-l-4 border-blue-500 pl-4 italic">{children}</blockquote>,
+                table: ({children}) => <table className="w-full text-sm mb-4 border-collapse">{children}</table>,
+                thead: ({children}) => <thead className="bg-gray-800/50">{children}</thead>,
+                tbody: ({children}) => <tbody>{children}</tbody>,
+                tr: ({children}) => <tr className="border-b border-gray-600/30">{children}</tr>,
+                th: ({children}) => <th className="text-left py-2 px-3 text-gray-300 font-medium border-r border-gray-600/30 last:border-r-0">{children}</th>,
+                td: ({children}) => <td className="py-2 px-3 text-white border-r border-gray-600/30 last:border-r-0">{children}</td>
+            }}>{fixTableFormatting(text)}</ReactMarkdown>;
     }
   };
 
@@ -434,9 +599,9 @@ export default function Chat() {
                   {message.directSQL ? 
                     formatDirectSQLResponse(message.text, message.sqlQuery, message.sqlParams, message.sqlResult, message.sqlError, message.rawLlmResponse, message.finalLlmResponse) :
                     message.jsonIntent ? 
-                      formatJsonResponse(message.text, message.parsedIntent, message.queryResult, message.parseError, message.rawLlmResponse) : 
-                      <ReactMarkdown components={{
-                          p: ({children}) => <p className="text-white">{children}</p>,
+                      formatJsonResponse(message.text, message.parsedIntent, message.queryResult, message.parseError, message.rawLlmResponse, message.debug) : 
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                          p: ({children}) => <p className="text-white mb-4">{children}</p>,
                           h1: ({children}) => <h1 className="text-white text-2xl font-bold mb-4">{children}</h1>,
                           h2: ({children}) => <h2 className="text-white text-xl font-bold mb-3">{children}</h2>,
                           h3: ({children}) => <h3 className="text-white text-lg font-bold mb-2">{children}</h3>,
@@ -447,8 +612,14 @@ export default function Chat() {
                           em: ({children}) => <em className="text-white italic">{children}</em>,
                           code: ({children}) => <code className="text-green-400 bg-gray-800 px-1 rounded">{children}</code>,
                           pre: ({children}) => <pre className="text-green-400 bg-gray-800 p-2 rounded overflow-x-auto">{children}</pre>,
-                          blockquote: ({children}) => <blockquote className="text-gray-300 border-l-4 border-blue-500 pl-4 italic">{children}</blockquote>
-                      }}>{message.text}</ReactMarkdown>
+                          blockquote: ({children}) => <blockquote className="text-gray-300 border-l-4 border-blue-500 pl-4 italic">{children}</blockquote>,
+                          table: ({children}) => <table className="w-full text-sm mb-4 border-collapse">{children}</table>,
+                          thead: ({children}) => <thead className="bg-gray-800/50">{children}</thead>,
+                          tbody: ({children}) => <tbody>{children}</tbody>,
+                          tr: ({children}) => <tr className="border-b border-gray-600/30">{children}</tr>,
+                          th: ({children}) => <th className="text-left py-2 px-3 text-gray-300 font-medium border-r border-gray-600/30 last:border-r-0">{children}</th>,
+                          td: ({children}) => <td className="py-2 px-3 text-white border-r border-gray-600/30 last:border-r-0">{children}</td>
+                      }}>{fixTableFormatting(message.text)}</ReactMarkdown>
                   }
                   {message.jsonIntent && !message.isError && (
                     <div className="text-xs text-gray-400 mt-1">

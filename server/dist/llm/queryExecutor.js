@@ -29,7 +29,9 @@ async function executeQueryFromJson(jsonResponse, userId, options = {}) {
             totalCount: result.totalCount,
             aggregations: result.aggregations,
             warnings: validation.warnings.length > 0 ? validation.warnings : undefined,
-            intent: parsed
+            intent: parsed,
+            executedQuery: result.executedQuery,
+            queryParams: result.queryParams
         };
     }
     catch (error) {
@@ -62,7 +64,9 @@ async function executeQueryFromIntent(intent, userId, options = {}) {
             totalCount: result.totalCount,
             aggregations: result.aggregations,
             warnings: validation.warnings.length > 0 ? validation.warnings : undefined,
-            intent
+            intent,
+            executedQuery: result.executedQuery,
+            queryParams: result.queryParams
         };
     }
     catch (error) {
