@@ -73,10 +73,20 @@ After providing your summary, suggest exactly 3 follow-up questions that would b
 2. **Specific** - Ask about particular patterns or relationships
 3. **Actionable** - Could lead to insights that help improve wellness
 
-Format your extension queries as a numbered list:
-1. "How does [specific pattern] correlate with [related metric]?"
-2. "What are the trends in [specific data point] over [time period]?"
-3. "Which [category] shows the strongest relationship with [outcome]?"
+**IMPORTANT**: You must respond with a JSON object in the following format:
+
+```json
+{
+  "summary": "Your detailed response with analysis, insights, and recommendations...",
+  "followUpQuestions": [
+    "follow up question option 1",
+    "follow up question option 2",
+    "follow up question option 3"
+  ]
+}
+```
+
+The `summary` field should contain your complete analysis, insights, and recommendations. The `followUpQuestions` field should contain exactly 3 relevant follow-up questions that would help the user explore the data further.
 
 ## QUALITY STANDARDS
 

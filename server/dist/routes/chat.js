@@ -73,6 +73,7 @@ async function handleJsonIntentMode(_req, res, message, userId) {
     }
     // Always use summarization for client-facing responses
     let clientResponse = '';
+    let followUpQuestions = [];
     let debugInfo = {};
     if (queryResult && queryResult.success) {
         // If we have successful query results, use the summarization service
@@ -86,6 +87,7 @@ async function handleJsonIntentMode(_req, res, message, userId) {
             const summarizationResult = await (0, summarizationService_1.summarizeQueryResults)(summarizationRequest);
             if (summarizationResult.success) {
                 clientResponse = summarizationResult.summary;
+                followUpQuestions = summarizationResult.followUpQuestions || [];
             }
             else {
                 console.error('Summarization failed:', summarizationResult.error);
@@ -111,6 +113,7 @@ async function handleJsonIntentMode(_req, res, message, userId) {
             const summarizationResult = await (0, summarizationService_1.summarizeQueryResults)(summarizationRequest);
             if (summarizationResult.success) {
                 clientResponse = summarizationResult.summary;
+                followUpQuestions = summarizationResult.followUpQuestions || [];
             }
             else {
                 clientResponse = `I couldn't execute your query: ${queryResult.error}`;
@@ -132,6 +135,7 @@ async function handleJsonIntentMode(_req, res, message, userId) {
             const summarizationResult = await (0, summarizationService_1.summarizeQueryResults)(summarizationRequest);
             if (summarizationResult.success) {
                 clientResponse = summarizationResult.summary;
+                followUpQuestions = summarizationResult.followUpQuestions || [];
             }
             else {
                 clientResponse = `I couldn't understand your request: ${parseError}`;
@@ -155,8 +159,10 @@ async function handleJsonIntentMode(_req, res, message, userId) {
     const responseData = {
         success: true,
         response: clientResponse,
-        jsonIntent: true
+        jsonIntent: true,
+        followUpQuestions: followUpQuestions.length > 0 ? followUpQuestions : undefined
     };
+    console.log('Follow-up questions in response:', responseData.followUpQuestions);
     // Include debug information if debug mode is enabled
     if (isDebugMode) {
         responseData.debug = debugInfo;

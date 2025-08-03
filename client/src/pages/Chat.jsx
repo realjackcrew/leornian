@@ -37,6 +37,19 @@ const fixTableFormatting = (text) => {
 
 export default function Chat() {
   const { token } = useContext(AuthContext);
+  
+  // Function to handle clicking on follow-up questions
+  const handleFollowUpQuestion = (question) => {
+    // Set the input to the question and submit it
+    setInput(question);
+    // Trigger form submission programmatically
+    setTimeout(() => {
+      const form = document.querySelector('form');
+      if (form) {
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      }
+    }, 100);
+  };
   // Show login prompt if not authenticated
   if (!token) {
     return (
@@ -112,9 +125,10 @@ export default function Chat() {
           throw new Error(`Invalid JSON response: ${responseText}`);
         }
 
-        if (data.success) {
+                if (data.success) {
+          console.log('Received follow-up questions from server:', data.followUpQuestions);
           const botMessage = { 
-            text: data.response, 
+            text: data.response,
             sender: 'bot',
             jsonIntent: data.jsonIntent,
             directSQL: data.directSQL,
@@ -129,9 +143,29 @@ export default function Chat() {
             sqlError: data.sqlError,
             finalLlmResponse: data.finalLlmResponse,
             // Debug information
-            debug: data.debug
+            debug: data.debug,
+            // Follow-up questions
+            followUpQuestions: data.followUpQuestions
           };
-          setMessages(prev => [...prev, botMessage]);
+          setMessages(prev => {
+            console.log('Adding bot message with followUpQuestions:', botMessage.followUpQuestions);
+            let newMessages = [...prev, botMessage];
+            
+            // If there are follow-up questions, add them as a separate message
+            if (botMessage.followUpQuestions && botMessage.followUpQuestions.length > 0) {
+              const followUpMessage = {
+                text: '',
+                sender: 'bot',
+                isFollowUpQuestions: true,
+                followUpQuestions: botMessage.followUpQuestions
+              };
+              newMessages = [...newMessages, followUpMessage];
+            }
+            
+            console.log('Updated messages array length:', newMessages.length);
+            console.log('Last message followUpQuestions:', newMessages[newMessages.length - 1].followUpQuestions);
+            return newMessages;
+          });
         } else {
           const errorMessage = { 
             text: `Error: ${data.error}`, 
@@ -221,7 +255,11 @@ export default function Chat() {
     );
   };
 
-  const formatJsonResponse = (text, parsedIntent, queryResult, parseError, rawLlmResponse, debug) => {
+  const formatJsonResponse = (text, parsedIntent, queryResult, parseError, rawLlmResponse, debug, followUpQuestions) => {
+    console.log('formatJsonResponse called with followUpQuestions:', followUpQuestions);
+    console.log('followUpQuestions type:', typeof followUpQuestions);
+    console.log('followUpQuestions length:', followUpQuestions?.length);
+    console.log('followUpQuestions truthy check:', !!followUpQuestions);
     // If we have a successful query result, just show the formatted response
     if (queryResult && queryResult.success) {
       return (
@@ -574,7 +612,14 @@ export default function Chat() {
 
       <div className="flex-grow p-6 overflow-auto">
         <div className="max-w-4xl mx-auto flex flex-col gap-4">
-          {messages.map((message, index) => (
+          {messages.map((message, index) => {
+            console.log(`Rendering message ${index}:`, {
+              sender: message.sender,
+              hasFollowUpQuestions: !!message.followUpQuestions,
+              followUpQuestionsLength: message.followUpQuestions?.length,
+              followUpQuestions: message.followUpQuestions
+            });
+            return (
             <div
               key={index}
               className={`flex ${
@@ -596,10 +641,35 @@ export default function Chat() {
                   }`}
                   style={{ overflowX: 'auto' }}
                 >
-                  {message.directSQL ? 
+                  {message.isFollowUpQuestions ? 
+                    // Render follow-up questions as a separate component
+                    <div className="mt-4 space-y-3">
+                      <h4 className="text-gray-300 font-medium text-sm flex items-center">
+                        <span className="mr-2">💡</span>
+                        Related Questions
+                      </h4>
+                      <div className="space-y-2">
+                        {message.followUpQuestions.map((question, index) => (
+                          <button
+                            key={index}
+                            onClick={() => handleFollowUpQuestion(question)}
+                            className="w-full text-left p-3 bg-gray-800/50 hover:bg-gray-700/60 border border-gray-600/30 hover:border-gray-500/50 rounded-lg transition-all duration-200 text-gray-200 hover:text-white text-sm group"
+                          >
+                            <div className="flex items-start">
+                              <span className="text-gray-400 group-hover:text-gray-300 mr-3 mt-0.5 text-xs">→</span>
+                              <span className="flex-1">{question}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  : message.directSQL ? 
                     formatDirectSQLResponse(message.text, message.sqlQuery, message.sqlParams, message.sqlResult, message.sqlError, message.rawLlmResponse, message.finalLlmResponse) :
                     message.jsonIntent ? 
-                      formatJsonResponse(message.text, message.parsedIntent, message.queryResult, message.parseError, message.rawLlmResponse, message.debug) : 
+                      (() => {
+                        console.log('Rendering jsonIntent message with followUpQuestions:', message.followUpQuestions);
+                        return formatJsonResponse(message.text, message.parsedIntent, message.queryResult, message.parseError, message.rawLlmResponse, message.debug, message.followUpQuestions);
+                      })() : 
                       <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
                           p: ({children}) => <p className="text-white mb-4">{children}</p>,
                           h1: ({children}) => <h1 className="text-white text-2xl font-bold mb-4">{children}</h1>,
@@ -634,7 +704,8 @@ export default function Chat() {
                 </div>
               )}
             </div>
-          ))}
+          );
+          })}
           {isLoading && (
             <div className="flex justify-start">
               <div className="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">

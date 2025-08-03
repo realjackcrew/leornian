@@ -80,6 +80,7 @@ async function handleJsonIntentMode(_req: AuthenticatedRequest, res: express.Res
 
     // Always use summarization for client-facing responses
     let clientResponse = '';
+    let followUpQuestions: string[] = [];
     let debugInfo: any = {};
     
     if (queryResult && queryResult.success) {
@@ -96,6 +97,7 @@ async function handleJsonIntentMode(_req: AuthenticatedRequest, res: express.Res
         
         if (summarizationResult.success) {
           clientResponse = summarizationResult.summary;
+          followUpQuestions = summarizationResult.followUpQuestions || [];
         } else {
           console.error('Summarization failed:', summarizationResult.error);
           // Fall back to basic formatting if summarization fails
@@ -120,6 +122,7 @@ async function handleJsonIntentMode(_req: AuthenticatedRequest, res: express.Res
         
         if (summarizationResult.success) {
           clientResponse = summarizationResult.summary;
+          followUpQuestions = summarizationResult.followUpQuestions || [];
         } else {
           clientResponse = `I couldn't execute your query: ${queryResult.error}`;
         }
@@ -140,6 +143,7 @@ async function handleJsonIntentMode(_req: AuthenticatedRequest, res: express.Res
         
         if (summarizationResult.success) {
           clientResponse = summarizationResult.summary;
+          followUpQuestions = summarizationResult.followUpQuestions || [];
         } else {
           clientResponse = `I couldn't understand your request: ${parseError}`;
         }
@@ -164,8 +168,11 @@ async function handleJsonIntentMode(_req: AuthenticatedRequest, res: express.Res
     const responseData: any = {
       success: true,
       response: clientResponse,
-      jsonIntent: true
+      jsonIntent: true,
+      followUpQuestions: followUpQuestions.length > 0 ? followUpQuestions : undefined
     };
+
+    console.log('Follow-up questions in response:', responseData.followUpQuestions);
 
     // Include debug information if debug mode is enabled
     if (isDebugMode) {
