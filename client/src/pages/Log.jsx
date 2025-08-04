@@ -13,6 +13,19 @@ export default function Log() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { dataPointDefinitions, loading: datapointsLoading, error: datapointsError } = useEnabledDatapoints();
+  
+  // Debug: Log the datapoints when they load
+  useEffect(() => {
+    if (!datapointsLoading && dataPointDefinitions) {
+      console.log('[SLEEP] Sleep category fields:', Object.keys(dataPointDefinitions.sleep || {}));
+      
+      // Ensure bedtime and wakeTime are always available in sleep category
+      if (dataPointDefinitions.sleep && (!dataPointDefinitions.sleep.bedtime || !dataPointDefinitions.sleep.wakeTime)) {
+        dataPointDefinitions.sleep.bedtime = { type: 'time', label: 'Last night\'s bedtime' };
+        dataPointDefinitions.sleep.wakeTime = { type: 'time', label: 'This morning\'s wake time' };
+      }
+    }
+  }, [datapointsLoading, dataPointDefinitions, datapointsError]);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [values, setValues] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -65,7 +78,7 @@ export default function Log() {
       const [year, month, day] = dateParam.split('-').map(Number);
       const parsedDate = new Date(year, month - 1, day); // month is 0-indexed
       setSelectedDate(parsedDate);
-      console.log('Selected date from URL:', parsedDate);
+      
       
       // Check if it's a future date
       const today = getCurrentCentralDate();
@@ -78,7 +91,7 @@ export default function Log() {
       // No date parameter, default to today
       const today = getCurrentCentralDate();
       setSelectedDate(today);
-      console.log('No date parameter, defaulting to today:', today);
+      
     }
   }, [searchParams]);
 
@@ -107,17 +120,30 @@ export default function Log() {
       const whoopResp = await fetchWhoopData(dateString);
       if (whoopResp && whoopResp.success) {
         const whoop = whoopResp.data || {};
+
+        
         const populated = {};
         setValues(prevValues => {
           const newValues = JSON.parse(JSON.stringify(prevValues));
+          
           Object.entries(newValues).forEach(([category, dataPoints]) => {
-            Object.entries(dataPoints).forEach(([key, value]) => {
-              if (whoop[key] !== undefined) {
-                newValues[category][key] = whoop[key];
-                if (!populated[category]) populated[category] = {};
-                populated[category][key] = true;
+            if (category === 'sleep') {
+              // Ensure bedtime and wakeTime are always available
+              if (!dataPoints.bedtime) {
+                dataPoints.bedtime = undefined;
               }
-            });
+              if (!dataPoints.wakeTime) {
+                dataPoints.wakeTime = undefined;
+              }
+              
+              Object.entries(dataPoints).forEach(([key, value]) => {
+                if (whoop[key] !== undefined) {
+                  newValues[category][key] = whoop[key];
+                  if (!populated[category]) populated[category] = {};
+                  populated[category][key] = true;
+                }
+              });
+            }
           });
           return newValues;
         });
@@ -149,8 +175,8 @@ export default function Log() {
         const dateString = formatDateAsCentral(selectedDate);
         const response = await getLogByDate(token, dateString);
         
-        if (response.data) {
-          const logData = response.data;
+        if (response) {
+          const logData = response;
           setExistingLogId(logData.id);
           setNotes(logData.healthData.notes || '');
           
@@ -269,19 +295,24 @@ export default function Log() {
     );
   };
 
-  const TimeInput = ({ value, onChange, label, isWhoopPopulated = false }) => (
-    <div className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-gray-800 last:border-0">
-      <div className="flex items-center">
-        <span className="inline-flex items-center justify-center w-6">
-          {isWhoopPopulated && (
-            <img src={whoopIcon} alt="WHOOP" className="w-4 h-4 opacity-70" />
-          )}
-        </span>
-        <span className="text-gray-900 dark:text-white font-medium ml-2">{label}</span>
+  const TimeInput = ({ value, onChange, label, isWhoopPopulated = false }) => {
+    if (label.includes('bedtime') || label.includes('wake time')) {
+      
+    }
+    return (
+      <div className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-gray-800 last:border-0">
+        <div className="flex items-center">
+          <span className="inline-flex items-center justify-center w-6">
+            {isWhoopPopulated && (
+              <img src={whoopIcon} alt="WHOOP" className="w-4 h-4 opacity-70" />
+            )}
+          </span>
+          <span className="text-gray-900 dark:text-white font-medium ml-2">{label}</span>
+        </div>
+        <input type="time" value={value || ''} onChange={(e) => onChange(e.target.value)} className="w-30 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-white" />
       </div>
-      <input type="time" value={value} onChange={(e) => onChange(e.target.value)} className="w-30 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-white" />
-    </div>
-  );
+    );
+  };
 
   const updateValue = (categoryKey, dataPointKey, value) => {
     setValues(prev => ({
@@ -489,35 +520,40 @@ export default function Log() {
               {/* Subtle column divider */}
               <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px bg-gray-200 dark:bg-gray-700" />
               
-              {Object.entries(dataPointDefinitions[selectedCategory] || {}).map(([key, def]) => (
-                <div key={key}>
-                  {def.type === 'boolean' ? (
-                    <Toggle
-                      value={values[selectedCategory][key]}
-                      onChange={(value) => updateValue(selectedCategory, key, value)}
-                      label={def.label}
-                      isWhoopPopulated={!!whoopPopulated[selectedCategory]?.[key]}
-                    />
-                  ) : def.type === 'time' ? (
-                    <TimeInput
-                      value={values[selectedCategory][key]}
-                      onChange={(value) => updateValue(selectedCategory, key, value)}
-                      label={def.label}
-                      isWhoopPopulated={!!whoopPopulated[selectedCategory]?.[key]}
-                    />
-                  ) : (
-                    <NumericInput
-                      value={values[selectedCategory][key]}
-                      onChange={(value) => updateValue(selectedCategory, key, value)}
-                      label={def.label}
-                      min={def.min}
-                      max={def.max}
-                      step={def.step}
-                      isWhoopPopulated={!!whoopPopulated[selectedCategory]?.[key]}
-                    />
-                  )}
-                </div>
-              ))}
+              {Object.entries(dataPointDefinitions[selectedCategory] || {}).map(([key, def]) => {
+                if (selectedCategory === 'sleep' && (key === 'bedtime' || key === 'wakeTime')) {
+          
+                }
+                return (
+                  <div key={key}>
+                    {def.type === 'boolean' ? (
+                      <Toggle
+                        value={values[selectedCategory][key]}
+                        onChange={(value) => updateValue(selectedCategory, key, value)}
+                        label={def.label}
+                        isWhoopPopulated={!!whoopPopulated[selectedCategory]?.[key]}
+                      />
+                    ) : def.type === 'time' ? (
+                      <TimeInput
+                        value={values[selectedCategory][key]}
+                        onChange={(value) => updateValue(selectedCategory, key, value)}
+                        label={def.label}
+                        isWhoopPopulated={!!whoopPopulated[selectedCategory]?.[key]}
+                      />
+                    ) : (
+                      <NumericInput
+                        value={values[selectedCategory][key]}
+                        onChange={(value) => updateValue(selectedCategory, key, value)}
+                        label={def.label}
+                        min={def.min}
+                        max={def.max}
+                        step={def.step}
+                        isWhoopPopulated={!!whoopPopulated[selectedCategory]?.[key]}
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

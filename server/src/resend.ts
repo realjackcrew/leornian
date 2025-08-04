@@ -1,5 +1,3 @@
-import axios from 'axios';
-
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_API_URL = 'https://api.resend.com/emails';
 
@@ -44,22 +42,27 @@ export async function sendVerificationEmail(to: string, code: string, purpose: '
   `;
 
   try {
-    await axios.post(
+    const response = await fetch(
       RESEND_API_URL,
       {
-        from: 'no-reply@leo.jackcrew.net',
-        to,
-        subject,
-        text,
-        html,
-      },
-      {
+        method: 'POST',
         headers: {
           Authorization: `Bearer ${RESEND_API_KEY}`,
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          from: 'no-reply@leo.jackcrew.net',
+          to,
+          subject,
+          text,
+          html,
+        }),
       }
     );
+
+    if (!response.ok) {
+      throw new Error(`Failed to send email: ${response.status} ${response.statusText}`);
+    }
   } catch (error) {
     console.error('Failed to send verification email:', error);
     throw new Error('Failed to send verification email');

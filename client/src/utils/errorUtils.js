@@ -4,22 +4,21 @@
 
 /**
  * Detects if an error is a network error (server not reachable)
- * @param {Error} err - The error object from axios/fetch
+ * @param {Error} err - The error object from fetch
  * @returns {boolean} - True if it's a network error
  */
 export const isNetworkError = (err) => {
   return (
-    err?.code === 'ERR_NETWORK' ||
     err?.name === 'NetworkError' ||
     (err?.message && err.message.includes('Network')) ||
     (err?.message && err.message.includes('fetch')) ||
-    err?.response === undefined
+    (err?.message && err.message.includes('Failed to fetch'))
   );
 };
 
 /**
  * Gets a user-friendly error message based on the error type
- * @param {Error} err - The error object from axios/fetch
+ * @param {Error} err - The error object from fetch
  * @param {string} defaultMessage - Default message if error type is unknown
  * @returns {string} - User-friendly error message
  */
@@ -27,16 +26,6 @@ export const getErrorMessage = (err, defaultMessage = 'An error occurred. Please
   // Network errors (server not reachable)
   if (isNetworkError(err)) {
     return 'Server is starting up. Please wait a moment and try again.';
-  }
-
-  // Server errors (5xx)
-  if (err?.response?.status >= 500) {
-    return 'Server is temporarily unavailable. Please try again in a moment.';
-  }
-
-  // Client errors (4xx) - show the specific error message
-  if (err?.response?.data?.error) {
-    return err.response.data.error;
   }
 
   // Generic error with message
@@ -49,11 +38,11 @@ export const getErrorMessage = (err, defaultMessage = 'An error occurred. Please
 
 /**
  * Determines if an error should trigger a retry with delay
- * @param {Error} err - The error object from axios/fetch
+ * @param {Error} err - The error object from fetch
  * @returns {boolean} - True if the error suggests retrying might help
  */
 export const shouldRetry = (err) => {
-  return isNetworkError(err) || err?.response?.status >= 500;
+  return isNetworkError(err);
 };
 
 /**

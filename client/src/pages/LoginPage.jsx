@@ -38,7 +38,7 @@ export default function LoginPage() {
     try {
       const googleAuthWithRetry = createRetryFunction(googleAuth, 2000);
       const res = await googleAuthWithRetry(response.credential, rememberMe);
-      login(res.data.token);
+      login(res.token);
       navigate('/');
     } catch (error) {
       console.error('Google sign-in error:', error);
@@ -55,7 +55,7 @@ export default function LoginPage() {
     try {
       const loginWithRetry = createRetryFunction(loginApi, 2000);
       const res = await loginWithRetry(email, password, rememberMe);
-      login(res.data.token);
+      login(res.token);
       navigate('/');
     } catch (error) {
       const msg = getErrorMessage(error, 'Login failed');

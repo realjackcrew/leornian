@@ -1,10 +1,6 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendVerificationEmail = sendVerificationEmail;
-const axios_1 = __importDefault(require("axios"));
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_API_URL = 'https://api.resend.com/emails';
 if (!RESEND_API_KEY) {
@@ -46,18 +42,23 @@ async function sendVerificationEmail(to, code, purpose) {
 </div>
   `;
     try {
-        await axios_1.default.post(RESEND_API_URL, {
-            from: 'no-reply@leo.jackcrew.net',
-            to,
-            subject,
-            text,
-            html,
-        }, {
+        const response = await fetch(RESEND_API_URL, {
+            method: 'POST',
             headers: {
                 Authorization: `Bearer ${RESEND_API_KEY}`,
                 'Content-Type': 'application/json',
             },
+            body: JSON.stringify({
+                from: 'no-reply@leo.jackcrew.net',
+                to,
+                subject,
+                text,
+                html,
+            }),
         });
+        if (!response.ok) {
+            throw new Error(`Failed to send email: ${response.status} ${response.statusText}`);
+        }
     }
     catch (error) {
         console.error('Failed to send verification email:', error);

@@ -32,7 +32,7 @@ export default function Dashboard() {
         if (!token) return;
         setIsLoading(true);
         getLogs(token)
-            .then(res => setLogs(res.data))
+            .then(res => setLogs(res))
             .finally(() => setIsLoading(false));
         
         // Check WHOOP connection status

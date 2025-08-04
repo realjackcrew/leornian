@@ -6,7 +6,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.whoopAPI = exports.WhoopAPI = void 0;
 exports.getWhoopAuthUrl = getWhoopAuthUrl;
 exports.handleWhoopCallback = handleWhoopCallback;
-const axios_1 = __importDefault(require("axios"));
 const database_1 = __importDefault(require("../db/database"));
 const simple_oauth2_1 = require("simple-oauth2");
 const whoopOauthConfig = {
@@ -44,18 +43,24 @@ function getWhoopAuthUrl(state) {
 async function handleWhoopCallback(code, userId) {
     try {
         // Exchange code for tokens
-        const tokenResponse = await axios_1.default.post(whoopOauthConfig.auth.tokenHost + whoopOauthConfig.auth.tokenPath, new URLSearchParams({
-            grant_type: 'authorization_code',
-            code,
-            redirect_uri: REDIRECT_URI,
-            client_id: process.env.WHOOP_CLIENT_ID,
-            client_secret: process.env.WHOOP_CLIENT_SECRET
-        }), {
+        const tokenResponse = await fetch(whoopOauthConfig.auth.tokenHost + whoopOauthConfig.auth.tokenPath, {
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
-            }
+            },
+            body: new URLSearchParams({
+                grant_type: 'authorization_code',
+                code,
+                redirect_uri: REDIRECT_URI,
+                client_id: process.env.WHOOP_CLIENT_ID,
+                client_secret: process.env.WHOOP_CLIENT_SECRET
+            })
         });
-        const { access_token, refresh_token, expires_in } = tokenResponse.data;
+        if (!tokenResponse.ok) {
+            throw new Error(`Failed to obtain tokens: ${tokenResponse.status} ${tokenResponse.statusText}`);
+        }
+        const tokenData = await tokenResponse.json();
+        const { access_token, refresh_token, expires_in } = tokenData;
         if (!access_token || !refresh_token) {
             throw new Error('Failed to obtain access token or refresh token from Whoop.');
         }
@@ -69,13 +74,17 @@ async function handleWhoopCallback(code, userId) {
             },
         });
         // Fetch and store Whoop User ID
-        const profileResponse = await axios_1.default.get('https://api.prod.whoop.com/developer/v2/user/profile/basic', {
+        const profileResponse = await fetch('https://api.prod.whoop.com/developer/v2/user/profile/basic', {
             headers: { Authorization: `Bearer ${access_token}` }
         });
-        if (profileResponse.data.user_id) {
+        if (!profileResponse.ok) {
+            throw new Error(`Failed to fetch profile: ${profileResponse.status} ${profileResponse.statusText}`);
+        }
+        const profileData = await profileResponse.json();
+        if (profileData.user_id) {
             await database_1.default.user.update({
                 where: { id: userId },
-                data: { whoopUserId: profileResponse.data.user_id.toString() }
+                data: { whoopUserId: profileData.user_id.toString() }
             });
         }
     }
@@ -116,18 +125,29 @@ class WhoopAPI {
             throw new Error('No valid authentication token available.');
         }
         try {
-            const response = await axios_1.default.get(`${this.baseURL}${endpoint}`, {
+            const url = new URL(`${this.baseURL}${endpoint}`);
+            if (params) {
+                Object.keys(params).forEach(key => {
+                    url.searchParams.append(key, params[key]);
+                });
+            }
+            const response = await fetch(url.toString(), {
                 headers: {
                     'Authorization': `Bearer ${this.accessToken}`,
                     'Content-Type': 'application/json',
                 },
-                params,
             });
-            return response.data;
+            if (!response.ok) {
+                if (response.status === 401) {
+                    throw new Error('Authentication failed. Please reconnect your WHOOP account.');
+                }
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
         }
         catch (error) {
-            if (error.response?.status === 401) {
-                throw new Error('Authentication failed. Please reconnect your WHOOP account.');
+            if (error.message.includes('Authentication failed')) {
+                throw error;
             }
             throw error;
         }
@@ -144,21 +164,20 @@ class WhoopAPI {
             formData.append('client_id', process.env.WHOOP_CLIENT_ID || '');
             formData.append('client_secret', process.env.WHOOP_CLIENT_SECRET || '');
             formData.append('redirect_uri', process.env.WHOOP_REDIRECT_URI || 'http://localhost:5173/whoop-callback');
-            console.log('WHOOP token request data:', {
-                grant_type: 'authorization_code',
-                code: authorizationCode,
-                client_id: process.env.WHOOP_CLIENT_ID,
-                client_secret: process.env.WHOOP_CLIENT_SECRET ? '[REDACTED]' : 'NOT_SET',
-                redirect_uri: process.env.WHOOP_REDIRECT_URI || 'http://localhost:5173/whoop-callback'
-            });
-            const response = await axios_1.default.post('https://api.prod.whoop.com/oauth/oauth2/token', formData, {
+            const response = await fetch('https://api.prod.whoop.com/oauth/oauth2/token', {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
+                body: formData
             });
-            this.accessToken = response.data.access_token;
-            this.refreshToken = response.data.refresh_token;
-            this.tokenExpiry = Date.now() + (response.data.expires_in * 1000);
+            if (!response.ok) {
+                throw new Error(`Failed to initialize WHOOP API: ${response.status} ${response.statusText}`);
+            }
+            const responseData = await response.json();
+            this.accessToken = responseData.access_token;
+            this.refreshToken = responseData.refresh_token;
+            this.tokenExpiry = Date.now() + (responseData.expires_in * 1000);
         }
         catch (error) {
             console.error('Failed to initialize WHOOP API:', error);
@@ -218,7 +237,6 @@ class WhoopAPI {
             // First get the cycle data for the date range
             const cycles = await this.getCyclesInDateRange(startDate, endDate);
             if (!cycles || cycles.length === 0) {
-                console.log('WHOOP API: No cycles found for date range:', startDate, 'to', endDate);
                 return [];
             }
             // Then get sleep data for each cycle
@@ -239,27 +257,14 @@ class WhoopAPI {
      * @returns An array of cycle data objects, or an empty array if none found.
      */
     async getCyclesInDateRange(startDate, endDate) {
-        console.log(`[DEBUG getCyclesInDateRange] Input dates: start=${startDate}, end=${endDate}`);
         try {
             // First try without date parameters to see if user has ANY cycles
-            console.log(`[DEBUG] Step 1: Checking if user has any cycles at all...`);
             const responseAll = await this.makeAuthenticatedRequest('/developer/v2/cycle', { limit: 25 });
-            console.log(`[DEBUG] All cycles response:`, responseAll);
             if (responseAll && responseAll.records && Array.isArray(responseAll.records)) {
-                console.log(`[DEBUG] User has ${responseAll.records.length} total cycles available`);
                 if (responseAll.records.length === 0) {
-                    console.log(`[DEBUG] User has no cycles at all`);
                     return [];
                 }
-                // Show some sample cycle dates for debugging
-                const sampleCycles = responseAll.records.slice(0, 3).map((c) => ({
-                    id: c.id,
-                    start: c.start,
-                    end: c.end
-                }));
-                console.log(`[DEBUG] Sample cycles:`, sampleCycles);
                 // Now try with date filters using proper ISO 8601 format
-                console.log(`[DEBUG] Step 2: Trying with date filters...`);
                 let startDateTime = startDate;
                 let endDateTime = endDate;
                 // Only append if not already a full ISO string
@@ -269,37 +274,25 @@ class WhoopAPI {
                 if (/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
                     endDateTime = `${endDate}T23:59:59.999Z`;
                 }
-                console.log(`[DEBUG] Using ISO date-time format: start=${startDateTime}, end=${endDateTime}`);
                 const response = await this.makeAuthenticatedRequest('/developer/v2/cycle', {
                     start: startDateTime,
                     end: endDateTime,
                     limit: 25
                 });
-                console.log(`[DEBUG] Filtered response:`, response);
                 if (response && response.records && Array.isArray(response.records)) {
-                    console.log(`[DEBUG] Found ${response.records.length} cycles in specified date range`);
                     return response.records;
                 }
-                console.log(`[DEBUG] No cycles found in specified date range, but user has cycles overall`);
                 return [];
             }
             else {
-                console.log(`[DEBUG] Unexpected response format for all cycles:`, responseAll);
                 return [];
             }
         }
         catch (error) {
-            console.log(`[DEBUG getCyclesInDateRange] Error caught:`, {
-                isAxiosError: error.isAxiosError,
-                status: error.response?.status,
-                data: error.response?.data,
-                message: error.message
-            });
-            if (error.isAxiosError && error.response?.status === 404) {
-                console.log(`WHOOP API returned 404 - this might mean the user has no cycles or the endpoint is not available.`);
+            if (error.message && error.message.includes('404')) {
                 return [];
             }
-            console.error(`Failed to fetch WHOOP cycle data:`, error.response?.data || error.message);
+            console.error(`Failed to fetch WHOOP cycle data:`, error.message);
             throw error;
         }
     }
@@ -314,11 +307,10 @@ class WhoopAPI {
             return response;
         }
         catch (error) {
-            if (error.isAxiosError && error.response?.status === 404) {
-                console.log(`No WHOOP sleep data found for cycle ${cycleId} (404).`);
+            if (error.message && error.message.includes('404')) {
                 return null;
             }
-            console.error(`Failed to fetch WHOOP sleep data for cycle ${cycleId}:`, error.response?.data || error.message);
+            console.error(`Failed to fetch WHOOP sleep data for cycle ${cycleId}:`, error.message);
             throw error;
         }
     }
@@ -333,11 +325,10 @@ class WhoopAPI {
             return response;
         }
         catch (error) {
-            if (error.isAxiosError && error.response?.status === 404) {
-                console.log(`No WHOOP recovery data found for cycle ${cycleId} (404).`);
+            if (error.message && error.message.includes('404')) {
                 return null;
             }
-            console.error(`Failed to fetch WHOOP recovery data for cycle ${cycleId}:`, error.response?.data || error.message);
+            console.error(`Failed to fetch WHOOP recovery data for cycle ${cycleId}:`, error.message);
             throw error;
         }
     }
@@ -351,11 +342,10 @@ class WhoopAPI {
             return response.records || [];
         }
         catch (error) {
-            if (error.isAxiosError && error.response?.status === 404) {
-                console.log(`No WHOOP workout data found for date range: ${startDate} to ${endDate} (404).`);
+            if (error.message && error.message.includes('404')) {
                 return [];
             }
-            console.error(`Failed to fetch WHOOP workout data for date range:`, error.response?.data || error.message);
+            console.error(`Failed to fetch WHOOP workout data for date range:`, error.message);
             throw error;
         }
     }
@@ -410,11 +400,10 @@ class WhoopAPI {
             return await this.makeAuthenticatedRequest(`/developer/v2/activity/sleep/${sleepId}`);
         }
         catch (error) {
-            if (error.isAxiosError && error.response?.status === 404) {
-                console.log(`No WHOOP sleep data found for sleepId ${sleepId} (404).`);
+            if (error.message && error.message.includes('404')) {
                 return null;
             }
-            console.error(`Failed to fetch WHOOP sleep data for sleepId ${sleepId}:`, error.response?.data || error.message);
+            console.error(`Failed to fetch WHOOP sleep data for sleepId ${sleepId}:`, error.message);
             throw error;
         }
     }

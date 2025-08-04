@@ -39,7 +39,7 @@ export default function EmailVerification({ email, purpose, onVerified, disabled
       const res = await verifyCodeWithRetry(email, code, purpose);
       setStep('verified');
       setInfo('Email verified!');
-      onVerified(res.data.verificationToken);
+      onVerified(res.verificationToken);
     } catch (err) {
       const msg = getErrorMessage(err, 'Invalid or expired code.');
       setError(msg);

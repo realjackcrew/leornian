@@ -1,14 +1,55 @@
-import axios from 'axios';
 import { API_BASE_URL } from '../config';
 
-export const register = (email, password, firstName, lastName, verificationToken) =>
-  axios.post(`${API_BASE_URL}/api/register`, { email, password, firstName, lastName, verificationToken });
+export const register = async (email, password, firstName, lastName, verificationToken) => {
+  const response = await fetch(`${API_BASE_URL}/api/register`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password, firstName, lastName, verificationToken }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `HTTP error! status: ${response.status}`);
+  }
+  
+  return response.json();
+};
 
-export const login = (email, password, rememberMe = false) =>
-  axios.post(`${API_BASE_URL}/api/login`, { email, password, rememberMe });
+export const login = async (email, password, rememberMe = false) => {
+  const response = await fetch(`${API_BASE_URL}/api/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password, rememberMe }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `HTTP error! status: ${response.status}`);
+  }
+  
+  return response.json();
+};
 
-export const googleAuth = (idToken, rememberMe = false) =>
-  axios.post(`${API_BASE_URL}/api/google-auth`, { idToken, rememberMe });
+export const googleAuth = async (idToken, rememberMe = false) => {
+  const response = await fetch(`${API_BASE_URL}/api/google-auth`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ idToken, rememberMe }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `HTTP error! status: ${response.status}`);
+  }
+  
+  return response.json();
+};
 
 export const whoopAuth = async (authorizationCode) => {
   const token = localStorage.getItem('token');
@@ -96,20 +137,90 @@ export const disconnectWhoop = async () => {
 };
 
 // Password reset functions
-export const requestPasswordReset = (email) =>
-  axios.post(`${API_BASE_URL}/api/forgot-password`, { email });
+export const requestPasswordReset = async (email) => {
+  const response = await fetch(`${API_BASE_URL}/api/forgot-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `HTTP error! status: ${response.status}`);
+  }
+  
+  return response.json();
+};
 
-export const verifyResetCode = (email, code) =>
-  axios.post(`${API_BASE_URL}/api/verify-reset-code`, { email, code });
+export const verifyResetCode = async (email, code) => {
+  const response = await fetch(`${API_BASE_URL}/api/verify-reset-code`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, code }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `HTTP error! status: ${response.status}`);
+  }
+  
+  return response.json();
+};
 
-export const resetPassword = (email, newPassword, verificationToken) =>
-  axios.post(`${API_BASE_URL}/api/reset-password`, { email, newPassword, verificationToken });
+export const resetPassword = async (email, newPassword, verificationToken) => {
+  const response = await fetch(`${API_BASE_URL}/api/reset-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, newPassword, verificationToken }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `HTTP error! status: ${response.status}`);
+  }
+  
+  return response.json();
+};
 
-export const sendVerificationCode = (email, purpose) =>
-  axios.post(`${API_BASE_URL}/api/send-verification-code`, { email, purpose });
+export const sendVerificationCode = async (email, purpose) => {
+  const response = await fetch(`${API_BASE_URL}/api/send-verification-code`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, purpose }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `HTTP error! status: ${response.status}`);
+  }
+  
+  return response.json();
+};
 
-export const verifyEmailCode = (email, code, purpose) =>
-  axios.post(`${API_BASE_URL}/api/verify-code`, { email, code, purpose });
+export const verifyEmailCode = async (email, code, purpose) => {
+  const response = await fetch(`${API_BASE_URL}/api/verify-code`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, code, purpose }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || `HTTP error! status: ${response.status}`);
+  }
+  
+  return response.json();
+};
 
 export const getUserProfile = async () => {
   const token = localStorage.getItem('token');
