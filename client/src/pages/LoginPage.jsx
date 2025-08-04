@@ -4,7 +4,6 @@ import { AuthContext } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogIn, Mail, Lock } from 'lucide-react';
 import { getErrorMessage, createRetryFunction } from '../utils/errorUtils';
-
 export default function LoginPage() {
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -12,15 +11,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-
   useEffect(() => {
-    // Initialize Google Sign-In
     if (window.google) {
       window.google.accounts.id.initialize({
         client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
         callback: handleGoogleSignIn
       });
-      
       window.google.accounts.id.renderButton(
         document.getElementById('google-signin-button'),
         { 
@@ -32,7 +28,6 @@ export default function LoginPage() {
       );
     }
   }, []);
-
   const handleGoogleSignIn = async (response) => {
     setIsLoading(true);
     try {
@@ -48,7 +43,6 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -64,24 +58,20 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
-
   return (
     <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
-      {/* Animated gradient background */}
+      {}
       <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-gradient-xy opacity-25">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-gradient-xy-reverse opacity-25"></div>
       </div>
-      
-      {/* Background overlay */}
+      {}
       <div className="absolute inset-0 bg-white/10 dark:bg-black/20"></div>
-
-      {/* Content */}
+      {}
       <div className="max-w-md w-full space-y-8 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm p-8 rounded-xl shadow-lg border border-white/20 dark:border-gray-700/50 relative z-10">
         <div className="text-center">
           <h2 className="text-3xl font-light text-gray-900 dark:text-white">Welcome back</h2>
           <p className="mt-2 text-gray-600 dark:text-gray-300">Sign in to your account</p>
         </div>
-
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <div className="space-y-4">
             <div className="relative">
@@ -97,7 +87,6 @@ export default function LoginPage() {
                 required
               />
             </div>
-
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Lock className="h-5 w-5 text-gray-400 dark:text-gray-500" />
@@ -112,7 +101,6 @@ export default function LoginPage() {
               />
             </div>
           </div>
-
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <input
@@ -127,14 +115,12 @@ export default function LoginPage() {
                 Remember me
               </label>
             </div>
-
             <div className="text-sm">
               <Link to="/forgot-password" className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
                 Forgot your password?
               </Link>
             </div>
           </div>
-
           <button
             type="submit"
             disabled={isLoading}
@@ -146,7 +132,6 @@ export default function LoginPage() {
             <span>{isLoading ? 'Signing in...' : 'Sign in'}</span>
           </button>
         </form>
-
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-200 dark:border-gray-600"></div>
@@ -155,9 +140,7 @@ export default function LoginPage() {
             <span className="px-2 bg-white/90 dark:bg-gray-900/90 text-gray-500 dark:text-gray-400">Or log in with</span>
           </div>
         </div>
-
         <div id="google-signin-button" className="w-full"></div>
-
         <div className="text-center mt-6">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">

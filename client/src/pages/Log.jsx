@@ -7,19 +7,14 @@ import { useEnabledDatapoints, getDefaultValues, getCategoryNames } from '../com
 import { getCurrentCentralDate, formatDateAsCentral, isSameDayInCentral } from '../utils/dateUtils';
 import { fetchWhoopData } from '../api/auth';
 import whoopIcon from '../assets/whoop-icon.png';
-
 export default function Log() {
   const { token } = useContext(AuthContext);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { dataPointDefinitions, loading: datapointsLoading, error: datapointsError } = useEnabledDatapoints();
-  
-  // Debug: Log the datapoints when they load
   useEffect(() => {
     if (!datapointsLoading && dataPointDefinitions) {
       console.log('[SLEEP] Sleep category fields:', Object.keys(dataPointDefinitions.sleep || {}));
-      
-      // Ensure bedtime and wakeTime are always available in sleep category
       if (dataPointDefinitions.sleep && (!dataPointDefinitions.sleep.bedtime || !dataPointDefinitions.sleep.wakeTime)) {
         dataPointDefinitions.sleep.bedtime = { type: 'time', label: 'Last night\'s bedtime' };
         dataPointDefinitions.sleep.wakeTime = { type: 'time', label: 'This morning\'s wake time' };
@@ -37,8 +32,6 @@ export default function Log() {
   const [isWhoopLoading, setIsWhoopLoading] = useState(false);
   const [whoopError, setWhoopError] = useState(null);
   const [whoopPopulated, setWhoopPopulated] = useState({});
-
-  // Helper function to get user-friendly missing data messages
   const getMissingDataMessage = (dataType) => {
     const messages = {
       sleep: 'No sleep data available for this date',
@@ -47,16 +40,12 @@ export default function Log() {
     };
     return messages[dataType] || `No ${dataType} data available`;
   };
-
-  // Helper function to check if a specific datapoint is missing from WHOOP
   const isDatapointMissingFromWhoop = (category, datapointKey) => {
     if (whoopPopulated[category] && whoopPopulated[category][datapointKey] === true) {
-      return false; // Data was populated from WHOOP
+      return false; 
     }
-    return true; // Data was NOT populated from WHOOP
+    return true; 
   };
-
-  // Show login prompt if not authenticated
   if (!token) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
@@ -69,18 +58,12 @@ export default function Log() {
       </div>
     );
   }
-
-  // Get date from URL parameter or default to current date
   useEffect(() => {
     const dateParam = searchParams.get('date');
     if (dateParam) {
-      // Parse the date string (YYYY-MM-DD format) into a Date object
       const [year, month, day] = dateParam.split('-').map(Number);
-      const parsedDate = new Date(year, month - 1, day); // month is 0-indexed
+      const parsedDate = new Date(year, month - 1, day); 
       setSelectedDate(parsedDate);
-      
-      
-      // Check if it's a future date
       const today = getCurrentCentralDate();
       if (parsedDate > today) {
         setIsFutureDate(true);
@@ -88,30 +71,22 @@ export default function Log() {
         return;
       }
     } else {
-      // No date parameter, default to today
       const today = getCurrentCentralDate();
       setSelectedDate(today);
-      
     }
   }, [searchParams]);
-
-  // Set the first available category when datapoints load
   useEffect(() => {
     if (!datapointsLoading && !datapointsError) {
       const availableCategories = Object.keys(dataPointDefinitions);
       if (availableCategories.length > 0) {
-        // If current category is not available, or no category selected, pick the first one
-        // Don't reset if the selected category is 'notes'
         if (!selectedCategory || (!availableCategories.includes(selectedCategory) && selectedCategory !== 'notes')) {
           setSelectedCategory(availableCategories[0]);
         }
       } else {
-        // No datapoints available, default to notes
         setSelectedCategory('notes');
       }
     }
   }, [dataPointDefinitions, datapointsLoading, datapointsError, selectedCategory]);
-
   const handleLoadFromWhoop = async () => {
     setIsWhoopLoading(true);
     setWhoopError(null);
@@ -120,22 +95,25 @@ export default function Log() {
       const whoopResp = await fetchWhoopData(dateString);
       if (whoopResp && whoopResp.success) {
         const whoop = whoopResp.data || {};
-
-        
         const populated = {};
         setValues(prevValues => {
           const newValues = JSON.parse(JSON.stringify(prevValues));
-          
           Object.entries(newValues).forEach(([category, dataPoints]) => {
             if (category === 'sleep') {
-              // Ensure bedtime and wakeTime are always available
               if (!dataPoints.bedtime) {
                 dataPoints.bedtime = undefined;
               }
               if (!dataPoints.wakeTime) {
                 dataPoints.wakeTime = undefined;
               }
-              
+              Object.entries(dataPoints).forEach(([key, value]) => {
+                if (whoop[key] !== undefined) {
+                  newValues[category][key] = whoop[key];
+                  if (!populated[category]) populated[category] = {};
+                  populated[category][key] = true;
+                }
+              });
+            } else if (category === 'physicalHealth') {
               Object.entries(dataPoints).forEach(([key, value]) => {
                 if (whoop[key] !== undefined) {
                   newValues[category][key] = whoop[key];
@@ -164,25 +142,18 @@ export default function Log() {
       setIsWhoopLoading(false);
     }
   };
-
-  // Load existing log data for the selected date
   useEffect(() => {
     if (!token || !selectedDate || isFutureDate) return;
-    
     const loadExistingLog = async () => {
       setIsLoadingData(true);
       try {
         const dateString = formatDateAsCentral(selectedDate);
         const response = await getLogByDate(token, dateString);
-        
         if (response) {
           const logData = response;
           setExistingLogId(logData.id);
           setNotes(logData.healthData.notes || '');
-          
-          // Load existing values from the log
           const existingValues = getDefaultValues(dataPointDefinitions);
-          
           if (logData.healthData.values) {
             Object.entries(logData.healthData.values).forEach(([category, dataPoints]) => {
               if (existingValues[category]) {
@@ -196,11 +167,9 @@ export default function Log() {
           }
           setValues(existingValues);
         } else {
-          // No existing log found, use default values
           setValues(getDefaultValues(dataPointDefinitions));
         }
       } catch (error) {
-        // No existing log found
         if (error.response && error.response.status === 404) {
             setValues(getDefaultValues(dataPointDefinitions));
         } else {
@@ -211,11 +180,8 @@ export default function Log() {
         setIsLoadingData(false);
       }
     };
-
     loadExistingLog();
   }, [token, selectedDate, isFutureDate, dataPointDefinitions]);
-
-  // Format date for display
   const formatDisplayDate = (date) => {
     return date.toLocaleDateString('en-US', { 
       weekday: 'long', 
@@ -224,8 +190,6 @@ export default function Log() {
       day: 'numeric' 
     });
   };
-
-  // Toggle component for boolean values
   const Toggle = ({ value, onChange, label, isWhoopPopulated = false }) => (
     <div className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-gray-800 last:border-0">
       <div className="flex items-center">
@@ -256,21 +220,15 @@ export default function Log() {
       </div>
     </div>
   );
-
-  // Input component for numeric values
   const NumericInput = ({ value, onChange, label, min, max, step, isWhoopPopulated = false }) => {
     const [localValue, setLocalValue] = useState(value?.toString() || '');
-
-    // Update local value when prop value changes
     useEffect(() => {
       setLocalValue(value?.toString() || '');
     }, [value]);
-
     const handleBlur = () => {
       const numericValue = localValue === '' ? 0 : Number(localValue);
       onChange(numericValue);
     };
-
     return (
       <div className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-gray-800 last:border-0">
         <div className="flex items-center">
@@ -294,10 +252,8 @@ export default function Log() {
       </div>
     );
   };
-
   const TimeInput = ({ value, onChange, label, isWhoopPopulated = false }) => {
     if (label.includes('bedtime') || label.includes('wake time')) {
-      
     }
     return (
       <div className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-gray-800 last:border-0">
@@ -313,7 +269,6 @@ export default function Log() {
       </div>
     );
   };
-
   const updateValue = (categoryKey, dataPointKey, value) => {
     setValues(prev => ({
       ...prev,
@@ -323,13 +278,10 @@ export default function Log() {
       }
     }));
   };
-
   const handleSave = async () => {
     if (!token || !selectedDate || isFutureDate) return;
-    
     setIsLoading(true);
     try {
-      // Convert null values to false before saving
       const processedValues = {};
       Object.entries(values).forEach(([category, dataPoints]) => {
         processedValues[category] = {};
@@ -337,25 +289,20 @@ export default function Log() {
           processedValues[category][key] = value === null ? false : value;
         });
       });
-
       const healthData = {
         values: processedValues,
         notes,
-        timezone: 'America/Chicago' // Add timezone information
+        timezone: 'America/Chicago' 
       };
-      
       if (existingLogId) {
-        // Update existing log
         await updateLog(token, existingLogId, { healthData });
       } else {
-        // Create new log with specific date
         const logData = {
           healthData,
           date: formatDateAsCentral(selectedDate)
         };
         await createLog(token, logData);
       }
-      
       navigate('/dashboard');
     } catch (error) {
       console.error('Error saving health log:', error);
@@ -364,9 +311,7 @@ export default function Log() {
       setIsLoading(false);
     }
   };
-
   if (!token) return <p className="text-center mt-10 text-gray-900 dark:text-white">Please log in.</p>;
-
   if (datapointsLoading) {
     return (
       <div className="min-h-screen bg-black">
@@ -379,7 +324,6 @@ export default function Log() {
       </div>
     );
   }
-
   if (datapointsError) {
     return (
       <div className="min-h-screen bg-black">
@@ -392,7 +336,6 @@ export default function Log() {
       </div>
     );
   }
-
   if (!selectedDate) {
     return (
       <div className="min-h-screen bg-black">
@@ -405,7 +348,6 @@ export default function Log() {
       </div>
     );
   }
-
   if (isFutureDate) {
     return (
       <div className="min-h-screen bg-black">
@@ -428,7 +370,6 @@ export default function Log() {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -456,12 +397,11 @@ export default function Log() {
                   <img src="/src/assets/whoop-icon.png" alt="whoop" className="w-5 h-5 mr-2"/>
                   <span>{isWhoopLoading ? 'Loading...' : 'Load from Whoop'}</span>
               </button>
-              {/* {whoopError && <p className="text-red-500 text-sm mt-2">{whoopError}</p>} */}
+              {}
             </div>
           </div>
         </div>
-
-        {/* Category Navigation */}
+        {}
         <div className="flex justify-between mb-8 border-b border-gray-700 pb-4">
           {getCategoryNames(dataPointDefinitions).map(({ key, name }) => (
             <span
@@ -487,8 +427,7 @@ export default function Log() {
             Notes
           </span>
         </div>
-
-        {/* Content Area */}
+        {}
         <div className=" rounded-xl p-6">
           {isLoadingData || values === null ? (
             <div className="text-center py-12">
@@ -517,13 +456,9 @@ export default function Log() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0 border-transparent relative">
-              {/* Subtle column divider */}
+              {}
               <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px bg-gray-200 dark:bg-gray-700" />
-              
               {Object.entries(dataPointDefinitions[selectedCategory] || {}).map(([key, def]) => {
-                if (selectedCategory === 'sleep' && (key === 'bedtime' || key === 'wakeTime')) {
-          
-                }
                 return (
                   <div key={key}>
                     {def.type === 'boolean' ? (

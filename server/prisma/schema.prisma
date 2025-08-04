@@ -29,7 +29,7 @@ model User {
   // User settings stored as JSON
   settings  Json?
   logs      DailyLog[]
-  datapointPreferences DatapointPreference[]
+  datapoints UserDatapoint[] // Replaced datapointPreferences
 }
 
 model DailyLog {
@@ -45,16 +45,20 @@ model DailyLog {
   @@unique([userId, date])
 }
 
-model DatapointPreference {
+// New model for user-specific, editable datapoints
+model UserDatapoint {
   id          String   @id @default(cuid())
   userId      String
-  category    String   // e.g., 'sleep', 'nutrition', 'lifestyle', etc.
-  datapoint   String   // e.g., 'bedtime', 'waterIntakePints', etc.
+  category    String
+  name        String   // The unique identifier, e.g., 'usedScreenBeforeBed'
+  label       String   // The display text for the user
+  type        String   // 'boolean', 'number', 'time', etc.
   enabled     Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  min         Float?
+  max         Float?
+  step        Float?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, category, datapoint])
+  @@unique([userId, name])
 }

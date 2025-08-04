@@ -6,7 +6,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const queries_1 = require("../db/queries");
 const router = express_1.default.Router();
-//execute a read-only SQL query
 router.post('/query', async (req, res) => {
     try {
         const { query, params } = req.body;
@@ -16,7 +15,6 @@ router.post('/query', async (req, res) => {
             });
         }
         let result;
-        //use the parameterized version if given params
         if (params && Array.isArray(params)) {
             result = await (0, queries_1.execute_sql_query_with_params)(query, params);
         }
@@ -34,11 +32,9 @@ router.post('/query', async (req, res) => {
         return res.status(500).json({ error: 'Failed to process query' });
     }
 });
-//example queries that can be executed
 router.get('/query/examples', (_req, res) => {
     res.json({
         examples: [
-            //basic queries
             {
                 description: "Get all users",
                 query: "SELECT * FROM \"User\"",
@@ -64,7 +60,6 @@ router.get('/query/examples', (_req, res) => {
                 query: "SELECT * FROM \"DailyLog\" WHERE date BETWEEN $1 AND $2",
                 params: ["2024-01-01", "2024-12-31"]
             },
-            //specific healthData queries
             {
                 description: "Get all logs where user watched sunrise (sleep category)",
                 query: `SELECT * FROM \"DailyLog\" WHERE healthData->'values'->'sleep'->>'watchSunrise' = 'true'`,

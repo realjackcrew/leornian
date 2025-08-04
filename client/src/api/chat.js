@@ -1,13 +1,10 @@
 import { API_BASE_URL } from '../config';
-
-// Send a chat message
 export const sendChatMessage = async (message) => {
   try {
     const token = localStorage.getItem('token');
     if (!token) {
       throw new Error('No authentication token found');
     }
-
     const response = await fetch(`${API_BASE_URL}/api/chat`, {
       method: 'POST',
       headers: {
@@ -16,27 +13,22 @@ export const sendChatMessage = async (message) => {
       },
       body: JSON.stringify({ message }),
     });
-
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || `HTTP error! status: ${response.status}`);
     }
-
     return await response.json();
   } catch (error) {
     console.error('Error sending chat message:', error);
     throw error;
   }
 };
-
-// Get user's chat settings (voice, verbosity, model)
 export const getChatSettings = async () => {
   try {
     const token = localStorage.getItem('token');
     if (!token) {
       throw new Error('No authentication token found');
     }
-
     const response = await fetch(`${API_BASE_URL}/api/user/chat-settings`, {
       method: 'GET',
       headers: {
@@ -44,27 +36,22 @@ export const getChatSettings = async () => {
         'Content-Type': 'application/json',
       },
     });
-
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || `HTTP error! status: ${response.status}`);
     }
-
     return await response.json();
   } catch (error) {
     console.error('Error fetching chat settings:', error);
     throw error;
   }
 };
-
-// Update user's chat settings
 export const updateChatSettings = async (settings) => {
   try {
     const token = localStorage.getItem('token');
     if (!token) {
       throw new Error('No authentication token found');
     }
-
     const response = await fetch(`${API_BASE_URL}/api/user/chat-settings`, {
       method: 'PUT',
       headers: {
@@ -73,20 +60,16 @@ export const updateChatSettings = async (settings) => {
       },
       body: JSON.stringify(settings),
     });
-
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || `HTTP error! status: ${response.status}`);
     }
-
     return await response.json();
   } catch (error) {
     console.error('Error updating chat settings:', error);
     throw error;
   }
 };
-
-// Get available chat options (voices, verbosities, models)
 export const getChatOptions = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/user/chat-options`, {
@@ -95,12 +78,10 @@ export const getChatOptions = async () => {
         'Content-Type': 'application/json',
       },
     });
-
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || `HTTP error! status: ${response.status}`);
     }
-
     return await response.json();
   } catch (error) {
     console.error('Error fetching chat options:', error);

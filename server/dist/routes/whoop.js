@@ -16,14 +16,12 @@ const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
 const router = (0, express_1.Router)();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 const whoopCallbackUrl = process.env.WHOOP_REDIRECT_URI || process.env.WHOOP_CALLBACK_URL;
-// Handler to initiate WHOOP OAuth
 const startWhoopAuth = (req, res, next) => {
     const token = req.query.token;
     if (!token) {
         return res.status(401).send('Authentication token missing');
     }
     try {
-        // Verify token is valid before redirecting to WHOOP
         jsonwebtoken_1.default.verify(token, JWT_SECRET);
         return passport_1.default.authenticate('whoop', {
             state: token,
@@ -36,11 +34,9 @@ const startWhoopAuth = (req, res, next) => {
         return res.status(401).send('Invalid authentication token');
     }
 };
-// Success handler with logging
 const whoopCallbackSuccess = (_req, res, _next) => {
     res.redirect(`${clientUrl}/settings?whoopAuth=success`);
 };
-// Verify callback with enhanced error handling and logging
 const whoopVerify = async (req, accessToken, refreshToken, params, profile, done) => {
     try {
         const state = req.query.state;
@@ -100,7 +96,6 @@ const whoopOptions = {
 };
 passport_1.default.use('whoop', new passport_oauth2_1.Strategy(whoopOptions, whoopVerify));
 router.use(passport_1.default.initialize());
-// Error handler for WHOOP callback
 const whoopCallbackError = (err, req, res, _next) => {
     console.error('[WHOOP Callback] Authentication error', {
         error: err.message,
@@ -109,16 +104,12 @@ const whoopCallbackError = (err, req, res, _next) => {
     });
     res.redirect(`${clientUrl}/settings?whoopAuth=failed&reason=${encodeURIComponent(err.message)}`);
 };
-// Type-safe middleware composition
 const whoopAuthMiddleware = passport_1.default.authenticate('whoop', {
     failureRedirect: `${clientUrl}/settings?whoopAuth=failed`,
     session: false
 });
-// 1) Redirect to WHOOP for authentication
 router.get('/auth/whoop', auth_1.authenticateToken, startWhoopAuth);
-// 2) WHOOP callback route with error handling
 router.get('/auth/whoop/callback', whoopAuthMiddleware, whoopCallbackSuccess);
-// Error handler for the callback route
 router.use('/auth/whoop/callback', whoopCallbackError);
 router.get('/whoop/status', auth_1.authenticateToken, async (req, res) => {
     try {
@@ -172,13 +163,9 @@ router.get('/whoop/data', auth_1.authenticateToken, async (req, res) => {
             return res.status(400).json({ error: 'No WHOOP credentials found for user' });
         }
         let { whoopAccessToken, whoopRefreshToken, whoopTokenExpiresAt } = user;
-        // The WhoopAPI class now handles its own token refreshes internally.
-        // We just need to set the initial tokens from the database.
         const api = whoop_1.whoopAPI;
         api.setTokens(whoopAccessToken, whoopRefreshToken, whoopTokenExpiresAt.getTime());
         const date = req.query.date || new Date().toISOString().split('T')[0];
-        // Get a broader range of cycles to find the right one
-        // We'll search from 3 days before to 1 day after to ensure we catch all relevant cycles
         const searchStartDate = new Date(`${date}T00:00:00.000Z`);
         searchStartDate.setDate(searchStartDate.getDate() - 3);
         const searchEndDate = new Date(`${date}T23:59:59.999Z`);
@@ -189,16 +176,10 @@ router.get('/whoop/data', auth_1.authenticateToken, async (req, res) => {
         if (!cycles || cycles.length === 0) {
             return res.json({ success: true, data: {}, message: 'No WHOOP cycles found for this date range.' });
         }
-        // Find the cycle that starts on the requested date, or the closest match
-        // Priority: 
-        // 1. Cycle that starts on the exact date
-        // 2. Most recent cycle that started before the date
         const targetDate = date;
         let targetCycle = null;
-        // First, try to find a cycle that starts exactly on the target date
         targetCycle = cycles.find((c) => c.start && c.start.startsWith(targetDate));
         if (!targetCycle) {
-            // If no exact match, find the most recent cycle that started before or on the target date
             const validCycles = cycles
                 .filter((c) => c.start && c.start.split('T')[0] <= targetDate)
                 .sort((a, b) => new Date(b.start).getTime() - new Date(a.start).getTime());
@@ -207,21 +188,17 @@ router.get('/whoop/data', auth_1.authenticateToken, async (req, res) => {
         if (!targetCycle) {
             return res.json({ success: true, data: {}, message: 'Could not find a matching WHOOP cycle for this date.' });
         }
-        //fetch recovery and workouts using cycle ID and date range
         let [recoveryData, workouts] = await Promise.all([
             api.getRecoveryForCycle(targetCycle.id),
-            api.getWorkoutsInDateRange(startISO, endISO) // Workouts are still best fetched by date range
+            api.getWorkoutsInDateRange(startISO, endISO)
         ]);
-        // Only fetch sleep using sleep_id from recoveryData
         let sleepData = null;
         if (recoveryData && recoveryData.sleep_id) {
             sleepData = await api.getSleepById(recoveryData.sleep_id);
         }
         else if (recoveryData && recoveryData.score && recoveryData.score.sleep_id) {
-            // Some API responses nest sleep_id under score
             sleepData = await api.getSleepById(recoveryData.score.sleep_id);
         }
-        // After successful API calls, get the latest tokens from the API instance
         const newTokens = api.getTokens();
         if (newTokens && newTokens.access_token !== whoopAccessToken) {
             await database_1.default.user.update({
@@ -237,14 +214,12 @@ router.get('/whoop/data', auth_1.authenticateToken, async (req, res) => {
         const result = {};
         const missingData = [];
         if (sleepData && sleepData.score) {
-            // Use local time for bedtime and wakeTime if timezone_offset is available
             const getLocalTime = (isoString, offset) => {
                 if (!isoString)
                     return '';
                 const date = new Date(isoString);
                 if (!offset)
-                    return date.toISOString().substring(11, 16); // fallback to UTC
-                // Format as HH:mm (24-hour)
+                    return date.toISOString().substring(11, 16);
                 return date.toTimeString().substring(0, 5);
             };
             result.bedtime = getLocalTime(sleepData.start, sleepData.timezone_offset);
@@ -252,7 +227,6 @@ router.get('/whoop/data', auth_1.authenticateToken, async (req, res) => {
             result.sleepEfficiencyPercent = Math.round(sleepData.score.sleep_efficiency_percentage);
             result.sleepPerformancePercent = sleepData.score.sleep_performance_percentage;
             result.sleepConsistencyPercent = Math.round(sleepData.score.sleep_consistency_percentage);
-            // Calculate sleep fulfillment properly: (total sleep time) / (baseline needed) * 100
             let sleepFulfillmentPercent = null;
             const totalInBedMilli = sleepData.score?.stage_summary?.total_in_bed_time_milli;
             const totalAwakeMilli = sleepData.score?.stage_summary?.total_awake_time_milli;
@@ -264,7 +238,6 @@ router.get('/whoop/data', auth_1.authenticateToken, async (req, res) => {
             else {
             }
             result.sleepFulfillmentPercent = sleepFulfillmentPercent;
-            //v2 provides sleep debt in milliseconds
             let sleepDebtRaw = null;
             if (sleepData.score.sleep_needed?.need_from_sleep_debt_milli != null) {
                 sleepDebtRaw = sleepData.score.sleep_needed.need_from_sleep_debt_milli;
@@ -289,7 +262,6 @@ router.get('/whoop/data', auth_1.authenticateToken, async (req, res) => {
         else {
             missingData.push('workouts');
         }
-        // Set strain from the cycle's score, not recovery
         result.whoopStrainScore = targetCycle.score?.strain != null ? Number(targetCycle.score.strain.toFixed(2)) : null;
         if (recoveryData && recoveryData.score) {
             result.restingHR = recoveryData.score.resting_heart_rate;
@@ -332,13 +304,9 @@ router.get('/whoop/raw', auth_1.authenticateToken, async (req, res) => {
         if (!start || !end) {
             return res.status(400).json({ error: 'Missing start or end date (YYYY-MM-DD)' });
         }
-        // Fetch all cycles in the range
         const cycles = await api.getCyclesInDateRange(start, end);
-        // Fetch all sleep data for the range (by iterating cycles)
         const sleep = await Promise.all(cycles.map(cycle => api.getSleepForCycle(cycle.id).catch(() => null)));
-        // Fetch all recovery data for the range (by iterating cycles)
         const recovery = await Promise.all(cycles.map(cycle => api.getRecoveryForCycle(cycle.id).catch(() => null)));
-        // Fetch all workouts for the range
         const workouts = await api.getWorkoutsInDateRange(start, end);
         return res.json({
             cycles,
@@ -387,7 +355,6 @@ router.get('/whoop/debug', auth_1.authenticateToken, async (req, res) => {
                 lastName: user.lastName,
             }
         };
-        // Step 1: Check if we have credentials
         if (!user.whoopAccessToken || !user.whoopRefreshToken || !user.whoopTokenExpiresAt) {
             debugInfo.steps.push({
                 step: 'credentials_check',
@@ -406,8 +373,7 @@ router.get('/whoop/debug', auth_1.authenticateToken, async (req, res) => {
             success: true,
             message: 'WHOOP credentials found'
         });
-        // Step 2: Check if token is expired
-        const isExpired = Date.now() >= user.whoopTokenExpiresAt.getTime() - 5 * 60 * 1000; // 5 min buffer
+        const isExpired = Date.now() >= user.whoopTokenExpiresAt.getTime() - 5 * 60 * 1000;
         debugInfo.steps.push({
             step: 'token_expiry_check',
             success: !isExpired,
@@ -418,7 +384,6 @@ router.get('/whoop/debug', auth_1.authenticateToken, async (req, res) => {
                 needsRefresh: isExpired
             }
         });
-        // Step 3: Set up API with tokens
         const api = whoop_1.whoopAPI;
         api.setTokens(user.whoopAccessToken, user.whoopRefreshToken, user.whoopTokenExpiresAt.getTime());
         debugInfo.steps.push({
@@ -426,7 +391,6 @@ router.get('/whoop/debug', auth_1.authenticateToken, async (req, res) => {
             success: true,
             message: 'WHOOP API configured with tokens'
         });
-        // Step 4: Test profile endpoint (non-critical)
         try {
             const profile = await api.getUserProfile();
             debugInfo.steps.push({
@@ -451,10 +415,8 @@ router.get('/whoop/debug', auth_1.authenticateToken, async (req, res) => {
                 critical: false
             });
         }
-        // Step 5: Test a simple cycle request (critical for data access)
         try {
             const testDate = new Date();
-            // Test multiple date ranges to find data
             const dateRangesToTest = [
                 { days: 7, label: '7 days' },
                 { days: 30, label: '30 days' },
@@ -472,11 +434,10 @@ router.get('/whoop/debug', auth_1.authenticateToken, async (req, res) => {
                     if (testCycles && testCycles.length > 0) {
                         cycles = testCycles;
                         successfulRange = { ...range, start: startDateStr, end: endDateStr };
-                        break; // Found data, stop testing
+                        break;
                     }
                 }
                 catch (rangeError) {
-                    // Silently handle range errors
                 }
             }
             debugInfo.steps.push({
@@ -487,14 +448,13 @@ router.get('/whoop/debug', auth_1.authenticateToken, async (req, res) => {
                     testedRanges: dateRangesToTest.map(r => `${r.days} days`),
                     successfulRange,
                     totalCycles: cycles.length,
-                    cycles: cycles.slice(0, 2), // Only show first 2 for brevity
+                    cycles: cycles.slice(0, 2),
                     hasData: cycles.length > 0
                 },
                 critical: true
             });
         }
         catch (cyclesError) {
-            // Only mark as critical failure if it's an auth issue (401/403)
             const isAuthError = cyclesError.response?.status === 401 || cyclesError.response?.status === 403;
             debugInfo.steps.push({
                 step: 'cycles_test',
@@ -513,7 +473,6 @@ router.get('/whoop/debug', auth_1.authenticateToken, async (req, res) => {
                 critical: isAuthError
             });
         }
-        // Step 6: Check if tokens were refreshed
         const newTokens = api.getTokens();
         if (newTokens && newTokens.access_token !== user.whoopAccessToken) {
             debugInfo.steps.push({
@@ -521,7 +480,6 @@ router.get('/whoop/debug', auth_1.authenticateToken, async (req, res) => {
                 success: true,
                 message: 'Tokens were automatically refreshed during requests'
             });
-            // Update tokens in database
             await database_1.default.user.update({
                 where: { id: req.userId },
                 data: {
@@ -550,11 +508,9 @@ router.get('/whoop/debug', auth_1.authenticateToken, async (req, res) => {
         });
     }
 });
-// Profile endpoint for debugging
 router.get('/whoop/profile', auth_1.authenticateToken, async (req, res) => {
     try {
         const userId = req.userId;
-        // Get user's WHOOP credentials from database
         const user = await database_1.default.user.findUnique({
             where: { id: userId },
             select: {
@@ -572,12 +528,9 @@ router.get('/whoop/profile', auth_1.authenticateToken, async (req, res) => {
                 details: 'No WHOOP access token found for this user'
             });
         }
-        // Initialize WHOOP API with user's tokens
         const api = whoop_1.whoopAPI;
         api.setTokens(user.whoopAccessToken, user.whoopRefreshToken || '', user.whoopTokenExpiresAt ? user.whoopTokenExpiresAt.getTime() : Date.now() + 3600000);
-        // Fetch user profile from WHOOP API
         const profile = await api.getUserProfile();
-        // Check if tokens were refreshed and update them
         const newTokens = api.getTokens();
         if (newTokens && newTokens.access_token !== user.whoopAccessToken) {
             await database_1.default.user.update({

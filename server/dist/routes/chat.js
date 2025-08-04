@@ -27,11 +27,9 @@ router.post('/chat', auth_1.authenticateToken, async (req, res) => {
         const userId = req.userId;
         console.log('Processing message for user:', userId, message, 'useDirectSQL:', useDirectSQL);
         if (useDirectSQL) {
-            // Use Direct SQL System (prompt2)
             return await handleDirectSQLMode(req, res, message, userId, conversationHistory, includeHistory);
         }
         else {
-            // Use JSON Intent System (current)
             return await handleJsonIntentMode(req, res, message, userId);
         }
     }
@@ -40,11 +38,8 @@ router.post('/chat', auth_1.authenticateToken, async (req, res) => {
         return res.status(500).json({ error: 'Failed to process chat request' });
     }
 });
-// Handle JSON Intent Mode (current system)
 async function handleJsonIntentMode(_req, res, message, userId) {
-    // Get user's chat settings
     const chatSettings = await getUserChatSettings(userId);
-    // Build the JSON intent prompt with user's datapoints and today's date
     const systemPrompt = await (0, jsonIntentPromptBuilder_1.buildJsonIntentPrompt)({ userId });
     const messages = [
         { role: 'system', content: systemPrompt },
@@ -53,7 +48,6 @@ async function handleJsonIntentMode(_req, res, message, userId) {
     console.log('Calling OpenAI for JSON intent generation...');
     const response = await (0, openai_1.chatCompletion)(messages, chatSettings.model);
     console.log('OpenAI response:', response);
-    // Parse the JSON intent from the response
     let parsedIntent = null;
     let parseError = null;
     let queryResult = null;
@@ -63,7 +57,6 @@ async function handleJsonIntentMode(_req, res, message, userId) {
         }
         parsedIntent = (0, jsonIntentParser_1.parseJsonIntent)(response.content);
         console.log('Parsed query intent:', parsedIntent);
-        // Execute the query
         queryResult = await (0, queryExecutor_1.executeQueryFromIntent)(parsedIntent, userId, { includeCount: true });
         console.log('Query execution result:', queryResult);
     }
@@ -71,12 +64,10 @@ async function handleJsonIntentMode(_req, res, message, userId) {
         console.error('Failed to parse JSON intent:', error);
         parseError = `Failed to parse JSON intent: ${error instanceof Error ? error.message : 'Unknown error'}`;
     }
-    // Always use summarization for client-facing responses
     let clientResponse = '';
     let followUpQuestions = [];
     let debugInfo = {};
     if (queryResult && queryResult.success) {
-        // If we have successful query results, use the summarization service
         try {
             const summarizationRequest = {
                 originalQuestion: message,
@@ -91,18 +82,15 @@ async function handleJsonIntentMode(_req, res, message, userId) {
             }
             else {
                 console.error('Summarization failed:', summarizationResult.error);
-                // Fall back to basic formatting if summarization fails
                 clientResponse = (0, queryExecutor_1.formatQueryResults)(queryResult);
             }
         }
         catch (error) {
             console.error('Error in summarization:', error);
-            // Fall back to basic formatting if summarization fails
             clientResponse = (0, queryExecutor_1.formatQueryResults)(queryResult);
         }
     }
     else if (queryResult && !queryResult.success) {
-        // If query failed, use summarization with error data
         try {
             const summarizationRequest = {
                 originalQuestion: message,
@@ -124,7 +112,6 @@ async function handleJsonIntentMode(_req, res, message, userId) {
         }
     }
     else if (parseError) {
-        // If parsing failed, use summarization with parse error
         try {
             const summarizationRequest = {
                 originalQuestion: message,
@@ -145,7 +132,6 @@ async function handleJsonIntentMode(_req, res, message, userId) {
             clientResponse = `I couldn't understand your request: ${parseError}`;
         }
     }
-    // Check if debug mode is enabled
     const isDebugMode = process.env.DEBUG_MODE === 'true';
     if (isDebugMode) {
         debugInfo = {
@@ -163,14 +149,12 @@ async function handleJsonIntentMode(_req, res, message, userId) {
         followUpQuestions: followUpQuestions.length > 0 ? followUpQuestions : undefined
     };
     console.log('Follow-up questions in response:', responseData.followUpQuestions);
-    // Include debug information if debug mode is enabled
     if (isDebugMode) {
         responseData.debug = debugInfo;
     }
     console.log('Sending response:', responseData);
     return res.json(responseData);
 }
-// Helper function to get user's chat settings
 async function getUserChatSettings(userId) {
     try {
         const user = await database_1.default.user.findUnique({
@@ -192,29 +176,21 @@ async function getUserChatSettings(userId) {
         return { voice: 'default', verbosity: 'balanced', model: 'gpt-4o-mini' };
     }
 }
-// Handle Direct SQL Mode (prompt2 system)
 async function handleDirectSQLMode(_req, res, message, userId, conversationHistory, includeHistory) {
-    // Get user's chat settings
     const chatSettings = await getUserChatSettings(userId);
-    // Build the dynamic prompt for direct SQL generation
     const systemPrompt = (0, promptBuilder_1.buildDynamicPrompt)(chatSettings);
-    // Build messages array with optional conversation history
     const messages = [
         { role: 'system', content: systemPrompt }
     ];
-    // Add conversation history if requested
     if (includeHistory && conversationHistory && conversationHistory.length > 0) {
         messages.push(...conversationHistory);
     }
-    // Add current user message
     messages.push({ role: 'user', content: message });
     console.log('Calling OpenAI with forced function calling for direct SQL...');
     const response = await (0, openai_1.chatWithForcedFunctionCalling)(messages, chatSettings.model);
     console.log('OpenAI response:', response);
-    // Force function calling - if no function call, create a default one
     if (!response.function_call) {
         console.log('No function call received, creating default query...');
-        // Create a default query to get some data
         const defaultQuery = 'SELECT COUNT(*) as "count" FROM "DailyLog" WHERE "userId" = $1';
         const defaultParams = [userId];
         let sqlResult = null;
@@ -226,7 +202,6 @@ async function handleDirectSQLMode(_req, res, message, userId, conversationHisto
             console.error('Default SQL execution error:', error);
             sqlError = error instanceof Error ? error.message : 'Unknown SQL execution error';
         }
-        // Convert BigInt values to regular numbers for JSON serialization
         const convertBigIntToNumber = (obj) => {
             if (obj === null || obj === undefined)
                 return obj;
@@ -244,7 +219,6 @@ async function handleDirectSQLMode(_req, res, message, userId, conversationHisto
             return obj;
         };
         const serializableSqlResult = convertBigIntToNumber(sqlResult);
-        // Get a response from the AI with the default results
         const followUpMessages = [
             ...messages,
             {
@@ -274,7 +248,6 @@ async function handleDirectSQLMode(_req, res, message, userId, conversationHisto
         console.log('Sending default SQL response:', responseData);
         return res.json(responseData);
     }
-    // Handle function calling response
     if (response.function_call) {
         const functionName = response.function_call.name;
         const functionArgs = JSON.parse(response.function_call.arguments);
@@ -283,13 +256,9 @@ async function handleDirectSQLMode(_req, res, message, userId, conversationHisto
         let sqlError = null;
         try {
             if (functionName === 'execute_sql_query_with_params') {
-                // Add userId filter to the query if not already present
                 let { query, params } = functionArgs;
-                // Basic validation - ensure query includes userId filter for security
                 if (!query.toLowerCase().includes('userid') && !query.toLowerCase().includes('"userid"')) {
-                    // Remove trailing semicolon if present to avoid syntax errors
                     query = query.replace(/;\s*$/, '');
-                    // Add userId filter to WHERE clause or create one
                     if (query.toLowerCase().includes('where')) {
                         query += ` AND "userId" = $${params.length + 1}`;
                     }
@@ -299,7 +268,6 @@ async function handleDirectSQLMode(_req, res, message, userId, conversationHisto
                     params.push(userId);
                 }
                 else {
-                    // Replace any placeholder userId values with the real userId
                     for (let i = 0; i < params.length; i++) {
                         if (typeof params[i] === 'string' && (params[i].includes('user-') ||
                             params[i] === 'user_id_placeholder' ||
@@ -316,7 +284,6 @@ async function handleDirectSQLMode(_req, res, message, userId, conversationHisto
             console.error('SQL execution error:', error);
             sqlError = error instanceof Error ? error.message : 'Unknown SQL execution error';
         }
-        // Convert BigInt values to regular numbers for JSON serialization
         const convertBigIntToNumber = (obj) => {
             if (obj === null || obj === undefined)
                 return obj;
@@ -334,7 +301,6 @@ async function handleDirectSQLMode(_req, res, message, userId, conversationHisto
             return obj;
         };
         const serializableSqlResult = convertBigIntToNumber(sqlResult);
-        // Get the follow-up response from the AI with the SQL results
         const followUpMessages = [
             ...messages,
             {
@@ -350,12 +316,10 @@ async function handleDirectSQLMode(_req, res, message, userId, conversationHisto
         ];
         console.log('Getting follow-up response with SQL results...');
         const finalResponse = await (0, openai_1.chatCompletion)(followUpMessages, chatSettings.model);
-        // If there was an SQL error, check if the AI wants to try another query
         if (sqlError && finalResponse.content) {
             const responseContent = finalResponse.content.toLowerCase();
             if (responseContent.includes('select ') && (responseContent.includes('let me') || responseContent.includes('try') || responseContent.includes('fix'))) {
                 console.log('AI wants to retry with a corrected query, attempting second function call...');
-                // Try to get another function call for the corrected query
                 const retryMessages = [
                     ...followUpMessages,
                     {
@@ -376,9 +340,7 @@ async function handleDirectSQLMode(_req, res, message, userId, conversationHisto
                         let retrySqlResult = null;
                         try {
                             let { query: retryQuery, params: retryParams } = retryFunctionArgs;
-                            // Add userId filter if not present
                             if (!retryQuery.toLowerCase().includes('userid') && !retryQuery.toLowerCase().includes('"userid"')) {
-                                // Remove trailing semicolon if present to avoid syntax errors
                                 retryQuery = retryQuery.replace(/;\s*$/, '');
                                 if (retryQuery.toLowerCase().includes('where')) {
                                     retryQuery += ` AND "userId" = $${retryParams.length + 1}`;
@@ -389,7 +351,6 @@ async function handleDirectSQLMode(_req, res, message, userId, conversationHisto
                                 retryParams.push(userId);
                             }
                             else {
-                                // Replace any placeholder userId values with the real userId
                                 for (let i = 0; i < retryParams.length; i++) {
                                     if (typeof retryParams[i] === 'string' && (retryParams[i].includes('user-') ||
                                         retryParams[i] === 'user_id_placeholder' ||
@@ -401,7 +362,6 @@ async function handleDirectSQLMode(_req, res, message, userId, conversationHisto
                             console.log('Executing retry SQL with params:', retryQuery, retryParams);
                             retrySqlResult = await (0, queries_1.execute_sql_query_with_params)(retryQuery, retryParams);
                             const retrySerializableResult = convertBigIntToNumber(retrySqlResult);
-                            // Get final response with successful results
                             const retryFollowUpMessages = [
                                 ...retryMessages,
                                 {
@@ -435,7 +395,6 @@ async function handleDirectSQLMode(_req, res, message, userId, conversationHisto
                         }
                         catch (retryError) {
                             console.error('Retry SQL execution error:', retryError);
-                            // If retry fails, we'll fall through to the original error response
                         }
                     }
                 }
@@ -460,7 +419,6 @@ async function handleDirectSQLMode(_req, res, message, userId, conversationHisto
         return res.json(responseData);
     }
     else {
-        // No function call - just return the regular response
         const responseData = {
             success: true,
             response: response.content || 'No response generated',

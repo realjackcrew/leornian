@@ -5,18 +5,12 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Link } from 'react-router-dom';
 import { Lock } from 'lucide-react';
-
-// Function to fix malformed table formatting
 const fixTableFormatting = (text) => {
-  // Simple approach: look for the specific pattern and manually fix it
   if (text.includes('| Metric | Value |') && text.includes('Sleep Efficiency')) {
-    // Find the table part
     const lines = text.split('\n');
     let fixedLines = [];
-    
     for (let line of lines) {
       if (line.includes('| Metric | Value | |') && line.includes('Sleep Efficiency')) {
-        // This is the malformed table line - fix it
         fixedLines.push('| Metric | Value |');
         fixedLines.push('|--------------------------|----------------|');
         fixedLines.push('| Sleep Efficiency | 89% |');
@@ -28,21 +22,14 @@ const fixTableFormatting = (text) => {
         fixedLines.push(line);
       }
     }
-    
     return fixedLines.join('\n');
   }
-  
   return text;
 };
-
 export default function Chat() {
   const { token } = useContext(AuthContext);
-  
-  // Function to handle clicking on follow-up questions
   const handleFollowUpQuestion = (question) => {
-    // Set the input to the question and submit it
     setInput(question);
-    // Trigger form submission programmatically
     setTimeout(() => {
       const form = document.querySelector('form');
       if (form) {
@@ -50,7 +37,6 @@ export default function Chat() {
       }
     }, 100);
   };
-  // Show login prompt if not authenticated
   if (!token) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
@@ -68,7 +54,6 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const [includeHistory, setIncludeHistory] = useState(false);
   const [useDirectSQL, setUseDirectSQL] = useState(() => {
-    // Get the setting from localStorage, default to false
     const saved = localStorage.getItem('chatSettings');
     if (saved) {
       try {
@@ -80,11 +65,9 @@ export default function Chat() {
     }
     return false;
   });
-
   const handleInputChange = (e) => {
     setInput(e.target.value);
   };
-
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (input.trim() && !isLoading) {
@@ -92,7 +75,6 @@ export default function Chat() {
       setMessages(prev => [...prev, userMessage]);
       setInput('');
       setIsLoading(true);
-
       try {
         const response = await fetch(`${API_BASE_URL}/api/chat`, {
           method: 'POST',
@@ -110,13 +92,10 @@ export default function Chat() {
             useDirectSQL
           })
         });
-
         console.log('Response status:', response.status);
         console.log('Response headers:', response.headers);
-        
         const responseText = await response.text();
         console.log('Raw response:', responseText);
-        
         let data;
         try {
           data = JSON.parse(responseText);
@@ -124,7 +103,6 @@ export default function Chat() {
           console.error('JSON parse error:', parseError);
           throw new Error(`Invalid JSON response: ${responseText}`);
         }
-
                 if (data.success) {
           console.log('Received follow-up questions from server:', data.followUpQuestions);
           const botMessage = { 
@@ -136,22 +114,17 @@ export default function Chat() {
             queryResult: data.queryResult,
             parseError: data.parseError,
             rawLlmResponse: data.rawLlmResponse,
-            // Direct SQL specific fields
             sqlQuery: data.sqlQuery,
             sqlParams: data.sqlParams,
             sqlResult: data.sqlResult,
             sqlError: data.sqlError,
             finalLlmResponse: data.finalLlmResponse,
-            // Debug information
             debug: data.debug,
-            // Follow-up questions
             followUpQuestions: data.followUpQuestions
           };
           setMessages(prev => {
             console.log('Adding bot message with followUpQuestions:', botMessage.followUpQuestions);
             let newMessages = [...prev, botMessage];
-            
-            // If there are follow-up questions, add them as a separate message
             if (botMessage.followUpQuestions && botMessage.followUpQuestions.length > 0) {
               const followUpMessage = {
                 text: '',
@@ -161,7 +134,6 @@ export default function Chat() {
               };
               newMessages = [...newMessages, followUpMessage];
             }
-            
             console.log('Updated messages array length:', newMessages.length);
             console.log('Last message followUpQuestions:', newMessages[newMessages.length - 1].followUpQuestions);
             return newMessages;
@@ -187,11 +159,10 @@ export default function Chat() {
       }
     }
   };
-
   const formatDirectSQLResponse = (text, sqlQuery, sqlParams, sqlResult, sqlError, rawLlmResponse, finalLlmResponse) => {
     return (
       <div className="space-y-4">
-        {/* Main Response Only */}
+        {}
         <div >
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
             p: ({children}) => <p className="text-white mb-4">{children}</p>,
@@ -216,8 +187,7 @@ export default function Chat() {
             {fixTableFormatting(text)}
           </ReactMarkdown>
         </div>
-
-        {/* Debug Section (collapsible) - only show if there are errors */}
+        {}
         {(sqlError || rawLlmResponse) && (
           <details className="bg-gray-900/30 rounded-lg border border-gray-700/30">
             <summary className="p-3 cursor-pointer text-gray-400 text-sm hover:text-gray-300">
@@ -230,7 +200,6 @@ export default function Chat() {
                   <div className="text-red-200 text-sm">{sqlError}</div>
                 </div>
               )}
-              
               {rawLlmResponse && (
                 <div>
                   <div className="text-gray-400 text-xs mb-1">Initial LLM Response:</div>
@@ -239,7 +208,6 @@ export default function Chat() {
                   </pre>
                 </div>
               )}
-              
               {finalLlmResponse && (
                 <div>
                   <div className="text-gray-400 text-xs mb-1">Final LLM Response:</div>
@@ -254,17 +222,15 @@ export default function Chat() {
       </div>
     );
   };
-
   const formatJsonResponse = (text, parsedIntent, queryResult, parseError, rawLlmResponse, debug, followUpQuestions) => {
     console.log('formatJsonResponse called with followUpQuestions:', followUpQuestions);
     console.log('followUpQuestions type:', typeof followUpQuestions);
     console.log('followUpQuestions length:', followUpQuestions?.length);
     console.log('followUpQuestions truthy check:', !!followUpQuestions);
-    // If we have a successful query result, just show the formatted response
     if (queryResult && queryResult.success) {
       return (
         <div className="space-y-4">
-          {/* Main Response */}
+          {}
                                   <div className="bg-gradient-to-br from-blue-900/20 to-purple-900/20 p-4 rounded-lg border border-blue-700/30">
                             <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
                                 p: ({children}) => <p className="text-white mb-4">{children}</p>,
@@ -289,8 +255,7 @@ export default function Chat() {
                                 {fixTableFormatting(text)}
                             </ReactMarkdown>
                         </div>
-
-          {/* Debug Section */}
+          {}
           {debug && (
             <details className="bg-gray-800/30 rounded-lg border border-gray-600/30">
               <summary className="cursor-pointer p-3 text-gray-300 hover:text-white">
@@ -340,20 +305,17 @@ export default function Chat() {
               </div>
             </details>
           )}
-
-          {/* Query Results Section */}
+          {}
           <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700/50">
             <div className="text-gray-400 mb-3 font-semibold">📊 Query Results</div>
-            
-            {/* Data Count */}
+            {}
             <div className="mb-3 text-sm text-gray-300">
               Found {queryResult.data?.length || 0} records
               {queryResult.totalCount && queryResult.totalCount !== queryResult.data?.length && 
                 ` (showing ${queryResult.data?.length} of ${queryResult.totalCount} total)`
               }
             </div>
-
-            {/* Warnings */}
+            {}
             {queryResult.warnings && queryResult.warnings.length > 0 && (
               <div className="bg-yellow-900/30 p-3 rounded border border-yellow-700/50 mb-3">
                 <div className="text-yellow-400 text-sm font-semibold mb-1">⚠️ Warnings:</div>
@@ -364,8 +326,7 @@ export default function Chat() {
                 </ul>
               </div>
             )}
-
-            {/* Aggregations */}
+            {}
             {queryResult.aggregations && Object.keys(queryResult.aggregations).length > 0 && (
               <div className="bg-blue-900/30 p-3 rounded border border-blue-700/50 mb-3">
                 <div className="text-blue-400 text-sm font-semibold mb-2">📈 Aggregations:</div>
@@ -378,8 +339,7 @@ export default function Chat() {
                 </div>
               </div>
             )}
-
-            {/* Data Table (for small result sets) */}
+            {}
             {queryResult.data && queryResult.data.length > 0 && queryResult.data.length <= 10 && (
               <div className="bg-gray-800/50 p-3 rounded border border-gray-600/50">
                 <div className="text-gray-300 text-sm font-semibold mb-2">📋 Data:</div>
@@ -418,16 +378,14 @@ export default function Chat() {
                 </div>
               </div>
             )}
-
-            {/* Large result sets summary */}
+            {}
             {queryResult.data && queryResult.data.length > 10 && (
               <div className="bg-gray-800/50 p-3 rounded border border-gray-600/50 text-sm text-gray-300">
                 Large result set ({queryResult.data.length} records). Use pagination or filters to see specific data.
               </div>
             )}
           </div>
-
-          {/* Debug Section (collapsible) */}
+          {}
           <details className="bg-gray-900/30 rounded-lg border border-gray-700/30">
             <summary className="p-3 cursor-pointer text-gray-400 text-sm hover:text-gray-300">
               🔧 Debug Info (click to expand)
@@ -441,7 +399,6 @@ export default function Chat() {
                   </pre>
                 </div>
               )}
-              
               {parsedIntent && (
                 <div>
                   <div className="text-gray-400 text-xs mb-1">Parsed Intent:</div>
@@ -455,8 +412,6 @@ export default function Chat() {
         </div>
       );
     }
-
-    // If query failed, show error with debug info
     if (queryResult && !queryResult.success) {
       return (
         <div className="space-y-4">
@@ -484,8 +439,7 @@ export default function Chat() {
               {fixTableFormatting(text)}
             </ReactMarkdown>
           </div>
-
-          {/* Debug section for failed queries */}
+          {}
           {debug && (
             <details className="bg-gray-800/30 rounded-lg border border-gray-600/30">
               <summary className="cursor-pointer p-3 text-gray-300 hover:text-white">
@@ -538,8 +492,6 @@ export default function Chat() {
         </div>
       );
     }
-
-    // Fallback: try to parse as JSON (legacy format)
     try {
       const jsonObj = JSON.parse(text);
       return (
@@ -550,7 +502,6 @@ export default function Chat() {
               {JSON.stringify(jsonObj, null, 2)}
             </pre>
           </div>
-          
           {parseError && (
             <div className="bg-red-900/30 p-4 rounded-lg border border-red-700/50">
               <div className="text-red-400 mb-2">Parse Error:</div>
@@ -560,7 +511,6 @@ export default function Chat() {
         </div>
       );
     } catch (e) {
-                  // If it's not valid JSON, return as regular markdown
             return <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
                 p: ({children}) => <p className="text-white mb-4">{children}</p>,
                 h1: ({children}) => <h1 className="text-white text-2xl font-bold mb-4">{children}</h1>,
@@ -583,10 +533,9 @@ export default function Chat() {
             }}>{fixTableFormatting(text)}</ReactMarkdown>;
     }
   };
-
   return (
     <div className="flex flex-col h-screen bg-black">
-      {/* Header with toggle */}
+      {}
       <div className="bg-gray-900/50 border-b border-gray-700/50 p-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <h1 className="text-xl font-semibold text-white">Chat with Leo</h1>
@@ -609,7 +558,6 @@ export default function Chat() {
           </div>
         </div>
       </div>
-
       <div className="flex-grow p-6 overflow-auto">
         <div className="max-w-4xl mx-auto flex flex-col gap-4">
           {messages.map((message, index) => {
@@ -642,7 +590,6 @@ export default function Chat() {
                   style={{ overflowX: 'auto' }}
                 >
                   {message.isFollowUpQuestions ? 
-                    // Render follow-up questions as a separate component
                     <div className="mt-4 space-y-3">
                       <h4 className="text-gray-300 font-medium text-sm flex items-center">
                         <span className="mr-2">💡</span>

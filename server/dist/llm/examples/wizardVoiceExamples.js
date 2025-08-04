@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.wizardVoiceExamples = void 0;
 exports.wizardVoiceExamples = [
-    // CONCISE EXAMPLES
     {
         voice: 'wizard',
         verbosity: 'concise',
@@ -79,7 +78,6 @@ exports.wizardVoiceExamples = [
         response: "The arcane forces have rejected our query for heart rate variability data. The system returned an 'Invalid query' error, suggesting our magical incantation was flawed. Try rephrasing your request or check the data source's availability.",
         extensionQueries: []
     },
-    // BALANCED EXAMPLES
     {
         voice: 'wizard',
         verbosity: 'balanced',
@@ -156,7 +154,6 @@ exports.wizardVoiceExamples = [
         response: "The arcane forces have rejected our query for heart rate variability data. The system returned an 'Invalid query' error, suggesting our magical incantation was flawed. Try rephrasing your request or check the data source's availability.",
         extensionQueries: []
     },
-    // DETAILED EXAMPLES
     {
         voice: 'wizard',
         verbosity: 'detailed',
@@ -233,7 +230,6 @@ exports.wizardVoiceExamples = [
         response: "The arcane forces have rejected our query for heart rate variability data. The system returned an 'Invalid query' error, suggesting our magical incantation was flawed. Try rephrasing your request or check the data source's availability.",
         extensionQueries: []
     },
-    // VERY DETAILED EXAMPLES
     {
         voice: 'wizard',
         verbosity: 'very-detailed',

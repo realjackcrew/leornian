@@ -6,15 +6,12 @@ exports.getCategoryFields = getCategoryFields;
 exports.isCategory = isCategory;
 exports.isDatapoint = isDatapoint;
 exports.getDatapointCategory = getDatapointCategory;
-// Map of field names to their JSON paths in the healthData structure
 exports.fieldPathMap = {
-    // Categories (for when user selects entire categories)
     sleep: `"healthData"->'values'->'sleep'`,
     nutrition: `"healthData"->'values'->'nutrition'`,
     lifestyle: `"healthData"->'values'->'lifestyle'`,
     physicalHealth: `"healthData"->'values'->'physicalHealth'`,
     mentalHealth: `"healthData"->'values'->'mentalHealth'`,
-    // Sleep datapoints
     usedScreenBeforeBed: `"healthData"->'values'->'sleep'->>'usedScreenBeforeBed'`,
     usedScreenAfterWake: `"healthData"->'values'->'sleep'->>'usedScreenAfterWake'`,
     sleptInHomeBed: `"healthData"->'values'->'sleep'->>'sleptInHomeBed'`,
@@ -29,7 +26,6 @@ exports.fieldPathMap = {
     sleepConsistencyPercent: `"healthData"->'values'->'sleep'->>'sleepConsistencyPercent'`,
     sleepFulfillmentPercent: `"healthData"->'values'->'sleep'->>'sleepFulfillmentPercent'`,
     sleepDebtMinutes: `"healthData"->'values'->'sleep'->>'sleepDebtMinutes'`,
-    // Nutrition datapoints
     consumedUltraProcessedFood: `"healthData"->'values'->'nutrition'->>'consumedUltraProcessedFood'`,
     consumedAddedSugar: `"healthData"->'values'->'nutrition'->>'consumedAddedSugar'`,
     consumedAlcohol: `"healthData"->'values'->'nutrition'->>'consumedAlcohol'`,
@@ -47,7 +43,6 @@ exports.fieldPathMap = {
     mealsConsumed: `"healthData"->'values'->'nutrition'->>'mealsConsumed'`,
     mealsWithVegetables: `"healthData"->'values'->'nutrition'->>'mealsWithVegetables'`,
     snacked: `"healthData"->'values'->'nutrition'->>'snacked'`,
-    // Lifestyle datapoints
     totalScreenTimeHours: `"healthData"->'values'->'lifestyle'->>'totalScreenTimeHours'`,
     consumedEntertainmentContent: `"healthData"->'values'->'lifestyle'->>'consumedEntertainmentContent'`,
     didColdTherapy: `"healthData"->'values'->'lifestyle'->>'didColdTherapy'`,
@@ -61,7 +56,6 @@ exports.fieldPathMap = {
     spentMostOfDayWorking: `"healthData"->'values'->'lifestyle'->>'spentMostOfDayWorking'`,
     spentMostOfDayAtHome: `"healthData"->'values'->'lifestyle'->>'spentMostOfDayAtHome'`,
     spentMostOfDayAwayFromHome: `"healthData"->'values'->'lifestyle'->>'spentMostOfDayAwayFromHome'`,
-    // Physical Health datapoints
     didStrengthTrainingWorkout: `"healthData"->'values'->'physicalHealth'->>'didStrengthTrainingWorkout'`,
     wentForRun: `"healthData"->'values'->'physicalHealth'->>'wentForRun'`,
     didStretchingOrMobility: `"healthData"->'values'->'physicalHealth'->>'didStretchingOrMobility'`,
@@ -81,7 +75,6 @@ exports.fieldPathMap = {
     heartRateVariability: `"healthData"->'values'->'physicalHealth'->>'heartRateVariability'`,
     whoopStrainScore: `"healthData"->'values'->'physicalHealth'->>'whoopStrainScore'`,
     whoopRecoveryScorePercent: `"healthData"->'values'->'physicalHealth'->>'whoopRecoveryScorePercent'`,
-    // Mental Health datapoints
     experiencedStressfulEvent: `"healthData"->'values'->'mentalHealth'->>'experiencedStressfulEvent'`,
     feltIrritable: `"healthData"->'values'->'mentalHealth'->>'feltIrritable'`,
     feltAnxious: `"healthData"->'values'->'mentalHealth'->>'feltAnxious'`,
@@ -93,7 +86,6 @@ exports.fieldPathMap = {
     feltEnergized: `"healthData"->'values'->'mentalHealth'->>'feltEnergized'`,
     feltPurposeful: `"healthData"->'values'->'mentalHealth'->>'feltPurposeful'`,
 };
-// Map of category names to their field names
 exports.categoryFieldMap = {
     sleep: [
         'usedScreenBeforeBed', 'usedScreenAfterWake', 'sleptInHomeBed',
@@ -129,23 +121,18 @@ exports.categoryFieldMap = {
         'feltEnergized', 'feltPurposeful'
     ]
 };
-// Helper function to get the JSON path for a field name
 function getFieldPath(fieldName) {
     return exports.fieldPathMap[fieldName] || `"healthData"->'values'->'${fieldName}'`;
 }
-// Helper function to get all field names for a category
 function getCategoryFields(categoryName) {
     return exports.categoryFieldMap[categoryName] || [];
 }
-// Helper function to check if a field name is a category
 function isCategory(fieldName) {
     return Object.keys(exports.categoryFieldMap).includes(fieldName);
 }
-// Helper function to check if a field name is a datapoint
 function isDatapoint(fieldName) {
     return exports.fieldPathMap.hasOwnProperty(fieldName) && !isCategory(fieldName);
 }
-// Helper function to get the category for a datapoint
 function getDatapointCategory(datapointName) {
     for (const [category, fields] of Object.entries(exports.categoryFieldMap)) {
         if (fields.includes(datapointName)) {

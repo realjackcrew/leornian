@@ -1,17 +1,15 @@
 import { useState, useEffect, useContext } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Check, Settings as SettingsIcon, Database, User, MessageCircle, ChevronRight, Zap, Palette, Plus, Trash2, Lock } from "lucide-react";
-import { checkWhoopStatus, getUserProfile, disconnectWhoop, testWhoopConnection } from '../api/auth';
-import { getDatapointDefinitions, getDatapointPreferences, saveDatapointPreferences, createCustomDatapoint, deleteCustomDatapoint, getCustomDatapoints } from '../api/datapoints';
+import { Check, Settings as SettingsIcon, Database, User, MessageCircle, ChevronRight, Zap, Plus, Trash2, Lock, Edit, Minus } from "lucide-react";
+import { checkWhoopStatus, getUserProfile, disconnectWhoop } from '../api/auth';
+import { getAllDatapoints, saveEnabledDatapoints, createDatapoint, deleteDatapoints, updateDatapoint } from '../api/datapoints';
 import { getChatSettings, updateChatSettings, getChatOptions } from '../api/chat';
 import { API_BASE_URL } from '../config';
 import { AuthContext } from '../context/AuthContext';
 import whoopIcon from '../assets/whoop-icon.png';
-
 export default function Settings() {
     const navigate = useNavigate();
     const { refreshUser, token } = useContext(AuthContext);
-    // Show login prompt if not authenticated
     if (!token) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-black">
@@ -29,10 +27,7 @@ export default function Settings() {
     const [userProfile, setUserProfile] = useState({ firstName: '', lastName: '', email: '' });
     const [dataPointDefinitions, setDataPointDefinitions] = useState({});
     const [enabledDatapoints, setEnabledDatapoints] = useState({});
-
     const [selectedFont, setSelectedFont] = useState('open-sans');
-    
-    // Chat settings state
     const [chatSettings, setChatSettings] = useState({
         voice: 'default',
         verbosity: 'balanced',
@@ -45,22 +40,20 @@ export default function Settings() {
         models: []
     });
     const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-    const [testResult, setTestResult] = useState(null);
-    const [isTesting, setIsTesting] = useState(false);
-
-    // Custom datapoints state
-    const [customDatapoints, setCustomDatapoints] = useState([]);
-    const [showCustomForm, setShowCustomForm] = useState(false);
+    const [showAddDatapointForm, setShowAddDatapointForm] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState('');
-    const [newCustomDatapoint, setNewCustomDatapoint] = useState({
+    const [newDatapoint, setNewDatapoint] = useState({
+        name: '',
         label: '',
         type: 'boolean',
-        description: '',
         min: 0,
         max: 100,
         step: 1
     });
-
+    const [deleteMode, setDeleteMode] = useState({});
+    const [stagedForDeletion, setStagedForDeletion] = useState({});
+    const [editMode, setEditMode] = useState({});
+    const [editingDatapoint, setEditingDatapoint] = useState(null);
     useEffect(() => {
         const checkAuthCallback = async () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -68,35 +61,29 @@ export default function Settings() {
             if (authStatus) {
                 if (authStatus === 'success') {
                     setToast({ show: true, message: 'WHOOP connected successfully!', type: 'success' });
-                    // Refresh whoop status to show connected state
                     const status = await checkWhoopStatus();
                     setWhoopStatus(status);
                 } else {
                     setToast({ show: true, message: 'Failed to connect WHOOP. Please try again.', type: 'error' });
                 }
-                // Clean the URL
                 navigate('/settings', { replace: true });
             }
         };
-
         checkAuthCallback();
-
-        // Load user profile, WHOOP status, datapoint data, and chat settings
         const loadData = async () => {
             try {
-                const [profile, whoop, definitions, preferences, chatSettingsData, chatOptionsData, customData] = await Promise.all([
+                const [profile, whoop, datapointData, chatSettingsData, chatOptionsData] = await Promise.all([
                     getUserProfile(),
                     checkWhoopStatus(),
-                    getDatapointDefinitions(),
-                    getDatapointPreferences(),
+                    getAllDatapoints(),
                     getChatSettings(),
                     getChatOptions(),
-                    getCustomDatapoints()
                 ]);
                 setUserProfile(profile);
                 setWhoopStatus(whoop);
-                setDataPointDefinitions(definitions);
-                // Load useDirectSQL from localStorage if available
+                setDataPointDefinitions(datapointData.definitions);
+                setEnabledDatapoints(datapointData.preferences);
+
                 const savedChatSettings = localStorage.getItem('chatSettings');
                 let useDirectSQL = false;
                 if (savedChatSettings) {
@@ -107,36 +94,18 @@ export default function Settings() {
                         useDirectSQL = false;
                     }
                 }
-                
                 setChatSettings({
                     ...chatSettingsData,
                     useDirectSQL
                 });
                 setChatOptions(chatOptionsData);
-                setCustomDatapoints(customData);
-                
-                // If user has no preferences, initialize with all datapoints enabled
-                if (Object.keys(preferences).length === 0) {
-                    const allEnabled = {};
-                    Object.entries(definitions).forEach(([category, dataPoints]) => {
-                        allEnabled[category] = {};
-                        Object.keys(dataPoints).forEach(key => {
-                            allEnabled[category][key] = true;
-                        });
-                    });
-                    setEnabledDatapoints(allEnabled);
-                } else {
-                    setEnabledDatapoints(preferences);
-                }
+
             } catch (err) {
                 console.error('Failed to load data:', err);
             }
         };
-        
         loadData();
     }, []);
-
-    // Effect to hide toast after a few seconds
     useEffect(() => {
         if (toast.show) {
             const timer = setTimeout(() => {
@@ -145,10 +114,6 @@ export default function Settings() {
             return () => clearTimeout(timer);
         }
     }, [toast]);
-
-
-
-    // Load saved font on mount
     useEffect(() => {
         const savedFont = localStorage.getItem('selectedFont');
         if (savedFont) {
@@ -169,7 +134,6 @@ export default function Settings() {
             document.documentElement.style.fontFamily = fontMap[savedFont] || fontMap['open-sans'];
         }
     }, []);
-
     const handleWhoopConnect = () => {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -178,7 +142,6 @@ export default function Settings() {
         }
         window.location.href = `${API_BASE_URL}/api/auth/whoop?token=${token}`;
     };
-
     const handleWhoopDisconnect = async () => {
         try {
             await disconnectWhoop();
@@ -189,39 +152,19 @@ export default function Settings() {
             alert('Failed to disconnect WHOOP account. Please try again.');
         }
     };
-
-    const handleTestConnection = async () => {
-        setIsTesting(true);
-        setTestResult(null);
-        try {
-            const result = await testWhoopConnection();
-            setTestResult(result);
-        } catch (error) {
-            setTestResult({ success: false, message: error.message || 'An unknown error occurred.' });
-        } finally {
-            setIsTesting(false);
-        }
-    };
-
     const handleToggleCategory = (category) => {
         setEnabledDatapoints(prev => {
             const newState = { ...prev };
             const currentValues = prev[category];
             const isAllEnabled = Object.values(currentValues).every(Boolean);
-            
-            // If all are enabled, disable all. If any are disabled, enable all.
             const newValue = !isAllEnabled;
-            
-            // Create a new category object with all values set to the new value
             newState[category] = {};
             Object.keys(dataPointDefinitions[category]).forEach(key => {
                 newState[category][key] = newValue;
             });
-            
             return newState;
         });
     };
-
     const handleToggleDatapoint = (category, datapoint) => {
         setEnabledDatapoints(prev => ({
             ...prev,
@@ -231,7 +174,6 @@ export default function Settings() {
             }
         }));
     };
-
     const handleSaveProfile = async () => {
         try {
             const response = await fetch(`${API_BASE_URL}/api/user/profile`, {
@@ -247,35 +189,28 @@ export default function Settings() {
                     preferredName: userProfile.preferredName
                 }),
             });
-
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-
-            // Refresh the user context to update the navbar
             await refreshUser();
-            
             alert('Profile updated successfully!');
         } catch (err) {
             console.error('Failed to save profile:', err);
             alert('Failed to save profile. Please try again.');
         }
     };
-
     const handleSaveDatapoints = async () => {
         try {
-            await saveDatapointPreferences(enabledDatapoints);
+            await saveEnabledDatapoints(enabledDatapoints);
             alert('Datapoint configuration saved successfully!');
         } catch (err) {
             console.error('Failed to save datapoint configuration:', err);
             alert('Failed to save datapoint configuration. Please try again.');
         }
     };
-
     const handleSaveChatSettings = async () => {
         try {
             await updateChatSettings(chatSettings);
-            // Save useDirectSQL to localStorage for the chat page
             localStorage.setItem('chatSettings', JSON.stringify({
                 useDirectSQL: chatSettings.useDirectSQL
             }));
@@ -285,137 +220,165 @@ export default function Settings() {
             alert('Failed to save chat settings. Please try again.');
         }
     };
-
     const handleChatSettingChange = (setting, value) => {
         setChatSettings(prev => ({
             ...prev,
             [setting]: value
         }));
     };
-
-    // Custom datapoint functions
-    const handleCreateCustomDatapoint = async () => {
+    const handleCreateDatapoint = async () => {
         try {
-            if (!newCustomDatapoint.label.trim()) {
+            if (!newDatapoint.name.trim()) {
+                alert('Please enter a name for the datapoint');
+                return;
+            }
+            if (!newDatapoint.label.trim()) {
                 alert('Please enter a label for the datapoint');
                 return;
             }
-
+            if (!newDatapoint.type) {
+                alert('Please select a type for the datapoint');
+                return;
+            }
             if (!selectedCategory) {
                 alert('Please select a category');
                 return;
             }
-
-            const result = await createCustomDatapoint({
-                ...newCustomDatapoint,
+            const result = await createDatapoint({
+                ...newDatapoint,
                 category: selectedCategory
             });
-            
-            // Refresh data to get updated definitions and custom datapoints
-            const [definitions, customData] = await Promise.all([
-                getDatapointDefinitions(),
-                getCustomDatapoints()
-            ]);
-            setDataPointDefinitions(definitions);
-            setCustomDatapoints(customData);
-            
-            // Reset form
-            setNewCustomDatapoint({
+            const datapointData = await getAllDatapoints();
+            setDataPointDefinitions(datapointData.definitions);
+            setEnabledDatapoints(datapointData.preferences);
+            setNewDatapoint({
+                name: '',
                 label: '',
                 type: 'boolean',
-                description: '',
                 min: 0,
                 max: 100,
                 step: 1
             });
-            setShowCustomForm(false);
+            setShowAddDatapointForm(false);
             setSelectedCategory('');
-            
-            alert('Custom datapoint created successfully!');
+            alert('Datapoint created successfully!');
         } catch (err) {
-            console.error('Failed to create custom datapoint:', err);
-            alert(err.message || 'Failed to create custom datapoint. Please try again.');
+            console.error('Failed to create datapoint:', err);
+            alert(err.message || 'Failed to create datapoint. Please try again.');
         }
     };
-
-    const handleDeleteCustomDatapoint = async (category, name) => {
-        if (!confirm('Are you sure you want to delete this custom datapoint? This action cannot be undone.')) {
-            return;
-        }
-
-        try {
-            await deleteCustomDatapoint(category, name);
-
-            // Instantly remove from local state for instant UI update
-            setDataPointDefinitions(prev => {
-                const updated = { ...prev };
-                if (updated[category]) {
-                    delete updated[category][name];
-                }
-                return updated;
-            });
-            setCustomDatapoints(prev => prev.filter(d => !(d.category === category && d.name === name)));
-            setEnabledDatapoints(prev => {
-                const updated = { ...prev };
-                if (updated[category]) {
-                    delete updated[category][name];
-                }
-                return updated;
-            });
-
-            // Optionally, refresh all data to ensure consistency
-            const [definitions, customData, preferences] = await Promise.all([
-                getDatapointDefinitions(),
-                getCustomDatapoints(),
-                getDatapointPreferences()
-            ]);
-            setDataPointDefinitions(definitions);
-            setCustomDatapoints(customData);
-            // Remove the deleted datapoint from preferences before setting
-            const cleanedPreferences = { ...preferences };
-            if (cleanedPreferences[category] && cleanedPreferences[category][name]) {
-                delete cleanedPreferences[category][name];
-            }
-            setEnabledDatapoints(cleanedPreferences);
-
-            alert('Custom datapoint deleted successfully!');
-        } catch (err) {
-            console.error('Failed to delete custom datapoint:', err);
-            alert(err.message || 'Failed to delete custom datapoint. Please try again.');
-        }
-    };
-
-    const handleCustomDatapointChange = (field, value) => {
-        setNewCustomDatapoint(prev => ({
+    const handleDatapointChange = (field, value) => {
+        setNewDatapoint(prev => ({
             ...prev,
             [field]: value
         }));
     };
-
-    const handleAddCustomDatapoint = (category) => {
+    const handleAddDatapoint = (category) => {
         setSelectedCategory(category);
-        setShowCustomForm(true);
+        setShowAddDatapointForm(true);
     };
 
+    const toggleDeleteMode = (category) => {
+        setDeleteMode(prev => ({ ...prev, [category]: !prev[category] }));
+        setStagedForDeletion(prev => ({ ...prev, [category]: [] }));
+    };
+
+    const handleDeleteDatapoint = (category, datapointKey) => {
+        setStagedForDeletion(prev => {
+            const staged = prev[category] || [];
+            if (staged.includes(datapointKey)) {
+                return { ...prev, [category]: staged.filter(dp => dp !== datapointKey) };
+            } else {
+                return { ...prev, [category]: [...staged, datapointKey] };
+            }
+        });
+    };
+
+    const handleSaveDeletions = async (category) => {
+        const toDelete = stagedForDeletion[category] || [];
+        if (toDelete.length === 0) {
+            toggleDeleteMode(category);
+            return;
+        }
+
+        const datapointLabels = toDelete.map(dpKey => dataPointDefinitions[category][dpKey].label).join(', ');
+        if (confirm(`Are you sure you want to delete the following datapoint(s)?: \n\n${datapointLabels} \n\nThis action is permanent and cannot be undone.`)) {
+            try {
+                const datapointsToDelete = toDelete.map(name => ({ category, name }));
+                await deleteDatapoints(datapointsToDelete);
+                const datapointData = await getAllDatapoints();
+                setDataPointDefinitions(datapointData.definitions);
+                setEnabledDatapoints(datapointData.preferences);
+                toggleDeleteMode(category);
+                alert('Datapoints deleted successfully!');
+            } catch (err) {
+                console.error('Failed to delete datapoints:', err);
+                alert(err.message || 'Failed to delete datapoints. Please try again.');
+            }
+        }
+    };
+
+    const toggleEditMode = (category) => {
+        setEditMode(prev => ({ ...prev, [category]: !prev[category] }));
+        setEditingDatapoint(null);
+    };
+
+    const handleEditDatapoint = (category, datapointKey) => {
+        const datapoint = dataPointDefinitions[category][datapointKey];
+        setEditingDatapoint({
+            category,
+            name: datapointKey,
+            ...datapoint
+        });
+    };
+
+    const handleUpdateDatapoint = async () => {
+        if (!editingDatapoint) return;
+        
+        if (!editingDatapoint.name.trim()) {
+            alert('Please enter a name for the datapoint');
+            return;
+        }
+        if (!editingDatapoint.label.trim()) {
+            alert('Please enter a label for the datapoint');
+            return;
+        }
+        if (!editingDatapoint.type) {
+            alert('Please select a type for the datapoint');
+            return;
+        }
+        
+        try {
+            await updateDatapoint(editingDatapoint);
+            const datapointData = await getAllDatapoints();
+            setDataPointDefinitions(datapointData.definitions);
+            setEnabledDatapoints(datapointData.preferences);
+            setEditingDatapoint(null);
+            alert('Datapoint updated successfully!');
+        } catch (err) {
+            console.error('Failed to update datapoint:', err);
+            alert(err.message || 'Failed to update datapoint. Please try again.');
+        }
+    };
+
+    const handleCancelEdit = () => {
+        setEditingDatapoint(null);
+    };
     const getCategoryButtonText = (categoryKey) => {
         const categoryValues = enabledDatapoints[categoryKey];
         if (!categoryValues) return 'Enable All';
         return Object.values(categoryValues).every(Boolean) ? 'Disable All' : 'Enable All';
     };
-
     const categoryNames = Object.keys(dataPointDefinitions).map(key => ({
         key,
         name: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')
     }));
-
     const menuItems = [
         { id: 'profile', label: 'Profile', icon: User },
         { id: 'chat', label: 'Chat', icon: MessageCircle },
         { id: 'integrations', label: 'Integrations', icon: Zap },
-        { id: 'datapoints', label: 'Datapoints', icon: Database },
-        { id: 'appearance', label: 'Appearance', icon: Palette }
-    ];
-
+        { id: 'datapoints', label: 'Datapoints', icon: Database }
+        ];
     const renderProfileSection = () => (
         <div className="space-y-6">
             <div>
@@ -426,9 +389,8 @@ export default function Settings() {
                     Manage your account information and personal details
                 </p>
             </div>
-
             <div className="space-y-6">
-                {/* Name Section */}
+                {}
                 <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
                     <h3 className="text-lg font-medium text-white mb-4">
                         Personal Information
@@ -490,7 +452,7 @@ export default function Settings() {
                             />
                         </div>
                     </div>
-                    {/* Save Profile Button */}
+                    {}
                     <div className="flex justify-end pt-4">
                         <button
                             onClick={handleSaveProfile}
@@ -503,7 +465,6 @@ export default function Settings() {
             </div>
         </div>
     );
-
     const renderChatSection = () => (
         <div className="space-y-6">
             <div>
@@ -514,9 +475,8 @@ export default function Settings() {
                     Customize your chat experience and AI assistant preferences
                 </p>
             </div>
-
             <div className="space-y-6">
-                {/* Model Selection */}
+                {}
                 <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
                     <h3 className="text-lg font-medium text-white mb-4">
                         AI Model
@@ -538,8 +498,7 @@ export default function Settings() {
                         </select>
                     </div>
                 </div>
-
-                {/* Response Verbosity */}
+                {}
                 <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
                     <h3 className="text-lg font-medium text-white mb-4">
                         Response Style
@@ -556,12 +515,11 @@ export default function Settings() {
                                     {verbosity.charAt(0).toUpperCase() + verbosity.slice(1).replace('-', ' ')}
                                 </option>
                             ))}
-                            {/* <option value="dinosaur">I actually don't want to learn about my health. Give me random dinosaur facts.</option> */}
+                            {}
                         </select>
                     </div>
                 </div>
-
-                {/* Voice Selection */}
+                {}
                 <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
                     <h3 className="text-lg font-medium text-white mb-4">
                         Chat Voice
@@ -581,8 +539,7 @@ export default function Settings() {
                         </select>
                     </div>
                 </div>
-
-                {/* Direct SQL Mode Toggle */}
+                {}
                 <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
                     <h3 className="text-lg font-medium text-white mb-4">
                         Query System
@@ -614,8 +571,7 @@ export default function Settings() {
                         </div>
                     </div>
                 </div>
-
-                {/* Save Chat Settings Button */}
+                {}
                 <div className="flex justify-end pt-6">
                     <button
                         onClick={handleSaveChatSettings}
@@ -627,7 +583,6 @@ export default function Settings() {
             </div>
         </div>
     );
-
     const renderIntegrationsSection = () => (
         <div className="space-y-6">
             <div>
@@ -639,8 +594,7 @@ export default function Settings() {
                 </p>
             </div>
             <div className="border-t border-gray-700"></div>
-
-            {/* WHOOP Integration */}
+            {}
             <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
@@ -693,7 +647,6 @@ export default function Settings() {
             </div>
         </div>
     );
-
     const renderDatapointsSection = () => (
         <div className="space-y-6">
             <div>
@@ -704,205 +657,309 @@ export default function Settings() {
                     Choose which datapoints to include in your daily logs
                 </p>
             </div>
-
-            <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
-                <div className="p-6 border-transparent">
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-medium text-white">
-                            Available Datapoints
-                        </h3>
-                    </div>
-                </div>
-
-                <div className="p-6">
-                    <div className="space-y-6">
-                        {categoryNames.map(({ key, name }) => (
-                            <div key={key} className="border border-gray-700 rounded-lg">
-                                <div className="p-4 bg-gray-700 border-b border-gray-600">
-                                    <div className="flex items-center justify-between">
-                                        <h4 className="text-lg font-medium text-white">
-                                            {name}
-                                        </h4>
-                                        <div className="flex items-center space-x-3">
-                                            <button
-                                                onClick={() => handleToggleCategory(key)}
-                                                className="text-sm text-blue-400 hover:text-blue-300"
-                                            >
-                                                {getCategoryButtonText(key)}
-                                            </button>
-                                            <button
-                                                onClick={() => handleAddCustomDatapoint(key)}
-                                                className="flex items-center space-x-1 px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                                            >
-                                                <Plus className="h-3 w-3" />
-                                                <span>Add Custom</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Custom Datapoint Form for this category */}
-                                {showCustomForm && selectedCategory === key && (
-                                    <div className="p-4 border-b border-gray-600 bg-blue-50 dark:bg-blue-900/20">
-                                        <h5 className="text-md font-medium text-white mb-3">
-                                            Add Custom Datapoint to {name}
-                                        </h5>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                    Label *
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={newCustomDatapoint.label}
-                                                    onChange={(e) => handleCustomDatapointChange('label', e.target.value)}
-                                                    className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
-                                                    placeholder="e.g., Meditation Minutes"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                    Type *
-                                                </label>
-                                                <select
-                                                    value={newCustomDatapoint.type}
-                                                    onChange={(e) => handleCustomDatapointChange('type', e.target.value)}
-                                                    className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
-                                                >
-                                                    <option value="boolean">Yes/No</option>
-                                                    <option value="number">Number</option>
-                                                    <option value="time">Time</option>
-                                                    <option value="text">Text</option>
-                                                </select>
-                                            </div>
-                                            <div className="md:col-span-2">
-                                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                    Description (optional)
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={newCustomDatapoint.description}
-                                                    onChange={(e) => handleCustomDatapointChange('description', e.target.value)}
-                                                    className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
-                                                    placeholder="Brief description of what this datapoint tracks"
-                                                />
-                                            </div>
-                                            {newCustomDatapoint.type === 'number' && (
-                                                <>
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                            Minimum Value
-                                                        </label>
-                                                        <input
-                                                            type="number"
-                                                            value={newCustomDatapoint.min}
-                                                            onChange={(e) => handleCustomDatapointChange('min', parseFloat(e.target.value) || 0)}
-                                                            className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                            Maximum Value
-                                                        </label>
-                                                        <input
-                                                            type="number"
-                                                            value={newCustomDatapoint.max}
-                                                            onChange={(e) => handleCustomDatapointChange('max', parseFloat(e.target.value) || 100)}
-                                                            className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                                                            Step Size
-                                                        </label>
-                                                        <input
-                                                            type="number"
-                                                            value={newCustomDatapoint.step}
-                                                            onChange={(e) => handleCustomDatapointChange('step', parseFloat(e.target.value) || 1)}
-                                                            className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
-                                                        />
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                        <div className="flex justify-end space-x-3 mt-4">
-                                            <button
-                                                onClick={() => {
-                                                    setShowCustomForm(false);
-                                                    setSelectedCategory('');
-                                                }}
-                                                className="px-4 py-2 text-gray-300 border border-gray-600 rounded-md hover:bg-gray-600 transition-colors"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button
-                                                onClick={handleCreateCustomDatapoint}
-                                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                                            >
-                                                Create Datapoint
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="p-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {Object.entries(dataPointDefinitions[key] || {}).map(([datapointKey, definition]) => {
-                                            // Check if this is a custom datapoint
-                                            const isCustom = customDatapoints.some(custom => 
-                                                custom.name === datapointKey && custom.category === key
-                                            );
-                                            const customDatapoint = isCustom ? 
-                                                customDatapoints.find(custom => custom.name === datapointKey && custom.category === key) : 
-                                                null;
-
-                                            // Debug logging
-                                            if (datapointKey.startsWith('custom')) {
-                                                console.log('Rendering datapoint:', datapointKey, 'isCustom:', isCustom, 'customDatapoints:', customDatapoints);
-                                            }
-
-                                            return (
-                                                <div key={datapointKey} className="flex items-center justify-between p-2 bg-gray-700 rounded-lg">
-                                                    <div className="flex items-center space-x-3 flex-1">
-                                                        <input
-                                                            type="checkbox"
-                                                            id={`${key}-${datapointKey}`}
-                                                            checked={enabledDatapoints[key]?.[datapointKey] || false}
-                                                            onChange={() => handleToggleDatapoint(key, datapointKey)}
-                                                            className="h-4 w-4 text-blue-400 focus:ring-blue-500 border-gray-600 rounded"
-                                                        />
-                                                        <label
-                                                            htmlFor={`${key}-${datapointKey}`}
-                                                            className="text-sm text-gray-300 cursor-pointer flex-1"
-                                                        >
-                                                            {definition.label}
-                                                            {isCustom && (
-                                                                <span className="text-xs text-blue-400 ml-1">
-                                                                    (custom)
-                                                                </span>
-                                                            )}
-                                                        </label>
-                                                    </div>
-                                                    {isCustom && (
-                                                        <button
-                                                            onClick={() => handleDeleteCustomDatapoint(key, datapointKey)}
-                                                            className="p-1 text-red-400 hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                                                            title="Delete custom datapoint"
-                                                        >
-                                                            <Trash2 className="h-3 w-3" />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+            <div className="space-y-6">
+                {categoryNames.map(({ key, name }) => (
+                    <div key={key} className="border border-gray-700 rounded-lg overflow-hidden">
+                        <div className="p-4 bg-gray-700 border-b border-gray-600">
+                            <div className="flex items-center justify-between">
+                                <h4 className="text-lg font-medium text-white">
+                                    {name}
+                                </h4>
+                                <div className="flex items-center space-x-2">
+                                    <button
+                                        className="p-2 rounded-md hover:bg-gray-600 transition-colors disabled:opacity-50"
+                                        onClick={() => handleAddDatapoint(key)}
+                                        disabled={deleteMode[key] || editMode[key]}
+                                    >
+                                        <Plus size={16} />
+                                    </button>
+                                    <button
+                                        className={`p-2 rounded-md hover:bg-gray-600 transition-colors disabled:opacity-50 ${deleteMode[key] ? 'bg-red-500/50' : ''}`}
+                                        onClick={() => toggleDeleteMode(key)}
+                                        disabled={showAddDatapointForm || editMode[key]}
+                                    >
+                                        {deleteMode[key] ? <span className="text-xs">Back</span> : <Minus size={16} />}
+                                    </button>
+                                    <button
+                                        className={`p-2 rounded-md hover:bg-gray-600 transition-colors disabled:opacity-50 ${editMode[key] ? 'bg-blue-500/50' : ''}`}
+                                        onClick={() => toggleEditMode(key)}
+                                        disabled={deleteMode[key] || showAddDatapointForm}
+                                    >
+                                        {editMode[key] ? <span className="text-xs">Back</span> : <Edit size={16} />}
+                                    </button>
                                 </div>
                             </div>
-                        ))}
+                        </div>
+                        {editMode[key] && editingDatapoint && editingDatapoint.category === key && (
+                            <div className="p-4 border-b border-gray-600 bg-gray-800">
+                                <h5 className="text-md font-medium text-white mb-3">
+                                    Editing {editingDatapoint.label}
+                                </h5>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editingDatapoint.name}
+                                            onChange={(e) => setEditingDatapoint(prev => ({ ...prev, name: e.target.value }))}
+                                            className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            No spaces. This is the internal variable name.
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            Label
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={editingDatapoint.label}
+                                            onChange={(e) => setEditingDatapoint(prev => ({ ...prev, label: e.target.value }))}
+                                            className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            This is what users will see in the interface.
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            Type
+                                        </label>
+                                        <select
+                                            value={editingDatapoint.type}
+                                            onChange={(e) => setEditingDatapoint(prev => ({ ...prev, type: e.target.value }))}
+                                            className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                                        >
+                                            <option value="boolean">Yes/No</option>
+                                            <option value="number">Number</option>
+                                            <option value="time">Time</option>
+                                            <option value="text">Text</option>
+                                        </select>
+                                    </div>
+                                        {editingDatapoint.type === 'number' && (
+                                         <>
+                                             <div>
+                                                 <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                     Minimum Value
+                                                 </label>
+                                                 <input
+                                                     type="number"
+                                                     value={editingDatapoint.min || 0}
+                                                     onChange={(e) => setEditingDatapoint(prev => ({ ...prev, min: parseFloat(e.target.value) || 0 }))}
+                                                     className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                                                 />
+                                             </div>
+                                             <div>
+                                                 <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                     Maximum Value
+                                                 </label>
+                                                 <input
+                                                     type="number"
+                                                     value={editingDatapoint.max || 100}
+                                                     onChange={(e) => setEditingDatapoint(prev => ({ ...prev, max: parseFloat(e.target.value) || 100 }))}
+                                                     className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                                                 />
+                                             </div>
+                                             <div>
+                                                 <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                     Step Size
+                                                 </label>
+                                                 <input
+                                                     type="number"
+                                                     value={editingDatapoint.step || 1}
+                                                     onChange={(e) => setEditingDatapoint(prev => ({ ...prev, step: parseFloat(e.target.value) || 1 }))}
+                                                     className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                                                 />
+                                             </div>
+                                         </>
+                                     )}
+                                </div>
+                                <div className="flex justify-end space-x-3 mt-4">
+                                    <button
+                                        onClick={handleCancelEdit}
+                                        className="px-4 py-2 text-gray-300 border border-gray-600 rounded-md hover:bg-gray-600 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleUpdateDatapoint}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                                    >
+                                        Save Changes
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                        {}
+                        {showAddDatapointForm && selectedCategory === key && (
+                            <div className="p-4 border-b border-gray-600 bg-gray-800">
+                                <h5 className="text-md font-medium text-white mb-3">
+                                    Add Datapoint to {name}
+                                </h5>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={newDatapoint.name}
+                                            onChange={(e) => handleDatapointChange('name', e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                                            placeholder=" e.g. meditationMinutes"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            No spaces. This will be the internal variable name.
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            Label
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={newDatapoint.label}
+                                            onChange={(e) => handleDatapointChange('label', e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                                            placeholder="e.g., Meditation Minutes"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            This is what you will see in the interface.
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            Type
+                                        </label>
+                                        <select
+                                            value={newDatapoint.type}
+                                            onChange={(e) => handleDatapointChange('type', e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                                        >
+                                            <option value="boolean">Yes/No</option>
+                                            <option value="number">Number</option>
+                                            <option value="time">Time</option>
+                                            <option value="text">Text</option>
+                                        </select>
+                                    </div>
+                                    {newDatapoint.type === 'number' && (
+                                        <>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                    Minimum Value
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    value={newDatapoint.min}
+                                                    onChange={(e) => handleDatapointChange('min', parseFloat(e.target.value) || 0)}
+                                                    className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                    Maximum Value
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    value={newDatapoint.max}
+                                                    onChange={(e) => handleDatapointChange('max', parseFloat(e.target.value) || 100)}
+                                                    className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-300 mb-2">
+                                                    Step Size
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    value={newDatapoint.step}
+                                                    onChange={(e) => handleDatapointChange('step', parseFloat(e.target.value) || 1)}
+                                                    className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
+                                                />
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                                <div className="flex justify-end space-x-3 mt-4">
+                                    <button
+                                        onClick={() => {
+                                            setShowAddDatapointForm(false);
+                                            setSelectedCategory('');
+                                        }}
+                                        className="px-4 py-2 text-gray-300 border border-gray-600 rounded-md hover:bg-gray-600 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleCreateDatapoint}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                                    >
+                                        Create Datapoint
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                        <div className="p-4 bg-gray-800/50">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {Object.entries(dataPointDefinitions[key] || {}).map(([datapointKey, definition]) => {
+                                    const isEnabled = enabledDatapoints[key]?.[datapointKey] || false;
+                                    const isStagedForDeletion = stagedForDeletion[key]?.includes(datapointKey);
+                                    const isInDeleteMode = deleteMode[key];
+                                    const isInEditMode = editMode[key];
+
+                                    return (
+                                        <div 
+                                            key={datapointKey} 
+                                            onClick={() => {
+                                                if (isInDeleteMode) {
+                                                    handleDeleteDatapoint(key, datapointKey);
+                                                } else if (isInEditMode) {
+                                                    handleEditDatapoint(key, datapointKey);
+                                                } else {
+                                                    handleToggleDatapoint(key, datapointKey);
+                                                }
+                                            }}
+                                            className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 ${
+                                                isInDeleteMode
+                                                    ? isStagedForDeletion
+                                                        ? 'bg-red-500/40 hover:bg-red-500/60 text-white'
+                                                        : 'bg-gray-900/50 hover:bg-gray-900/70 text-gray-500'
+                                                    : isInEditMode
+                                                        ? 'bg-blue-500/40 hover:bg-blue-500/60 text-white'
+                                                        : isEnabled 
+                                                            ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
+                                                            : 'bg-gray-800 hover:bg-gray-700 text-gray-500'
+                                            }`}
+                                        >
+                                            <div className="flex items-center space-x-3 flex-1">
+                                                <span className={`text-sm font-medium ${
+                                                    isEnabled || isStagedForDeletion ? 'text-gray-300' : 'text-gray-500'
+                                                }`}>
+                                                    {definition.label}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            {deleteMode[key] && (
+                                <div className="flex justify-end mt-4">
+                                    <button
+                                        onClick={() => handleSaveDeletions(key)}
+                                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                                    >
+                                        Save Deletions
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
+                ))}
             </div>
-            {/* Summary */}
+            {}
             <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
                 <div className="flex items-start gap-3">
                     <div className="flex-shrink-0">
@@ -918,13 +975,12 @@ export default function Settings() {
                             You have selected{' '}
                             {Object.values(enabledDatapoints).reduce((total, category) => 
                                 total + Object.values(category || {}).filter(Boolean).length, 0
-                            )} datapoints across {categoryNames.length} categories
-                            {customDatapoints.length > 0 && `, including ${customDatapoints.length} custom datapoint${customDatapoints.length === 1 ? '' : 's'}`}.
+                            )} datapoints across {categoryNames.length} categories.
                         </p>
                     </div>
                 </div>
             </div>
-            {/* Save Button */}
+            {}
             <div className="flex justify-end">
                 <button
                     onClick={handleSaveDatapoints}
@@ -933,96 +989,8 @@ export default function Settings() {
                     Save Configuration
                 </button>
             </div>
-
         </div>
     );
-
-    const renderAppearanceSection = () => (
-        <div className="space-y-6">
-            <div>
-                <h2 className="text-2xl font-semibold text-white mb-2">
-                    Appearance
-                </h2>
-                <p className="text-gray-300">
-                    Customize the look and feel of your application
-                </p>
-            </div>
-
-            <div className="space-y-6">
-
-
-                {/* Font Settings */}
-                <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
-                    <h3 className="text-lg font-medium text-white mb-4">
-                        Typography
-                    </h3>
-                    <div>
-                        <label htmlFor="font" className="block text-sm font-medium text-gray-300 mb-2">
-                            Font Family
-                        </label>
-                        <select
-                            id="font"
-                            value={selectedFont}
-                            onChange={(e) => {
-                                setSelectedFont(e.target.value);
-                                // Apply font to document
-                                const fontMap = {
-                                    'inter': "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-                                    'roboto': "'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                                    'open-sans': "'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                                    'lato': "'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                                    'poppins': "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                                    'montserrat': "'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                                    'source-sans-pro': "'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                                    'nunito': "'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                                    'raleway': "'Raleway', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                                    'ubuntu': "'Ubuntu', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                                    'comic-sans': "'Comic Sans MS', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-                                };
-                                document.documentElement.style.fontFamily = fontMap[e.target.value] || fontMap['open-sans'];
-                                // Save to localStorage
-                                localStorage.setItem('selectedFont', e.target.value);
-                            }}
-                            className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-700 text-white"
-                        >
-                            <option value="open-sans">Open Sans (Default)</option>
-                            <option value="inter">Inter</option>
-                            <option value="roboto">Roboto</option>
-                            <option value="lato">Lato</option>
-                            <option value="poppins">Poppins</option>
-                            <option value="montserrat">Montserrat</option>
-                            <option value="source-sans-pro">Source Sans Pro</option>
-                            <option value="nunito">Nunito</option>
-                            <option value="raleway">Raleway</option>
-                            <option value="ubuntu">Ubuntu</option>
-                            <option value="comic-sans">Comic Sans MS</option>
-                        </select>
-                        <p className="text-sm text-gray-400 mt-2">
-                            Changes will apply to the entire application
-                        </p>
-                    </div>
-                </div>
-
-                {/* Preview */}
-                <div className="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
-                    <h3 className="text-lg font-medium text-white mb-4">
-                        Preview
-                    </h3>
-                    <div className="space-y-3">
-                        <div className="p-4 bg-gray-700 rounded-lg border border-gray-600">
-                            <h4 className="text-lg font-semibold text-white mb-2">
-                                Sample Heading
-                            </h4>
-                            <p className="text-gray-300">
-                                This is how your text will appear with the selected font and theme settings.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-
     const renderContent = () => {
         switch (activeCategory) {
             case 'profile':
@@ -1033,13 +1001,10 @@ export default function Settings() {
                 return renderIntegrationsSection();
             case 'datapoints':
                 return renderDatapointsSection();
-            case 'appearance':
-                return renderAppearanceSection();
             default:
                 return renderProfileSection();
         }
     };
-
     return (
         <div className="min-h-screen bg-black text-white pt-16">
             <div className="max-w-7xl mx-auto px-4 py-8">
@@ -1052,9 +1017,8 @@ export default function Settings() {
                         Manage your account settings and preferences
                     </p>
                 </div>
-
                 <div className="flex gap-8">
-                    {/* Left Sidebar Menu */}
+                    {}
                     <div className="w-64 flex-shrink-0">
                         <nav className="space-y-1">
                             {menuItems.map((item) => {
@@ -1080,8 +1044,7 @@ export default function Settings() {
                             })}
                         </nav>
                     </div>
-
-                    {/* Right Content Area */}
+                    {}
                     <div className="flex-1">
                         {renderContent()}
                     </div>

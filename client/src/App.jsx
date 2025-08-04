@@ -11,10 +11,8 @@ import Settings from './pages/Settings';
 import { AuthContext } from './context/AuthContext';
 import { useContext } from 'react';
 import WhoopDebugger from './pages/WhoopRaw';
-
 export default function App() {
   const { token, user, logout } = useContext(AuthContext);
-
   return (
     <BrowserRouter>
       <Navbar user={user} onLogout={logout} />

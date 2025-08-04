@@ -4,7 +4,6 @@ import EmailVerification from '../components/EmailVerification';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { getErrorMessage, createRetryFunction } from '../utils/errorUtils';
-
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [verificationToken, setVerificationToken] = useState('');
@@ -14,13 +13,11 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState('');
   const isEmailVerified = !!verificationToken;
   const navigate = useNavigate();
-
   const handleReset = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     try {
-      // Create a retry function that will wait 2 seconds before retrying on network errors
       const resetPasswordWithRetry = createRetryFunction(resetPassword, 2000);
       await resetPasswordWithRetry(email, newPassword, verificationToken);
       setSuccess(true);
@@ -32,18 +29,15 @@ export default function ForgotPasswordPage() {
       setIsLoading(false);
     }
   };
-
   return (
     <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
-      {/* Animated gradient background */}
+      {}
       <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-gradient-xy opacity-25">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-gradient-xy-reverse opacity-25"></div>
       </div>
-      
-      {/* Background overlay */}
+      {}
       <div className="absolute inset-0 bg-white/10 dark:bg-black/20"></div>
-
-      {/* Content */}
+      {}
       <div className="max-w-md w-full space-y-8 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm p-8 rounded-xl shadow-lg border border-white/20 dark:border-gray-700/50 relative z-10">
         <div className="text-center">
           <button
@@ -52,19 +46,16 @@ export default function ForgotPasswordPage() {
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          
           <h2 className="text-3xl font-light text-gray-900 dark:text-white">Reset Password</h2>
           <p className="mt-2 text-gray-600 dark:text-gray-300">
             {isEmailVerified ? 'Enter your new password' : 'Enter your email to begin'}
           </p>
         </div>
-
         {error && (
           <div className="p-3 rounded-lg text-sm text-red-600">
             {error}
           </div>
         )}
-
         {!isEmailVerified ? (
           <>
             <div className="space-y-4">

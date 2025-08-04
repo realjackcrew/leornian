@@ -4,7 +4,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { UserPlus, Mail, Lock, User } from 'lucide-react';
 import EmailVerification from '../components/EmailVerification';
 import { getErrorMessage, createRetryFunction } from '../utils/errorUtils';
-
 export default function RegisterPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -14,15 +13,12 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [verificationToken, setVerificationToken] = useState('');
   const isEmailVerified = !!verificationToken;
-
   useEffect(() => {
-    // Initialize Google Sign-In
     if (window.google) {
       window.google.accounts.id.initialize({
         client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
         callback: handleGoogleSignIn
       });
-      
       window.google.accounts.id.renderButton(
         document.getElementById('google-signin-button'),
         { 
@@ -34,7 +30,6 @@ export default function RegisterPage() {
       );
     }
   }, []);
-
   const handleGoogleSignIn = async (response) => {
     setIsLoading(true);
     try {
@@ -50,7 +45,6 @@ export default function RegisterPage() {
       setIsLoading(false);
     }
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -67,29 +61,24 @@ export default function RegisterPage() {
       setIsLoading(false);
     }
   };
-
   function capitalize(str) {
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
   }
-
   return (
     <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
-      {/* Animated gradient background */}
+      {}
       <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-gradient-xy opacity-25">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-gradient-xy-reverse opacity-25"></div>
       </div>
-      
-      {/* Background overlay */}
+      {}
       <div className="absolute inset-0 bg-white/10 dark:bg-black/20"></div>
-
-      {/* Content */}
+      {}
       <div className="max-w-md w-full space-y-8 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm p-8 rounded-xl shadow-lg border border-white/20 dark:border-gray-700/50 relative z-10">
         <div className="text-center">
           <h2 className="text-3xl font-light text-gray-900 dark:text-white">Create an account</h2>
           <p className="mt-2 text-gray-600 dark:text-gray-300">Join Leornian today</p>
         </div>
-
-        {/* Registration flow: show email/verification first, then rest of form */}
+        {}
         {!isEmailVerified ? (
           <>
             <div className="space-y-4">

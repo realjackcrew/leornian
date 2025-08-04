@@ -1,28 +1,21 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Settings, MessageCircle, BarChart3 } from 'lucide-react';
-
-// User dropdown component
 function UserDropdown({ user, onLogout, getButtonStyles }) {
   const [isOpen, setIsOpen] = useState(false);
-
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (!event.target.closest('.user-dropdown')) {
         setIsOpen(false);
       }
     };
-
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
-
   const handleLogout = () => {
     onLogout();
     setIsOpen(false);
   };
-
   return (
     <div 
       className="relative user-dropdown"
@@ -34,7 +27,6 @@ function UserDropdown({ user, onLogout, getButtonStyles }) {
       >
         Hello, {user.preferredName || user.firstName || 'There'}
       </button>
-      
       <div className={`absolute right-0 top-full mt-2 transition-all duration-300 ease-out transform ${
         isOpen 
           ? 'opacity-100 visible translate-y-0' 
@@ -52,25 +44,18 @@ function UserDropdown({ user, onLogout, getButtonStyles }) {
     </div>
   );
 }
-
 export default function Navbar({ user, onLogout }) {
   const [scrolledPastLanding, setScrolledPastLanding] = useState(false);
   const location = useLocation();
   const isHomePage = location.pathname === '/';
-
-
-
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       setScrolledPastLanding(currentScrollY > window.innerHeight * 0.8);
     };
-
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  // Determine navbar styles based on scroll position and page
   const getNavbarStyles = () => {
     if (location.pathname === '/login' || location.pathname === '/register') {
       return 'hidden';
@@ -82,8 +67,6 @@ export default function Navbar({ user, onLogout }) {
     }
     return 'bg-black/95 backdrop-blur-sm border-transparent text-white';
   };
-
-  // Determine button colors based on scroll and login status
   const getButtonStyles = () => {
     if (isHomePage && !scrolledPastLanding) {
       return 'text-white hover:text-white/80 hover:bg-white/10';
@@ -93,7 +76,6 @@ export default function Navbar({ user, onLogout }) {
     }
     return 'text-white hover:text-white/80 hover:bg-white/10';
   };
-
   return (
     <nav
       className={`fixed top-0 w-full z-50 flex items-center justify-between px-6 py-4 transition-all duration-300 ${getNavbarStyles()}`}
@@ -122,7 +104,6 @@ export default function Navbar({ user, onLogout }) {
           <span className="text-lg">Dashboard</span>
         </Link>
       </div>
-      
       <div className="flex items-center space-x-6">
         {user ? (
           <UserDropdown user={user} onLogout={onLogout} getButtonStyles={getButtonStyles} />
@@ -134,9 +115,6 @@ export default function Navbar({ user, onLogout }) {
             Log In
           </Link>
         )}
-        
-
-        
         <Link 
           to="/settings"
           className="hover:opacity-80 transition-opacity"

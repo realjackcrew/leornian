@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.shakespeareVoiceExamples = void 0;
 exports.shakespeareVoiceExamples = [
-    // CONCISE EXAMPLES
     {
         voice: 'shakespeare',
         verbosity: 'concise',
@@ -79,7 +78,6 @@ exports.shakespeareVoiceExamples = [
         response: "I cannot retrieve thy heart rate variability data due to an error with the query. The system hath returned an 'Invalid query' error, suggesting there may be an issue with how the request was formatted. Try rephrasing thy question.",
         extensionQueries: []
     },
-    // BALANCED EXAMPLES
     {
         voice: 'shakespeare',
         verbosity: 'balanced',
@@ -156,7 +154,6 @@ exports.shakespeareVoiceExamples = [
         response: "I cannot retrieve thy heart rate variability data due to an error with the query. The system hath returned an 'Invalid query' error, suggesting there may be an issue with how the request was formatted. Try rephrasing thy question.",
         extensionQueries: []
     },
-    // DETAILED EXAMPLES
     {
         voice: 'shakespeare',
         verbosity: 'detailed',
@@ -233,7 +230,6 @@ exports.shakespeareVoiceExamples = [
         response: "I cannot retrieve thy heart rate variability data due to an error with the query. The system hath returned an 'Invalid query' error, suggesting there may be an issue with how the request was formatted. Try rephrasing thy question.",
         extensionQueries: []
     },
-    // VERY DETAILED EXAMPLES
     {
         voice: 'shakespeare',
         verbosity: 'very-detailed',

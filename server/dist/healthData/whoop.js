@@ -42,7 +42,6 @@ function getWhoopAuthUrl(state) {
 }
 async function handleWhoopCallback(code, userId) {
     try {
-        // Exchange code for tokens
         const tokenResponse = await fetch(whoopOauthConfig.auth.tokenHost + whoopOauthConfig.auth.tokenPath, {
             method: 'POST',
             headers: {
@@ -64,7 +63,6 @@ async function handleWhoopCallback(code, userId) {
         if (!access_token || !refresh_token) {
             throw new Error('Failed to obtain access token or refresh token from Whoop.');
         }
-        // Store tokens in database
         await database_1.default.user.update({
             where: { id: userId },
             data: {
@@ -73,10 +71,7 @@ async function handleWhoopCallback(code, userId) {
                 whoopTokenExpiresAt: new Date(Date.now() + expires_in * 1000),
             },
         });
-        // Fetch and store Whoop User ID
-        const profileResponse = await fetch('https://api.prod.whoop.com/developer/v2/user/profile/basic', {
-            headers: { Authorization: `Bearer ${access_token}` }
-        });
+        const profileResponse = await fetch('https://api.prod.whoop.com/developer/v2/user/profile/basic', { headers: { Authorization: `Bearer ${access_token}` } });
         if (!profileResponse.ok) {
             throw new Error(`Failed to fetch profile: ${profileResponse.status} ${profileResponse.statusText}`);
         }
@@ -152,10 +147,6 @@ class WhoopAPI {
             throw error;
         }
     }
-    /**
-     * Initialize the WHOOP API connection with authorization code
-     * @param authorizationCode The authorization code from WHOOP OAuth flow
-     */
     async initialize(authorizationCode) {
         try {
             const formData = new URLSearchParams();
@@ -184,11 +175,6 @@ class WhoopAPI {
             throw error;
         }
     }
-    /**
-     * Get sleep data for a specific cycle
-     * @param cycleId The cycle ID
-     * @returns Sleep data for the cycle
-     */
     async getSleepDataForCycle(cycleId) {
         try {
             return await this.makeAuthenticatedRequest(`/developer/v2/cycle/${cycleId}/sleep`);
@@ -198,11 +184,6 @@ class WhoopAPI {
             throw error;
         }
     }
-    /**
-     * Get physical activity/workout data for a specific cycle
-     * @param cycleId The cycle ID
-     * @returns Physical activity data for the cycle
-     */
     async getPhysicalDataForCycle(cycleId) {
         try {
             return await this.makeAuthenticatedRequest(`/developer/v2/cycle/${cycleId}/workout`);
@@ -212,11 +193,6 @@ class WhoopAPI {
             throw error;
         }
     }
-    /**
-     * Get recovery data for a specific cycle
-     * @param cycleId The cycle ID
-     * @returns Recovery data for the cycle
-     */
     async getRecoveryDataForCycle(cycleId) {
         try {
             return await this.makeAuthenticatedRequest(`/developer/v2/cycle/${cycleId}/recovery`);
@@ -226,20 +202,12 @@ class WhoopAPI {
             throw error;
         }
     }
-    /**
-     * Get sleep data for a specific date range
-     * @param startDate Start date in ISO format (YYYY-MM-DD)
-     * @param endDate End date in ISO format (YYYY-MM-DD)
-     * @returns Array of sleep data
-     */
     async getSleepData(startDate, endDate) {
         try {
-            // First get the cycle data for the date range
             const cycles = await this.getCyclesInDateRange(startDate, endDate);
             if (!cycles || cycles.length === 0) {
                 return [];
             }
-            // Then get sleep data for each cycle
             const sleepDataPromises = cycles.map(cycle => this.getSleepDataForCycle(cycle.id).catch(error => {
                 console.warn(`Failed to fetch sleep data for cycle ${cycle.id}:`, error);
                 return null;
@@ -252,22 +220,15 @@ class WhoopAPI {
             throw error;
         }
     }
-    /**
-     * Get all cycles for a specific date range.
-     * @returns An array of cycle data objects, or an empty array if none found.
-     */
     async getCyclesInDateRange(startDate, endDate) {
         try {
-            // First try without date parameters to see if user has ANY cycles
             const responseAll = await this.makeAuthenticatedRequest('/developer/v2/cycle', { limit: 25 });
             if (responseAll && responseAll.records && Array.isArray(responseAll.records)) {
                 if (responseAll.records.length === 0) {
                     return [];
                 }
-                // Now try with date filters using proper ISO 8601 format
                 let startDateTime = startDate;
                 let endDateTime = endDate;
-                // Only append if not already a full ISO string
                 if (/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
                     startDateTime = `${startDate}T00:00:00.000Z`;
                 }
@@ -296,11 +257,6 @@ class WhoopAPI {
             throw error;
         }
     }
-    /**
-     * Get sleep data for a specific cycle.
-     * @param cycleId The ID of the cycle.
-     * @returns A sleep data object, or null if not found.
-     */
     async getSleepForCycle(cycleId) {
         try {
             const response = await this.makeAuthenticatedRequest(`/developer/v2/cycle/${cycleId}/sleep`);
@@ -314,11 +270,6 @@ class WhoopAPI {
             throw error;
         }
     }
-    /**
-     * Get recovery data for a specific cycle.
-     * @param cycleId The ID of the cycle.
-     * @returns A recovery data object, or null if not found.
-     */
     async getRecoveryForCycle(cycleId) {
         try {
             const response = await this.makeAuthenticatedRequest(`/developer/v2/cycle/${cycleId}/recovery`);
@@ -332,10 +283,6 @@ class WhoopAPI {
             throw error;
         }
     }
-    /**
-     * Get all workouts for a specific date.
-     * @returns An array of workout data objects, or an empty array if none found.
-     */
     async getWorkoutsInDateRange(startDate, endDate) {
         try {
             const response = await this.makeAuthenticatedRequest('/developer/v2/activity/workout', { start: startDate, end: endDate });
@@ -349,10 +296,6 @@ class WhoopAPI {
             throw error;
         }
     }
-    /**
-     * Get user profile information from WHOOP
-     * @returns User profile data
-     */
     async getUserProfile() {
         try {
             return await this.makeAuthenticatedRequest('/developer/v2/user/profile/basic');
@@ -362,39 +305,18 @@ class WhoopAPI {
             throw error;
         }
     }
-    /**
-     * Check if the API connection is authenticated
-     * @returns True if authenticated, false otherwise
-     */
     isAuthenticated() {
         return this.accessToken !== null && this.isTokenValid();
     }
-    /**
-     * Get the current access token
-     * @returns Access token or null if not available
-     */
     getAccessToken() {
         return this.accessToken;
     }
-    /**
-     * Get the current refresh token
-     * @returns Refresh token or null if not available
-     */
     getRefreshToken() {
         return this.refreshToken;
     }
-    /**
-     * Get the token expiry timestamp
-     * @returns Token expiry timestamp or null if not available
-     */
     getTokenExpiry() {
         return this.tokenExpiry;
     }
-    /**
-     * Get sleep data by sleepId
-     * @param sleepId The sleep ID
-     * @returns Sleep data for the given sleepId
-     */
     async getSleepById(sleepId) {
         try {
             return await this.makeAuthenticatedRequest(`/developer/v2/activity/sleep/${sleepId}`);

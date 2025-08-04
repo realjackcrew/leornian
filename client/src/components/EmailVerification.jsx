@@ -1,20 +1,17 @@
 import { useState } from 'react';
 import { sendVerificationCode, verifyEmailCode } from '../api/auth';
 import { getErrorMessage, createRetryFunction } from '../utils/errorUtils';
-
 export default function EmailVerification({ email, purpose, onVerified, disabled }) {
-  const [step, setStep] = useState('idle'); // idle | sent | verified
+  const [step, setStep] = useState('idle'); 
   const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
-
   const handleSendCode = async () => {
     setIsLoading(true);
     setError('');
     setInfo('');
     try {
-      // Create a retry function that will wait 2 seconds before retrying on network errors
       const sendCodeWithRetry = createRetryFunction(sendVerificationCode, 2000);
       await sendCodeWithRetry(email, purpose);
       setStep('sent');
@@ -27,14 +24,12 @@ export default function EmailVerification({ email, purpose, onVerified, disabled
       setIsLoading(false);
     }
   };
-
   const handleVerify = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     setInfo('');
     try {
-      // Create a retry function that will wait 2 seconds before retrying on network errors
       const verifyCodeWithRetry = createRetryFunction(verifyEmailCode, 2000);
       const res = await verifyCodeWithRetry(email, code, purpose);
       setStep('verified');
@@ -48,7 +43,6 @@ export default function EmailVerification({ email, purpose, onVerified, disabled
       setIsLoading(false);
     }
   };
-
   return (
     <div className="space-y-2">
       {step !== 'verified' && (

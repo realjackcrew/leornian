@@ -14,16 +14,13 @@ const DANGEROUS_SQL_KEYWORDS = [
 function validateReadOnlyQuery(sqlQuery) {
     const trimmed = sqlQuery.trim();
     const normalized = trimmed.toLowerCase();
-    //only allow SELECT queries
     if (!normalized.startsWith('select')) {
         throw new Error('Query rejected: Only SELECT queries are allowed.');
     }
-    //disallow multiple SQL statements
     const semicolonIndex = trimmed.indexOf(';');
     if (semicolonIndex !== -1 && semicolonIndex !== trimmed.length - 1) {
         throw new Error('Query rejected: Multiple SQL statements are not allowed.');
     }
-    //check for dangerous keywords
     for (const keyword of DANGEROUS_SQL_KEYWORDS) {
         const pattern = new RegExp(`\\b${keyword}\\b`, 'i');
         if (pattern.test(normalized)) {
@@ -31,7 +28,6 @@ function validateReadOnlyQuery(sqlQuery) {
         }
     }
 }
-//executes a raw SELECT SQL query
 async function execute_sql_query(sqlQuery) {
     validateReadOnlyQuery(sqlQuery);
     try {
@@ -41,7 +37,6 @@ async function execute_sql_query(sqlQuery) {
         throw new Error(`SQL query execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 }
-//executes query with params
 async function execute_sql_query_with_params(sqlQuery, params) {
     validateReadOnlyQuery(sqlQuery);
     try {

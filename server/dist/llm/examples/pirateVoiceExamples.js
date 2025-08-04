@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.pirateVoiceExamples = void 0;
 exports.pirateVoiceExamples = [
-    // CONCISE EXAMPLES
     {
         voice: 'pirate',
         verbosity: 'concise',
@@ -79,7 +78,6 @@ exports.pirateVoiceExamples = [
         response: "I'm unable to retrieve your heart rate variability data due to an error with the query. The system returned an 'Invalid query' error, which suggests there might be an issue with how the request was formatted or processed. You might want to try rephrasing your question or check if the data source is available.",
         extensionQueries: []
     },
-    // BALANCED EXAMPLES
     {
         voice: 'pirate',
         verbosity: 'balanced',
@@ -156,7 +154,6 @@ exports.pirateVoiceExamples = [
         response: "I'm unable to retrieve your heart rate variability data due to an error with the query. The system returned an 'Invalid query' error, which suggests there might be an issue with how the request was formatted or processed. You might want to try rephrasing your question or check if the data source is available.",
         extensionQueries: []
     },
-    // DETAILED EXAMPLES
     {
         voice: 'pirate',
         verbosity: 'detailed',
@@ -233,7 +230,6 @@ exports.pirateVoiceExamples = [
         response: "I'm unable to retrieve your heart rate variability data due to an error with the query. The system returned an 'Invalid query' error, which suggests there might be an issue with how the request was formatted or processed. You might want to try rephrasing your question or check if the data source is available.",
         extensionQueries: []
     },
-    // VERY DETAILED EXAMPLES
     {
         voice: 'pirate',
         verbosity: 'very-detailed',

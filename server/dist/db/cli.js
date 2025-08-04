@@ -17,7 +17,6 @@ async function main() {
     const sql = args.join(' ');
     try {
         const result = await (0, queries_1.execute_sql_query)(sql);
-        // Print as JSON for easy copy-paste
         console.log(JSON.stringify(result, bigIntToString, 2));
     }
     catch (err) {

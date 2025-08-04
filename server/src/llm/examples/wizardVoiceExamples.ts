@@ -6,9 +6,7 @@ export interface SummarizationExample {
     response: string;
     extensionQueries: string[];
   }
-  
   export const wizardVoiceExamples: SummarizationExample[] = [
-    // CONCISE EXAMPLES
     {
       voice: 'wizard',
       verbosity: 'concise',
@@ -85,8 +83,6 @@ export interface SummarizationExample {
     response: "The arcane forces have rejected our query for heart rate variability data. The system returned an 'Invalid query' error, suggesting our magical incantation was flawed. Try rephrasing your request or check the data source's availability.",
     extensionQueries: []
   },
-
-  // BALANCED EXAMPLES
     {
       voice: 'wizard',
       verbosity: 'balanced',
@@ -163,8 +159,6 @@ export interface SummarizationExample {
     response: "The arcane forces have rejected our query for heart rate variability data. The system returned an 'Invalid query' error, suggesting our magical incantation was flawed. Try rephrasing your request or check the data source's availability.",
     extensionQueries: []
   },
-
-  // DETAILED EXAMPLES
     {
       voice: 'wizard',
       verbosity: 'detailed',
@@ -241,8 +235,6 @@ export interface SummarizationExample {
     response: "The arcane forces have rejected our query for heart rate variability data. The system returned an 'Invalid query' error, suggesting our magical incantation was flawed. Try rephrasing your request or check the data source's availability.",
     extensionQueries: []
   },
-
-  // VERY DETAILED EXAMPLES
     {
       voice: 'wizard',
       verbosity: 'very-detailed',

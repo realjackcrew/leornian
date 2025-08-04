@@ -6,8 +6,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const node_fetch_1 = __importDefault(require("node-fetch"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
-// Usage: node whoopRawFetch.js [output.json]
-// Requires env vars: API_BASE_URL, WHOOP_JWT_TOKEN
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:4000/api';
 const TOKEN = process.env.WHOOP_JWT_TOKEN;
 if (!TOKEN) {
@@ -20,7 +18,7 @@ function getDateString(date) {
 async function main() {
     const today = new Date();
     const start = new Date(today);
-    start.setDate(today.getDate() - 6); // last 7 days including today
+    start.setDate(today.getDate() - 6);
     const startStr = getDateString(start);
     const endStr = getDateString(today);
     const url = `${API_BASE_URL}/api/whoop/raw?start=${startStr}&end=${endStr}`;

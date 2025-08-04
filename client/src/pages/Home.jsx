@@ -2,14 +2,11 @@ import { Link } from 'react-router-dom';
 import { useContext, useEffect, useRef, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import LogoMarquee from '../components/LogoScroll';
-
 export default function Home() {
   const { token, user } = useContext(AuthContext);
-
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
-
   return (
     <div className="min-h-screen bg-black flex flex-col justify-end items-center">
       <div className="flex flex-col items-stretch justify-end w-full max-w-4xl px-4 space-y-1" style={{ minHeight: '80vh', marginBottom: '4vh' }}>
@@ -39,7 +36,7 @@ export default function Home() {
           </Link>
         </div>
       </div>
-      {/* Add fade-in keyframes for animation */}
+      {}
       <style>{`
         .animate-fadein { opacity: 0; animation: fadein 1.5s forwards; }
         .animate-fadein-slow { opacity: 0; animation: fadein 2.2s forwards; }
@@ -50,8 +47,7 @@ export default function Home() {
         .delay-4000 { animation-delay: 4s; }
         @keyframes fadein { to { opacity: 1; } }
       `}</style>
-
-      {/* Restored content after hero section */}
+      {}
       <div className="bg-black text-white min-h-screen flex items-center relative">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 w-full">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -122,7 +118,7 @@ export default function Home() {
       <div className="bg-black">
         <LogoMarquee />
       </div>
-      {/* Personalized Recommendations Section */}
+      {}
       <div className="bg-black text-white min-h-screen flex items-center relative">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 w-full">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -189,7 +185,7 @@ export default function Home() {
           </div>
         </div>
       </div>
-      {/* Seamless Integration Section */}
+      {}
       <div className="bg-black text-white min-h-screen flex items-center relative">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 w-full">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -262,7 +258,7 @@ export default function Home() {
           </div>
         </div>
       </div>
-      {/* Footer */}
+      {}
       <footer className="bg-black text-gray-400 py-12 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

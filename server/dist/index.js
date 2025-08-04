@@ -16,15 +16,13 @@ const user_1 = __importDefault(require("./routes/user"));
 const datapoints_1 = __importDefault(require("./routes/datapoints"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
-// Configure CORS based on environment
 const allowedOrigins = [
-    'http://localhost:5173', // Local development
-    'https://leo.jackcrew.net', // Production client URL
-    process.env.CLIENT_URL, // Additional production client URL
-].filter(Boolean); // Remove any undefined values
+    'http://localhost:5173',
+    'https://leo.jackcrew.net',
+    process.env.CLIENT_URL,
+].filter(Boolean);
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin)
             return callback(null, true);
         if (allowedOrigins.indexOf(origin) === -1) {
@@ -44,7 +42,6 @@ app.use('/api', whoop_1.default);
 app.use('/api/user', user_1.default);
 app.use('/api/datapoints', datapoints_1.default);
 const PORT = process.env.PORT || 4000;
-// Add a catch-all route for unmatched API routes
 app.use('/api/*', (req, res) => {
     console.log('Unmatched API route:', req.method, req.originalUrl);
     res.status(404).json({ error: 'API route not found' });

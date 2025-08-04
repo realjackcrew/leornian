@@ -10,21 +10,15 @@ import whoopRoutes from './routes/whoop';
 import userRoutes from './routes/user';
 import datapointRoutes from './routes/datapoints';
 dotenv.config();
-
 const app = express();
-
-// Configure CORS based on environment
 const allowedOrigins = [
-  'http://localhost:5173', // Local development
-  'https://leo.jackcrew.net', // Production client URL
-  process.env.CLIENT_URL,  // Additional production client URL
-].filter(Boolean); // Remove any undefined values
-
+  'http://localhost:5173',
+  'https://leo.jackcrew.net',
+  process.env.CLIENT_URL,  
+].filter(Boolean); 
 app.use(cors({ 
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
     if (allowedOrigins.indexOf(origin) === -1) {
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
       return callback(new Error(msg), false);
@@ -33,7 +27,6 @@ app.use(cors({
   },
   credentials: true
 }));
-
 app.use(express.json());
 app.use('/api', authRoutes);
 app.use('/api', logRoutes);
@@ -42,19 +35,14 @@ app.use('/api', chatRoutes);
 app.use('/api', whoopRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/datapoints', datapointRoutes);
-
 const PORT = process.env.PORT || 4000;
-
-// Add a catch-all route for unmatched API routes
 app.use('/api/*', (req, res) => {
   console.log('Unmatched API route:', req.method, req.originalUrl);
   res.status(404).json({ error: 'API route not found' });
 });
-
 app.get('/', (_req, res) => {
     res.send('Leornian API is running.');
   });
-
 app.get('/health', async (_req, res) => {
   try {
     await prisma.$connect();
@@ -63,8 +51,6 @@ app.get('/health', async (_req, res) => {
     res.status(500).json({ status: 'unhealthy' });
   }
 });
-
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-

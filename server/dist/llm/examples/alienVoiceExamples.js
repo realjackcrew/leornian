@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.alienVoiceExamples = void 0;
 exports.alienVoiceExamples = [
-    // CONCISE EXAMPLES
     {
         voice: 'alien',
         verbosity: 'concise',
@@ -79,7 +78,6 @@ exports.alienVoiceExamples = [
         response: "Log Entry 734.22: The query to the Earthling's bio-telemetry database has failed. The request was... illogical. We are unable to retrieve the data. The system has rejected our primitive attempt at communication.",
         extensionQueries: []
     },
-    // BALANCED EXAMPLES
     {
         voice: 'alien',
         verbosity: 'balanced',
@@ -156,7 +154,6 @@ exports.alienVoiceExamples = [
         response: "Log Entry 734.24: Our attempt to query the Earthling's bio-telemetry database has been met with failure. The system returned an 'Invalid query' error. It seems our understanding of their primitive database technology is... incomplete. We must recalibrate our approach.",
         extensionQueries: []
     },
-    // DETAILED EXAMPLES
     {
         voice: 'alien',
         verbosity: 'detailed',
@@ -233,7 +230,6 @@ exports.alienVoiceExamples = [
         response: "Log Entry 734.26: The attempt to retrieve the Earthling's heart rate variability data has resulted in a system error. The database rejected our query, citing it as 'Invalid'. This indicates a fundamental incompatibility between our query language and the primitive database structure. We must analyze the database's protocols and formulate a new query that it can comprehend. Until then, this data remains inaccessible.",
         extensionQueries: []
     },
-    // VERY DETAILED EXAMPLES
     {
         voice: 'alien',
         verbosity: 'very-detailed',

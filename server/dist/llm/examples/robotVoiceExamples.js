@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.robotVoiceExamples = void 0;
 exports.robotVoiceExamples = [
-    // CONCISE EXAMPLES
     {
         voice: 'robot',
         verbosity: 'concise',
@@ -79,7 +78,6 @@ exports.robotVoiceExamples = [
         response: "ERROR: Unable to retrieve heart rate variability data. System returned 'Invalid query' error. SUGGESTION: Check query format and data source availability.",
         extensionQueries: []
     },
-    // BALANCED EXAMPLES
     {
         voice: 'robot',
         verbosity: 'balanced',
@@ -156,7 +154,6 @@ exports.robotVoiceExamples = [
         response: "ERROR: Unable to retrieve heart rate variability data. System returned 'Invalid query' error. SUGGESTION: Check query format and data source availability.",
         extensionQueries: []
     },
-    // DETAILED EXAMPLES
     {
         voice: 'robot',
         verbosity: 'detailed',
@@ -233,7 +230,6 @@ exports.robotVoiceExamples = [
         response: "ERROR: Unable to retrieve heart rate variability data. System returned 'Invalid query' error. SUGGESTION: Check query format and data source availability.",
         extensionQueries: []
     },
-    // VERY DETAILED EXAMPLES
     {
         voice: 'robot',
         verbosity: 'very-detailed',

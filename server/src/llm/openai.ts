@@ -1,10 +1,7 @@
 import OpenAI from 'openai';
-
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-
-// Function definitions for OpenAI function calling
 const functions = [
   {
     name: 'execute_sql_query',
@@ -42,19 +39,16 @@ const functions = [
     }
   }
 ];
-
 export async function chatWithFunctionCalling(messages: any[], model: string = 'gpt-4o-mini') {
   try {
     console.log('OpenAI API Key exists:', !!process.env.OPENAI_API_KEY);
     console.log('Messages being sent to OpenAI:', messages);
-    
     const response = await openai.chat.completions.create({
       model,
       messages,
       functions,
       function_call: 'auto',
     });
-
     console.log('OpenAI response received successfully');
     return response.choices[0].message;
   } catch (error) {
@@ -66,19 +60,16 @@ export async function chatWithFunctionCalling(messages: any[], model: string = '
     throw new Error(`Failed to get response from OpenAI: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
-
 export async function chatWithForcedFunctionCalling(messages: any[], model: string = 'gpt-4o-mini') {
   try {
     console.log('OpenAI API Key exists:', !!process.env.OPENAI_API_KEY);
     console.log('Messages being sent to OpenAI with forced function call:', messages);
-    
     const response = await openai.chat.completions.create({
       model,
       messages,
       functions,
       function_call: { name: 'execute_sql_query_with_params' },
     });
-
     console.log('OpenAI response received successfully');
     return response.choices[0].message;
   } catch (error) {
@@ -90,14 +81,12 @@ export async function chatWithForcedFunctionCalling(messages: any[], model: stri
     throw new Error(`Failed to get response from OpenAI: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
-
 export async function chatCompletion(messages: any[], model: string = 'gpt-4o-mini') {
   try {
     const response = await openai.chat.completions.create({
       model,
       messages,
     });
-
     return response.choices[0].message;
   } catch (error) {
     console.error('OpenAI API error:', error);

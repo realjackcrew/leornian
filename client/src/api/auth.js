@@ -1,5 +1,4 @@
 import { API_BASE_URL } from '../config';
-
 export const register = async (email, password, firstName, lastName, verificationToken) => {
   const response = await fetch(`${API_BASE_URL}/api/register`, {
     method: 'POST',
@@ -8,15 +7,12 @@ export const register = async (email, password, firstName, lastName, verificatio
     },
     body: JSON.stringify({ email, password, firstName, lastName, verificationToken }),
   });
-  
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || `HTTP error! status: ${response.status}`);
   }
-  
   return response.json();
 };
-
 export const login = async (email, password, rememberMe = false) => {
   const response = await fetch(`${API_BASE_URL}/api/login`, {
     method: 'POST',
@@ -25,15 +21,12 @@ export const login = async (email, password, rememberMe = false) => {
     },
     body: JSON.stringify({ email, password, rememberMe }),
   });
-  
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || `HTTP error! status: ${response.status}`);
   }
-  
   return response.json();
 };
-
 export const googleAuth = async (idToken, rememberMe = false) => {
   const response = await fetch(`${API_BASE_URL}/api/google-auth`, {
     method: 'POST',
@@ -42,22 +35,17 @@ export const googleAuth = async (idToken, rememberMe = false) => {
     },
     body: JSON.stringify({ idToken, rememberMe }),
   });
-  
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || `HTTP error! status: ${response.status}`);
   }
-  
   return response.json();
 };
-
 export const whoopAuth = async (authorizationCode) => {
   const token = localStorage.getItem('token');
-  
   if (!token) {
     throw new Error('User not authenticated. Please log in first.');
   }
-
   const response = await fetch(`${API_BASE_URL}/api/whoop/auth`, {
     method: 'POST',
     headers: {
@@ -66,14 +54,12 @@ export const whoopAuth = async (authorizationCode) => {
     },
     body: JSON.stringify({ authorizationCode })
   });
-
   if (!response.ok) {
     let errorMessage = 'WHOOP authentication failed';
     try {
       const errorData = await response.json();
       errorMessage = errorData.error || errorMessage;
     } catch (parseError) {
-      // If response is not JSON, try to get text
       try {
         const errorText = await response.text();
         errorMessage = errorText || errorMessage;
@@ -83,7 +69,6 @@ export const whoopAuth = async (authorizationCode) => {
     }
     throw new Error(errorMessage);
   }
-
   try {
     return await response.json();
   } catch (parseError) {
@@ -91,7 +76,6 @@ export const whoopAuth = async (authorizationCode) => {
     throw new Error('Invalid response from server');
   }
 };
-
 export const checkWhoopStatus = async () => {
   const token = localStorage.getItem('token');
   const response = await fetch(`${API_BASE_URL}/api/whoop/status`, {
@@ -99,26 +83,12 @@ export const checkWhoopStatus = async () => {
       'Authorization': `Bearer ${token}`
     }
   });
-
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to check WHOOP status');
   }
-
   return response.json();
 };
-
-export const testWhoopConnection = async () => {
-  const token = localStorage.getItem('token');
-  const response = await fetch(`${API_BASE_URL}/api/whoop/test-auth`, {
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
-
-  return response.json();
-};
-
 export const disconnectWhoop = async () => {
   const token = localStorage.getItem('token');
   const response = await fetch(`${API_BASE_URL}/api/whoop/disconnect`, {
@@ -127,16 +97,12 @@ export const disconnectWhoop = async () => {
       'Authorization': `Bearer ${token}`
     }
   });
-
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to disconnect WHOOP');
   }
-
   return response.json();
 };
-
-// Password reset functions
 export const requestPasswordReset = async (email) => {
   const response = await fetch(`${API_BASE_URL}/api/forgot-password`, {
     method: 'POST',
@@ -145,15 +111,12 @@ export const requestPasswordReset = async (email) => {
     },
     body: JSON.stringify({ email }),
   });
-  
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || `HTTP error! status: ${response.status}`);
   }
-  
   return response.json();
 };
-
 export const verifyResetCode = async (email, code) => {
   const response = await fetch(`${API_BASE_URL}/api/verify-reset-code`, {
     method: 'POST',
@@ -162,15 +125,12 @@ export const verifyResetCode = async (email, code) => {
     },
     body: JSON.stringify({ email, code }),
   });
-  
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || `HTTP error! status: ${response.status}`);
   }
-  
   return response.json();
 };
-
 export const resetPassword = async (email, newPassword, verificationToken) => {
   const response = await fetch(`${API_BASE_URL}/api/reset-password`, {
     method: 'POST',
@@ -179,15 +139,12 @@ export const resetPassword = async (email, newPassword, verificationToken) => {
     },
     body: JSON.stringify({ email, newPassword, verificationToken }),
   });
-  
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || `HTTP error! status: ${response.status}`);
   }
-  
   return response.json();
 };
-
 export const sendVerificationCode = async (email, purpose) => {
   const response = await fetch(`${API_BASE_URL}/api/send-verification-code`, {
     method: 'POST',
@@ -196,15 +153,12 @@ export const sendVerificationCode = async (email, purpose) => {
     },
     body: JSON.stringify({ email, purpose }),
   });
-  
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || `HTTP error! status: ${response.status}`);
   }
-  
   return response.json();
 };
-
 export const verifyEmailCode = async (email, code, purpose) => {
   const response = await fetch(`${API_BASE_URL}/api/verify-code`, {
     method: 'POST',
@@ -213,15 +167,12 @@ export const verifyEmailCode = async (email, code, purpose) => {
     },
     body: JSON.stringify({ email, code, purpose }),
   });
-  
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || `HTTP error! status: ${response.status}`);
   }
-  
   return response.json();
 };
-
 export const getUserProfile = async () => {
   const token = localStorage.getItem('token');
   const response = await fetch(`${API_BASE_URL}/api/user/profile`, {
@@ -229,25 +180,19 @@ export const getUserProfile = async () => {
       'Authorization': `Bearer ${token}`
     }
   });
-
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to get user profile');
   }
-
   return response.json();
 };
-
-//whoop data for date
 export const fetchWhoopData = async (date) => {
   const token = localStorage.getItem('token');
   if (!token) throw new Error('User not authenticated. Please log in first.');
-
   const url = new URL(`${API_BASE_URL}/api/whoop/data`);
   if (date) {
     url.searchParams.append('date', date);
   }
-
   const response = await fetch(url, {
     headers: {
       'Authorization': `Bearer ${token}`

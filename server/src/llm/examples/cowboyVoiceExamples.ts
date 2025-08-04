@@ -6,9 +6,7 @@ export interface SummarizationExample {
   response: string;
   extensionQueries: string[];
 }
-
 export const cowboyVoiceExamples: SummarizationExample[] = [
-  // CONCISE EXAMPLES
   {
     voice: 'cowboy',
     verbosity: 'concise',
@@ -85,8 +83,6 @@ export const cowboyVoiceExamples: SummarizationExample[] = [
     response: "I'm unable to retrieve your heart rate variability data due to an error with the query. The system returned an 'Invalid query' error, which suggests there might be an issue with how the request was formatted or processed. You might want to try rephrasing your question or check if the data source is available.",
     extensionQueries: []
   },
-
-  // BALANCED EXAMPLES
   {
     voice: 'cowboy',
     verbosity: 'balanced',
@@ -163,8 +159,6 @@ export const cowboyVoiceExamples: SummarizationExample[] = [
     response: "I'm unable to retrieve your heart rate variability data due to an error with the query. The system returned an 'Invalid query' error, which suggests there might be an issue with how the request was formatted or processed. You might want to try rephrasing your question or check if the data source is available.",
     extensionQueries: []
   },
-
-  // DETAILED EXAMPLES
   {
     voice: 'cowboy',
     verbosity: 'detailed',
@@ -241,8 +235,6 @@ export const cowboyVoiceExamples: SummarizationExample[] = [
     response: "I'm unable to retrieve your heart rate variability data due to an error with the query. The system returned an 'Invalid query' error, which suggests there might be an issue with how the request was formatted or processed. You might want to try rephrasing your question or check if the data source is available.",
     extensionQueries: []
   },
-
-  // VERY DETAILED EXAMPLES
   {
     voice: 'cowboy',
     verbosity: 'very-detailed',

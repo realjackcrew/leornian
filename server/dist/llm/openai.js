@@ -10,7 +10,6 @@ const openai_1 = __importDefault(require("openai"));
 const openai = new openai_1.default({
     apiKey: process.env.OPENAI_API_KEY,
 });
-// Function definitions for OpenAI function calling
 const functions = [
     {
         name: 'execute_sql_query',

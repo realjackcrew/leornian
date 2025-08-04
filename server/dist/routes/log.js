@@ -7,12 +7,9 @@ const express_1 = require("express");
 const auth_1 = require("../middleware/auth");
 const database_1 = __importDefault(require("../db/database"));
 const router = (0, express_1.Router)();
-// POST /log – create a new daily log
 router.post('/log', auth_1.authenticateToken, async (req, res) => {
-    const { healthData, date } = req.body; // date is expected in YYYY-MM-DD format
+    const { healthData, date } = req.body;
     try {
-        // If no date is provided, generate today's date in Chicago time.
-        // 'en-CA' gives YYYY-MM-DD format.
         const logDate = date || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
         const log = await database_1.default.dailyLog.create({
             data: {
@@ -20,7 +17,7 @@ router.post('/log', auth_1.authenticateToken, async (req, res) => {
                 date: logDate,
                 healthData: {
                     ...healthData,
-                    timezone: healthData.timezone || 'America/Chicago', // Default to Central time if not specified
+                    timezone: healthData.timezone || 'America/Chicago',
                 },
             },
         });
@@ -28,7 +25,6 @@ router.post('/log', auth_1.authenticateToken, async (req, res) => {
     }
     catch (error) {
         console.error('Failed to create log:', error);
-        // Handle unique constraint violation
         if (error.code === 'P2002') {
             res.status(409).json({ error: 'A log for this date already exists.' });
             return;
@@ -36,7 +32,6 @@ router.post('/log', auth_1.authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to create log' });
     }
 });
-// GET /logs – get all logs for current user
 router.get('/log', auth_1.authenticateToken, async (req, res) => {
     try {
         const logs = await database_1.default.dailyLog.findMany({
@@ -50,7 +45,6 @@ router.get('/log', auth_1.authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch logs' });
     }
 });
-// GET /log/by-date – get log for specific date
 router.get('/log/by-date', auth_1.authenticateToken, async (req, res) => {
     const { date } = req.query;
     if (!date || typeof date !== 'string') {
@@ -77,7 +71,6 @@ router.get('/log/by-date', auth_1.authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch log' });
     }
 });
-// PUT /log/update – update an existing log
 router.put('/log/update', auth_1.authenticateToken, async (req, res) => {
     const { id } = req.query;
     const { healthData } = req.body;
@@ -86,7 +79,6 @@ router.put('/log/update', auth_1.authenticateToken, async (req, res) => {
         return;
     }
     try {
-        // Verify log belongs to user
         const existingLog = await database_1.default.dailyLog.findFirst({
             where: { id, userId: req.userId },
         });
@@ -94,11 +86,10 @@ router.put('/log/update', auth_1.authenticateToken, async (req, res) => {
             res.status(404).json({ error: 'Log not found' });
             return;
         }
-        // Update with comprehensive or legacy data
         const updateData = {};
         updateData.healthData = {
             ...healthData,
-            timezone: healthData.timezone || 'America/Chicago' // Default to Central time if not specified
+            timezone: healthData.timezone || 'America/Chicago'
         };
         const log = await database_1.default.dailyLog.update({
             where: { id },

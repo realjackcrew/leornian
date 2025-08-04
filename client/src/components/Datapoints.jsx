@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { getEnabledDatapoints } from '../api/datapoints';
-
-// Fallback data point definitions (used if API fails)
 const fallbackDataPointDefinitions = {
   sleep: {
     usedScreenBeforeBed: { type: 'boolean', label: 'Used a device within 1 hour of bedtime' },
@@ -86,13 +84,10 @@ const fallbackDataPointDefinitions = {
     feltPurposeful: { type: 'boolean', label: 'Strong sense of purpose' },
   },
 };
-
-// Hook to get enabled datapoints from API
 export const useEnabledDatapoints = () => {
   const [dataPointDefinitions, setDataPointDefinitions] = useState(fallbackDataPointDefinitions);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
   useEffect(() => {
     const fetchDatapoints = async () => {
       try {
@@ -103,23 +98,16 @@ export const useEnabledDatapoints = () => {
       } catch (err) {
         console.error('Failed to fetch enabled datapoints:', err);
         setError(err.message);
-        // Use fallback definitions if API fails
         setDataPointDefinitions(fallbackDataPointDefinitions);
       } finally {
         setLoading(false);
       }
     };
-
     fetchDatapoints();
   }, []);
-
   return { dataPointDefinitions, loading, error };
 };
-
-// Legacy exports for backward compatibility
 export const dataPointDefinitions = fallbackDataPointDefinitions;
-
-// Helper function to get default values for all data points
 export const getDefaultValues = (definitions = dataPointDefinitions) => {
   const values = {};
   Object.entries(definitions).forEach(([category, dataPoints]) => {
@@ -130,8 +118,6 @@ export const getDefaultValues = (definitions = dataPointDefinitions) => {
   });
   return values;
 };
-
-// Helper function to get category names in a display-friendly format
 export const getCategoryNames = (definitions = dataPointDefinitions) => {
   return Object.keys(definitions).map(key => ({
     key,

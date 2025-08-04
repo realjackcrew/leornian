@@ -6,9 +6,7 @@ export interface SummarizationExample {
     response: string;
     extensionQueries: string[];
   }
-  
   export const robotVoiceExamples: SummarizationExample[] = [
-    // CONCISE EXAMPLES
     {
       voice: 'robot',
       verbosity: 'concise',
@@ -85,8 +83,6 @@ export interface SummarizationExample {
     response: "ERROR: Unable to retrieve heart rate variability data. System returned 'Invalid query' error. SUGGESTION: Check query format and data source availability.",
     extensionQueries: []
   },
-
-  // BALANCED EXAMPLES
     {
       voice: 'robot',
       verbosity: 'balanced',
@@ -163,8 +159,6 @@ export interface SummarizationExample {
     response: "ERROR: Unable to retrieve heart rate variability data. System returned 'Invalid query' error. SUGGESTION: Check query format and data source availability.",
     extensionQueries: []
   },
-
-  // DETAILED EXAMPLES
     {
       voice: 'robot',
       verbosity: 'detailed',
@@ -241,8 +235,6 @@ export interface SummarizationExample {
     response: "ERROR: Unable to retrieve heart rate variability data. System returned 'Invalid query' error. SUGGESTION: Check query format and data source availability.",
     extensionQueries: []
   },
-
-  // VERY DETAILED EXAMPLES
     {
       voice: 'robot',
       verbosity: 'very-detailed',

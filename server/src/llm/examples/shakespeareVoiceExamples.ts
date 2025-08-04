@@ -6,9 +6,7 @@ export interface SummarizationExample {
     response: string;
     extensionQueries: string[];
   }
-  
   export const shakespeareVoiceExamples: SummarizationExample[] = [
-    // CONCISE EXAMPLES
     {
       voice: 'shakespeare',
       verbosity: 'concise',
@@ -85,8 +83,6 @@ export interface SummarizationExample {
     response: "I cannot retrieve thy heart rate variability data due to an error with the query. The system hath returned an 'Invalid query' error, suggesting there may be an issue with how the request was formatted. Try rephrasing thy question.",
     extensionQueries: []
   },
-
-  // BALANCED EXAMPLES
     {
       voice: 'shakespeare',
       verbosity: 'balanced',
@@ -163,8 +159,6 @@ export interface SummarizationExample {
     response: "I cannot retrieve thy heart rate variability data due to an error with the query. The system hath returned an 'Invalid query' error, suggesting there may be an issue with how the request was formatted. Try rephrasing thy question.",
     extensionQueries: []
   },
-
-  // DETAILED EXAMPLES
     {
       voice: 'shakespeare',
       verbosity: 'detailed',
@@ -241,8 +235,6 @@ export interface SummarizationExample {
     response: "I cannot retrieve thy heart rate variability data due to an error with the query. The system hath returned an 'Invalid query' error, suggesting there may be an issue with how the request was formatted. Try rephrasing thy question.",
     extensionQueries: []
   },
-
-  // VERY DETAILED EXAMPLES
     {
       voice: 'shakespeare',
       verbosity: 'very-detailed',

@@ -1,95 +1,34 @@
 import { API_BASE_URL } from '../config';
 
-// Get master datapoint definitions from the server
-export const getDatapointDefinitions = async () => {
+export const getAllDatapoints = async () => {
   try {
     const token = localStorage.getItem('token');
     if (!token) {
       throw new Error('No authentication token found');
     }
-
-    const response = await fetch(`${API_BASE_URL}/api/datapoints/definitions`, {
+    const response = await fetch(`${API_BASE_URL}/api/datapoints`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
     });
-
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-
     return await response.json();
   } catch (error) {
-    console.error('Error fetching datapoint definitions:', error);
+    console.error('Error fetching all datapoints:', error);
     throw error;
   }
 };
 
-// Get user's datapoint preferences
-export const getDatapointPreferences = async () => {
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      throw new Error('No authentication token found');
-    }
-
-    const response = await fetch(`${API_BASE_URL}/api/datapoints/preferences`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching datapoint preferences:', error);
-    throw error;
-  }
-};
-
-// Save user's datapoint preferences
-export const saveDatapointPreferences = async (preferences) => {
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      throw new Error('No authentication token found');
-    }
-
-    const response = await fetch(`${API_BASE_URL}/api/datapoints/preferences`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ preferences }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error saving datapoint preferences:', error);
-    throw error;
-  }
-};
-
-// Get only enabled datapoints for the user
 export const getEnabledDatapoints = async () => {
   try {
     const token = localStorage.getItem('token');
     if (!token) {
       throw new Error('No authentication token found');
     }
-
     const response = await fetch(`${API_BASE_URL}/api/datapoints/enabled`, {
       method: 'GET',
       headers: {
@@ -97,11 +36,9 @@ export const getEnabledDatapoints = async () => {
         'Content-Type': 'application/json',
       },
     });
-
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-
     return await response.json();
   } catch (error) {
     console.error('Error fetching enabled datapoints:', error);
@@ -109,86 +46,99 @@ export const getEnabledDatapoints = async () => {
   }
 };
 
-// Create a new custom datapoint
-export const createCustomDatapoint = async (datapointData) => {
+export const saveEnabledDatapoints = async (preferences) => {
   try {
     const token = localStorage.getItem('token');
     if (!token) {
       throw new Error('No authentication token found');
     }
-
-    const response = await fetch(`${API_BASE_URL}/api/datapoints/custom`, {
+    const response = await fetch(`${API_BASE_URL}/api/datapoints/enabled`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(datapointData),
+      body: JSON.stringify({ preferences }),
     });
-
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-
     return await response.json();
   } catch (error) {
-    console.error('Error creating custom datapoint:', error);
+    console.error('Error saving datapoint preferences:', error);
     throw error;
   }
 };
 
-// Delete a custom datapoint
-export const deleteCustomDatapoint = async (category, name) => {
+export const createDatapoint = async (datapoint) => {
   try {
     const token = localStorage.getItem('token');
     if (!token) {
       throw new Error('No authentication token found');
     }
+    const response = await fetch(`${API_BASE_URL}/api/datapoints`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(datapoint),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error creating datapoint:', error);
+    throw error;
+  }
+};
 
-    const response = await fetch(`${API_BASE_URL}/api/datapoints/custom/${encodeURIComponent(category)}/${encodeURIComponent(name)}`, {
+export const deleteDatapoints = async (datapoints) => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+    const response = await fetch(`${API_BASE_URL}/api/datapoints`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ datapoints }),
     });
-
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-
     return await response.json();
   } catch (error) {
-    console.error('Error deleting custom datapoint:', error);
+    console.error('Error deleting datapoints:', error);
     throw error;
   }
 };
 
-// Get all custom datapoints for the user
-export const getCustomDatapoints = async () => {
+export const updateDatapoint = async (datapoint) => {
   try {
     const token = localStorage.getItem('token');
     if (!token) {
       throw new Error('No authentication token found');
     }
-
-    const response = await fetch(`${API_BASE_URL}/api/datapoints/custom`, {
-      method: 'GET',
+    const { category, name, ...data } = datapoint;
+    const response = await fetch(`${API_BASE_URL}/api/datapoints/${category}/${name}`, {
+      method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify(data),
     });
-
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-
     return await response.json();
   } catch (error) {
-    console.error('Error fetching custom datapoints:', error);
+    console.error('Error updating datapoint:', error);
     throw error;
   }
-}; 
+};

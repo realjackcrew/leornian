@@ -2,8 +2,6 @@ import { getVoicePersonality } from './voicePrompts';
 import { getResponseLength } from './responsePrompts';
 import fs from 'fs';
 import path from 'path';
-
-// Import all voice example files
 import { defaultVoiceExamples } from './examples/defaultVoiceExamples';
 import { cowboyVoiceExamples } from './examples/cowboyVoiceExamples';
 import { alienVoiceExamples } from './examples/alienVoiceExamples';
@@ -13,14 +11,11 @@ import { wizardVoiceExamples } from './examples/wizardVoiceExamples';
 import { surferVoiceExamples } from './examples/surferVoiceExamples';
 import { detectiveVoiceExamples } from './examples/detectiveVoiceExamples';
 import { shakespeareVoiceExamples } from './examples/shakespeareVoiceExamples';
-
 export interface SummarizationPromptSettings {
   voice?: string;
   verbosity?: string;
   model?: string;
 }
-
-// Map voice names to their example arrays
 const voiceExamplesMap = {
   'default': defaultVoiceExamples,
   'cowboy': cowboyVoiceExamples,
@@ -32,60 +27,40 @@ const voiceExamplesMap = {
   'detective': detectiveVoiceExamples,
   'shakespeare': shakespeareVoiceExamples,
 };
-
 export function buildSummarizationPrompt(settings: SummarizationPromptSettings = {}): string {
   const voice = settings.voice || 'default';
   const verbosity = settings.verbosity || 'balanced';
-  
-  // Get voice personality and response length settings
   const voicePersonality = getVoicePersonality(voice);
   const responseLength = getResponseLength(verbosity);
-
-  // Read the base prompt template
   const promptPath = path.join(__dirname, 'prompts', 'summarizationPrompt.md');
   let prompt = '';
-  
   try {
     prompt = fs.readFileSync(promptPath, 'utf8');
   } catch (error) {
     console.error('Error reading summarization prompt file:', error);
-    // Fallback to a basic prompt if file reading fails
     prompt = `# SYSTEM PROMPT — Query Result Summarizer
-
 You are a specialized wellness data analyst tasked with summarizing query results in a clear, engaging, and personalized manner.
-
 ## PERSONALITY & COMMUNICATION STYLE
-
 **Voice Personality: ${voicePersonality.name}**
 ${voicePersonality.personality}
-
 **Communication Examples:**
 ${voicePersonality.examples}
-
 **Response Length: ${responseLength.name} (${responseLength.characterRange})**
 ${responseLength.instructions}
-
 Please provide a comprehensive summary that answers the user's question using the data provided.`;
   }
-
-  // Get examples for this voice and verbosity combination
   const examples = getExamplesForVoiceAndVerbosity(voice, verbosity);
   const examplesText = examples.map((example, index) => {
     return `### Example ${index + 1}: ${example.userQuestion}
 **User Question:** "${example.userQuestion}"
-
 **Data:** 
 ${example.data}
-
 **Response:** "${example.response}"
-
 **Extension Queries:**
 1. "${example.extensionQueries[0]}"
 2. "${example.extensionQueries[1]}"
 3. "${example.extensionQueries[2]}"`;
   }).join('\n\n');
-
-  // Replace placeholders with actual values
   prompt = prompt
     .replace('{{VOICE_NAME}}', voicePersonality.name)
     .replace('{{VOICE_PERSONALITY}}', voicePersonality.personality)
@@ -94,10 +69,8 @@ ${example.data}
     .replace('{{VERBOSITY_RANGE}}', responseLength.characterRange)
     .replace('{{VERBOSITY_INSTRUCTIONS}}', responseLength.instructions)
     .replace('{{EXAMPLES}}', examplesText);
-
   return prompt;
 }
-
 export function getExamplesForVoiceAndVerbosity(voice: string, verbosity: string): any[] {
   const voiceExamples = voiceExamplesMap[voice as keyof typeof voiceExamplesMap];
   if (!voiceExamples) {
@@ -106,16 +79,13 @@ export function getExamplesForVoiceAndVerbosity(voice: string, verbosity: string
       example.verbosity === verbosity
     ).slice(0, 7);
   }
-  
   return voiceExamples.filter(example => 
     example.verbosity === verbosity
   ).slice(0, 7);
 }
-
 export function getAvailableVoices(): string[] {
   return ['default', 'cowboy', 'alien', 'pirate', 'robot', 'wizard', 'surfer', 'detective', 'shakespeare'];
 }
-
 export function getAvailableVerbosities(): string[] {
   return ['concise', 'balanced', 'detailed', 'very-detailed'];
 } 

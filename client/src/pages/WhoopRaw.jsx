@@ -2,7 +2,6 @@ import { useContext, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { format, subDays } from 'date-fns';
 import { API_BASE_URL } from '../config';
-
 export default function WhoopDebugger() {
   const { token } = useContext(AuthContext);
   const [authSteps, setAuthSteps] = useState([]);
@@ -11,7 +10,6 @@ export default function WhoopDebugger() {
   const [cycleData, setCycleData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [stepCounter, setStepCounter] = useState(0);
-
   if (!token) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white text-2xl">
@@ -19,7 +17,6 @@ export default function WhoopDebugger() {
       </div>
     );
   }
-
   const addStep = (step, status, message, data = null) => {
     const timestamp = new Date().toISOString();
     setStepCounter(prev => prev + 1);
@@ -32,7 +29,6 @@ export default function WhoopDebugger() {
       id: `${step}-${Date.now()}-${stepCounter}`
     }]);
   };
-
   const clearSteps = () => {
     setAuthSteps([]);
     setProfileData(null);
@@ -40,29 +36,21 @@ export default function WhoopDebugger() {
     setCycleData(null);
     setStepCounter(0);
   };
-
   const debugAuthentication = async () => {
     setLoading(true);
     clearSteps();
-    
     try {
       addStep('INIT', 'info', 'Starting WHOOP API authentication debug process...');
-      
-      // Step 1: Token Analysis
       addStep('TOKEN_ANALYSIS', 'info', 'Analyzing JWT token...', {
         tokenLength: token.length,
         tokenStart: token.substring(0, 20) + '...',
         tokenEnd: '...' + token.substring(token.length - 20),
         hasToken: !!token
       });
-
-      // Step 2: Database Token Check
       addStep('DB_CHECK', 'info', 'Checking database for WHOOP credentials...');
-      
       const dbCheckRes = await fetch(`${API_BASE_URL}/api/whoop/debug`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
       if (!dbCheckRes.ok) {
         const errorText = await dbCheckRes.text();
         addStep('DB_CHECK', 'error', `Database check failed: ${dbCheckRes.status}`, {
@@ -72,28 +60,21 @@ export default function WhoopDebugger() {
         });
         return;
       }
-      
       const dbResult = await dbCheckRes.json();
       addStep('DB_CHECK', 'success', 'Database credentials found', dbResult);
-
-      // Step 3: WHOOP Profile Request
       addStep('PROFILE_REQUEST', 'info', 'Attempting to fetch WHOOP user profile...');
-      
       const profileRes = await fetch(`${API_BASE_URL}/api/whoop/profile`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
       const profileResponseHeaders = {};
       profileRes.headers.forEach((value, key) => {
         profileResponseHeaders[key] = value;
       });
-      
       addStep('PROFILE_HEADERS', 'info', 'Profile response headers received', {
         status: profileRes.status,
         statusText: profileRes.statusText,
         headers: profileResponseHeaders
       });
-      
       if (!profileRes.ok) {
         const errorText = await profileRes.text();
         addStep('PROFILE_REQUEST', 'error', `Profile request failed: ${profileRes.status}`, {
@@ -105,12 +86,9 @@ export default function WhoopDebugger() {
         setIsAuthenticated(false);
         return;
       }
-      
       const profile = await profileRes.json();
       setProfileData(profile);
       addStep('PROFILE_REQUEST', 'success', 'Profile data retrieved successfully', profile);
-      
-      // Step 4: Authentication Verification
       if (profile && (profile.user_id || profile.id)) {
         setIsAuthenticated(true);
         addStep('AUTH_VERIFIED', 'success', 'WHOOP authentication fully verified!', {
@@ -122,7 +100,6 @@ export default function WhoopDebugger() {
         setIsAuthenticated(false);
         addStep('AUTH_VERIFIED', 'error', 'Authentication verification failed - invalid profile data');
       }
-      
     } catch (error) {
       addStep('NETWORK_ERROR', 'error', `Network error: ${error.message}`, {
         error: error.message,
@@ -133,39 +110,31 @@ export default function WhoopDebugger() {
       setLoading(false);
     }
   };
-
   const fetchCycles = async () => {
     if (!isAuthenticated) {
       addStep('CYCLES_ERROR', 'error', 'Cannot fetch cycles - authentication not verified');
       return;
     }
-    
     setLoading(true);
     setCycleData(null);
-    
     try {
       const endDate = new Date();
       const startDate = subDays(endDate, 60);
       const startStr = format(startDate, 'yyyy-MM-dd');
       const endStr = format(endDate, 'yyyy-MM-dd');
-      
       addStep('CYCLES_REQUEST', 'info', `Requesting cycles from ${startStr} to ${endStr}...`);
-      
       const cyclesRes = await fetch(`${API_BASE_URL}/api/whoop/raw?start=${startStr}&end=${endStr}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
       const cyclesResponseHeaders = {};
       cyclesRes.headers.forEach((value, key) => {
         cyclesResponseHeaders[key] = value;
       });
-      
       addStep('CYCLES_HEADERS', 'info', 'Cycles response headers', {
         status: cyclesRes.status,
         statusText: cyclesRes.statusText,
         headers: cyclesResponseHeaders
       });
-      
       if (!cyclesRes.ok) {
         const errorText = await cyclesRes.text();
         addStep('CYCLES_REQUEST', 'error', `Cycles request failed: ${cyclesRes.status}`, {
@@ -176,7 +145,6 @@ export default function WhoopDebugger() {
         });
         return;
       }
-      
       const cycles = await cyclesRes.json();
       setCycleData(cycles);
       addStep('CYCLES_REQUEST', 'success', `Retrieved ${cycles.cycles?.length || 0} cycles`, {
@@ -185,7 +153,6 @@ export default function WhoopDebugger() {
         recoveryCount: cycles.recovery?.length || 0,
         workoutCount: cycles.workouts?.length || 0
       });
-      
     } catch (error) {
       addStep('CYCLES_ERROR', 'error', `Error fetching cycles: ${error.message}`, {
         error: error.message,
@@ -195,7 +162,6 @@ export default function WhoopDebugger() {
       setLoading(false);
     }
   };
-
   const getStatusColor = (status) => {
     switch (status) {
       case 'success': return 'text-green-400 bg-green-900';
@@ -204,7 +170,6 @@ export default function WhoopDebugger() {
       default: return 'text-gray-400 bg-gray-800';
     }
   };
-
   const getStatusIcon = (status) => {
     switch (status) {
       case 'success': return '✅';
@@ -213,12 +178,10 @@ export default function WhoopDebugger() {
       default: return '⚪';
     }
   };
-
   return (
     <div className="min-h-screen bg-black text-white pt-20 px-4">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold mb-6 text-center">WHOOP API Debugger</h1>
-        
         <div className="flex flex-col sm:flex-row gap-4 mb-8 items-center justify-center">
           <button 
             onClick={debugAuthentication} 
@@ -227,7 +190,6 @@ export default function WhoopDebugger() {
           >
             {loading ? 'Debugging...' : 'Debug Authentication'}
           </button>
-          
           <button 
             onClick={fetchCycles} 
             disabled={loading || !isAuthenticated}
@@ -239,7 +201,6 @@ export default function WhoopDebugger() {
           >
             {loading ? 'Loading...' : 'Fetch Last 60 Days Cycles'}
           </button>
-          
           <button 
             onClick={clearSteps}
             className="px-6 py-3 bg-gray-700 rounded-lg text-white font-semibold hover:bg-gray-600 transition"
@@ -247,8 +208,7 @@ export default function WhoopDebugger() {
             Clear Debug Log
           </button>
         </div>
-
-        {/* Authentication Status */}
+        {}
         {isAuthenticated && profileData && (
           <div className="bg-green-900 border-l-4 border-green-500 p-4 mb-6">
             <h2 className="text-green-200 font-semibold text-lg mb-2">🎉 Authentication Successful!</h2>
@@ -259,8 +219,7 @@ export default function WhoopDebugger() {
             </div>
           </div>
         )}
-
-        {/* Debug Steps Log */}
+        {}
         <div className="bg-gray-900 rounded-lg p-6 mb-6">
           <h2 className="text-xl font-semibold mb-4">Debug Log</h2>
           <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -294,12 +253,10 @@ export default function WhoopDebugger() {
             )}
           </div>
         </div>
-
-        {/* Cycle Data Display */}
+        {}
         {cycleData && (
           <div className="bg-gray-900 rounded-lg p-6">
             <h2 className="text-xl font-semibold mb-4">Cycle Data (Last 60 Days)</h2>
-            
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className="bg-gray-800 rounded p-3 text-center">
                 <div className="text-2xl font-bold text-blue-400">{cycleData.cycles?.length || 0}</div>
@@ -318,7 +275,6 @@ export default function WhoopDebugger() {
                 <div className="text-gray-300">Workouts</div>
               </div>
             </div>
-
             {cycleData.cycles && cycleData.cycles.length > 0 && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Recent Cycles</h3>
@@ -357,7 +313,6 @@ export default function WhoopDebugger() {
                 )}
               </div>
             )}
-
             <details className="mt-6">
               <summary className="cursor-pointer text-blue-400 hover:text-blue-300 font-semibold">
                 View Complete Raw Data
