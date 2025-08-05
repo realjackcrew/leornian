@@ -142,3 +142,26 @@ export const updateDatapoint = async (datapoint) => {
     throw error;
   }
 };
+
+export const deleteCategory = async (category) => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+    const response = await fetch(`${API_BASE_URL}/api/datapoints/category/${category}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error deleting category:', error);
+    throw error;
+  }
+};

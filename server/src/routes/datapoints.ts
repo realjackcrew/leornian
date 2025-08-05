@@ -233,4 +233,28 @@ router.put('/:category/:name', authenticateToken, async (req: Request, res: Resp
   }
 });
 
+router.delete('/category/:category', authenticateToken, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
+    const { category } = req.params;
+
+    await database.userDatapoint.deleteMany({
+      where: {
+        userId,
+        category,
+      },
+    });
+
+    res.json({ message: 'Category deleted successfully' });
+  } catch (err) {
+    console.error('Delete category error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;
