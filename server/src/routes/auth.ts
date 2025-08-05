@@ -39,7 +39,8 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
         email, 
         password: hashed,
         firstName: firstName || '',
-        lastName: lastName || ''
+        lastName: lastName || '',
+        preferredName: null
       });
       res.status(201).json({ userId: user.id });
     } catch (err) {
@@ -98,7 +99,8 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
           email,
           firstName: given_name || '',
           lastName: family_name || '',
-          password: `google_${googleId}` 
+          password: `google_${googleId}`,
+          preferredName: null
         });
       } else if (!user.password?.startsWith('google_')) {
         user = await prisma.user.update({

@@ -17,40 +17,29 @@ async function buildJsonIntentPrompt(settings) {
         month: 'long',
         day: 'numeric'
     });
-    const preferences = await database_1.default.datapointPreference.findMany({
+    const userDatapoints = await database_1.default.userDatapoint.findMany({
         where: {
             userId,
             enabled: true
         },
         select: {
             category: true,
-            datapoint: true
+            name: true
         }
     });
     const availableDatapoints = {};
     Object.keys(datapointDefinitions_1.masterDatapointDefinitions).forEach(category => {
         availableDatapoints[category] = [];
     });
-    preferences.forEach(pref => {
-        const category = pref.category;
-        const datapoint = pref.datapoint;
+    userDatapoints.forEach((datapoint) => {
+        const category = datapoint.category;
+        const name = datapoint.name;
         if (!availableDatapoints[category]) {
             availableDatapoints[category] = [];
         }
-        if (datapoint.startsWith('{')) {
-            try {
-                const definition = JSON.parse(datapoint);
-                availableDatapoints[category].push(definition.name);
-            }
-            catch (e) {
-                console.error('Failed to parse custom datapoint definition:', e);
-            }
-        }
-        else {
-            availableDatapoints[category].push(datapoint);
-        }
+        availableDatapoints[category].push(name);
     });
-    if (preferences.length === 0) {
+    if (userDatapoints.length === 0) {
         Object.keys(datapointDefinitions_1.masterDatapointDefinitions).forEach(category => {
             availableDatapoints[category] = Object.keys(datapointDefinitions_1.masterDatapointDefinitions[category]);
         });

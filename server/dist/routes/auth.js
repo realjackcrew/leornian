@@ -8,6 +8,7 @@ const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const google_auth_library_1 = require("google-auth-library");
 const database_1 = __importDefault(require("../db/database"));
+const user_1 = require("../db/user");
 const resend_1 = require("../resend");
 const router = (0, express_1.Router)();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
@@ -40,13 +41,12 @@ router.post('/register', async (req, res) => {
             return;
         }
         const hashed = await bcrypt_1.default.hash(password, 10);
-        const user = await database_1.default.user.create({
-            data: {
-                email,
-                password: hashed,
-                firstName: firstName || '',
-                lastName: lastName || ''
-            }
+        const user = await (0, user_1.createUserWithDefaultDatapoints)({
+            email,
+            password: hashed,
+            firstName: firstName || '',
+            lastName: lastName || '',
+            preferredName: null
         });
         res.status(201).json({ userId: user.id });
     }
@@ -102,13 +102,12 @@ router.post('/google-auth', async (req, res) => {
         }
         let user = await database_1.default.user.findUnique({ where: { email } });
         if (!user) {
-            user = await database_1.default.user.create({
-                data: {
-                    email,
-                    firstName: given_name || '',
-                    lastName: family_name || '',
-                    password: `google_${googleId}`
-                }
+            user = await (0, user_1.createUserWithDefaultDatapoints)({
+                email,
+                firstName: given_name || '',
+                lastName: family_name || '',
+                password: `google_${googleId}`,
+                preferredName: null
             });
         }
         else if (!user.password?.startsWith('google_')) {

@@ -10,8 +10,8 @@ export async function createUserWithDefaultDatapoints(userData: Omit<User, 'id' 
 
     const datapointsToCreate = [];
     for (const category in masterDatapointDefinitions) {
-      for (const name in masterDatapointDefinitions[category]) {
-        const definition = masterDatapointDefinitions[category][name];
+      for (const name in masterDatapointDefinitions[category as keyof typeof masterDatapointDefinitions]) {
+        const definition = (masterDatapointDefinitions[category as keyof typeof masterDatapointDefinitions] as any)[name];
         datapointsToCreate.push({
           userId: user.id,
           category,

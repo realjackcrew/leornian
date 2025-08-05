@@ -202,7 +202,7 @@ router.put('/:category/:name', authenticateToken, async (req: Request, res: Resp
       return;
     }
 
-    const { category, name } = req.params;
+    const { name } = req.params;
     const { label, type, min, max, step } = req.body;
 
     if (!label || !type) {
