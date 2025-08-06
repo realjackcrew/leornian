@@ -165,3 +165,26 @@ export const deleteCategory = async (category) => {
     throw error;
   }
 };
+
+export const resetDatapoints = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+    const response = await fetch(`${API_BASE_URL}/api/datapoints/reset`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error resetting datapoints:', error);
+    throw error;
+  }
+};

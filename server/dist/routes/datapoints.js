@@ -232,4 +232,79 @@ router.delete('/category/:category', auth_1.authenticateToken, async (req, res) 
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+router.post('/reset', auth_1.authenticateToken, async (req, res) => {
+    try {
+        const userId = req.userId;
+        if (!userId) {
+            res.status(401).json({ error: 'User not authenticated' });
+            return;
+        }
+        // Import the master datapoint definitions
+        const { masterDatapointDefinitions } = require('../llm/datapointDefinitions');
+        // Get current user datapoints
+        const currentUserDatapoints = await database_1.default.userDatapoint.findMany({
+            where: { userId },
+        });
+        // Create a set of master datapoint names for quick lookup
+        const masterDatapointNames = new Set();
+        for (const category in masterDatapointDefinitions) {
+            for (const name in masterDatapointDefinitions[category]) {
+                masterDatapointNames.add(name);
+            }
+        }
+        // Identify custom datapoints (not in master list) to delete
+        const customDatapointsToDelete = currentUserDatapoints.filter(dp => !masterDatapointNames.has(dp.name));
+        // Delete only custom datapoints
+        if (customDatapointsToDelete.length > 0) {
+            await database_1.default.userDatapoint.deleteMany({
+                where: {
+                    userId,
+                    name: {
+                        in: customDatapointsToDelete.map(dp => dp.name)
+                    }
+                },
+            });
+        }
+        // Get current user datapoints after deletion
+        const remainingUserDatapoints = await database_1.default.userDatapoint.findMany({
+            where: { userId },
+        });
+        // Create a set of existing datapoint names for quick lookup
+        const existingDatapointNames = new Set(remainingUserDatapoints.map(dp => dp.name));
+        // Add any missing master datapoints
+        const datapointsToCreate = [];
+        for (const category in masterDatapointDefinitions) {
+            for (const name in masterDatapointDefinitions[category]) {
+                if (!existingDatapointNames.has(name)) {
+                    const definition = masterDatapointDefinitions[category][name];
+                    datapointsToCreate.push({
+                        userId,
+                        category,
+                        name,
+                        label: definition.label,
+                        type: definition.type,
+                        min: definition.min,
+                        max: definition.max,
+                        step: definition.step,
+                        enabled: true, // All default datapoints are enabled by default
+                    });
+                }
+            }
+        }
+        if (datapointsToCreate.length > 0) {
+            await database_1.default.userDatapoint.createMany({
+                data: datapointsToCreate,
+            });
+        }
+        res.json({
+            message: 'Datapoints reset to default successfully',
+            deletedCustom: customDatapointsToDelete.length,
+            addedMissing: datapointsToCreate.length
+        });
+    }
+    catch (err) {
+        console.error('Reset datapoints error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 exports.default = router;

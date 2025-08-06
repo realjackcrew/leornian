@@ -135,10 +135,26 @@ router.put('/chat-settings', authenticateToken, async (req: Request, res: Respon
 });
 router.get('/chat-options', (_req, res) => {
   try {
+    const voices = getAvailableVoices().map(voice => ({
+      value: voice,
+      label: voice.charAt(0).toUpperCase() + voice.slice(1)
+    }));
+    
+    const verbosities = getAvailableVerbosities().map(verbosity => ({
+      value: verbosity,
+      label: verbosity.charAt(0).toUpperCase() + verbosity.slice(1).replace('-', ' ')
+    }));
+    
+    const models = [
+      { value: 'gpt-4o', label: 'GPT-4o' },
+      { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+      { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' }
+    ];
+    
     res.json({
-      voices: getAvailableVoices(),
-      verbosities: getAvailableVerbosities(),
-      models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1-mini']
+      voices,
+      verbosities,
+      models
     });
   } catch (err) {
     console.error('Get chat options error:', err);

@@ -144,10 +144,23 @@ router.put('/chat-settings', auth_1.authenticateToken, async (req, res) => {
 });
 router.get('/chat-options', (_req, res) => {
     try {
+        const voices = (0, promptBuilder_1.getAvailableVoices)().map(voice => ({
+            value: voice,
+            label: voice.charAt(0).toUpperCase() + voice.slice(1)
+        }));
+        const verbosities = (0, promptBuilder_1.getAvailableVerbosities)().map(verbosity => ({
+            value: verbosity,
+            label: verbosity.charAt(0).toUpperCase() + verbosity.slice(1).replace('-', ' ')
+        }));
+        const models = [
+            { value: 'gpt-4o', label: 'GPT-4o' },
+            { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+            { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' }
+        ];
         res.json({
-            voices: (0, promptBuilder_1.getAvailableVoices)(),
-            verbosities: (0, promptBuilder_1.getAvailableVerbosities)(),
-            models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1-mini']
+            voices,
+            verbosities,
+            models
         });
     }
     catch (err) {
