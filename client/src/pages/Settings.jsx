@@ -38,8 +38,7 @@ export default function Settings() {
     const [chatSettings, setChatSettings] = useState({
         voice: 'default',
         verbosity: 'balanced',
-        model: 'gpt-4o-mini',
-        useDirectSQL: false
+        model: 'gpt-4o-mini'
     });
     const [chatOptions, setChatOptions] = useState({
         voices: [],
@@ -80,19 +79,8 @@ export default function Settings() {
                 setDataPointDefinitions(datapointData.definitions);
                 setEnabledDatapoints(datapointData.preferences);
 
-                const savedChatSettings = localStorage.getItem('chatSettings');
-                let useDirectSQL = false;
-                if (savedChatSettings) {
-                    try {
-                        const settings = JSON.parse(savedChatSettings);
-                        useDirectSQL = settings.useDirectSQL || false;
-                    } catch (e) {
-                        useDirectSQL = false;
-                    }
-                }
                 setChatSettings({
-                    ...chatSettingsData,
-                    useDirectSQL
+                    ...chatSettingsData
                 });
                 setChatOptions(chatOptionsData);
 

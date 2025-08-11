@@ -4,9 +4,6 @@ export default function ChatSection({ chatSettings, setChatSettings, chatOptions
     const handleSaveChatSettings = async () => {
         try {
             await updateChatSettings(chatSettings);
-            localStorage.setItem('chatSettings', JSON.stringify({
-                useDirectSQL: chatSettings.useDirectSQL
-            }));
             alert('Chat settings saved successfully!');
         } catch (err) {
             console.error('Failed to save chat settings:', err);
@@ -87,18 +84,6 @@ export default function ChatSection({ chatSettings, setChatSettings, chatOptions
                                     </option>
                                 ))}
                             </select>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                            <input
-                                type="checkbox"
-                                id="useDirectSQL"
-                                checked={chatSettings.useDirectSQL}
-                                onChange={(e) => handleChatSettingChange('useDirectSQL', e.target.checked)}
-                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                            <label htmlFor="useDirectSQL" className="text-sm font-medium text-gray-300">
-                                Use Direct SQL Queries (Advanced)
-                            </label>
                         </div>
                     </div>
                     <div className="flex justify-end pt-4">

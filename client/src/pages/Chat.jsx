@@ -53,18 +53,6 @@ export default function Chat() {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [includeHistory, setIncludeHistory] = useState(false);
-  const [useDirectSQL, setUseDirectSQL] = useState(() => {
-    const saved = localStorage.getItem('chatSettings');
-    if (saved) {
-      try {
-        const settings = JSON.parse(saved);
-        return settings.useDirectSQL || false;
-      } catch (e) {
-        return false;
-      }
-    }
-    return false;
-  });
   const handleInputChange = (e) => {
     setInput(e.target.value);
   };
@@ -89,7 +77,7 @@ export default function Chat() {
               content: msg.text
             })) : [],
             includeHistory,
-            useDirectSQL
+            useDirectSQL: false
           })
         });
         console.log('Response status:', response.status);
